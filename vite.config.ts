@@ -3,8 +3,10 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
 
+const isCapacitor = process.env.BUILD_TARGET === 'capacitor'
+
 export default defineConfig({
-  base: '/fissa-stock/',
+  base: isCapacitor ? '/' : '/fissa-stock/',
   plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {

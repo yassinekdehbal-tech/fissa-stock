@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && cp dist/index.html dist/404.html",
+    "build:ios": "BUILD_TARGET=capacitor vite build",
+    "cap:init": "npx cap add ios",
+    "cap:sync": "npm run build:ios && npx cap sync ios",
+    "cap:open": "npx cap open ios",
     "preview": "vite preview"
   },
   "repository": {
@@ -16,6 +20,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/browser": "^8.0.3",
+    "@capacitor/camera": "^8.2.0",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.3.4",
+    "@capacitor/keyboard": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "firebase": "^12.13.0",
     "html5-qrcode": "^2.3.8",
     "pinia": "^3.0.4",

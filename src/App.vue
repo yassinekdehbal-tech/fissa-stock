@@ -6,6 +6,7 @@ import { useStockStore } from './stores/stock'
 import { useHistoryStore } from './stores/history'
 import { useUsersStore } from './stores/users'
 import { usePlanningStore } from './stores/planning'
+import { useNative } from './composables/useNative'
 import AppHeader from './components/ui/AppHeader.vue'
 import AppNav from './components/ui/AppNav.vue'
 import ToastNotification from './components/ui/ToastNotification.vue'
@@ -17,8 +18,10 @@ const stock = useStockStore()
 const history = useHistoryStore()
 const users = useUsersStore()
 const planning = usePlanningStore()
+const { initNative } = useNative()
 
 onMounted(async () => {
+  await initNative()
   await auth.ensureAdmin()
   stock.listen()
   history.listen()
@@ -44,7 +47,7 @@ router.beforeEach((to, _from, next) => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-screen flex flex-col" style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);">
     <template v-if="auth.isLoggedIn">
       <AppHeader />
       <AppNav />
