@@ -284,6 +284,129 @@ function truncate(str: string, len: number): string {
   if (!str) return ''
   return str.length > len ? str.substring(0, len) + '...' : str
 }
+
+// ---------------------------------------------------------------------------
+// Invoice generation
+// ---------------------------------------------------------------------------
+let invoiceCounter = Date.now()
+
+function generateInvoice(intervention: Intervention) {
+  const num = 'FA-' + new Date().getFullYear() + '-' + String(++invoiceCounter).slice(-6)
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('fr-FR')
+  const parts = intervention.parts || []
+  const subtotal = parts.reduce((s, p) => s + p.qty * p.prixUnitaire, 0)
+
+  const win = window.open('', '_blank', 'width=800,height=900')
+  if (!win) { toast('Popup bloquée — autorisez les popups', true); return }
+
+  win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Facture ${num}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;color:#1a1a1a;padding:40px;max-width:800px;margin:0 auto}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:30px;padding-bottom:20px;border-bottom:3px solid #e6a817}
+.brand{font-size:22px;font-weight:800;color:#e6a817;font-family:'Courier New',monospace}
+.brand span{color:#3fb950}
+.brand-sub{font-size:10px;color:#666;margin-top:2px;text-transform:uppercase;letter-spacing:2px}
+.invoice-info{text-align:right}
+.invoice-num{font-size:18px;font-weight:700;color:#333}
+.invoice-date{font-size:12px;color:#666;margin-top:4px}
+.parties{display:flex;justify-content:space-between;margin-bottom:30px;gap:40px}
+.party{flex:1}
+.party-title{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#e6a817;font-weight:700;margin-bottom:8px;font-family:'Courier New',monospace}
+.party-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.party-detail{font-size:12px;color:#555;line-height:1.6}
+.vehicle-box{background:#f8f8f8;border:1px solid #e0e0e0;border-radius:6px;padding:12px;margin-bottom:24px}
+.vehicle-title{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#e6a817;font-weight:700;margin-bottom:6px;font-family:'Courier New',monospace}
+.vehicle-detail{font-size:13px;color:#333}
+.vehicle-plate{display:inline-block;background:#e6a817;color:#000;font-weight:800;font-family:'Courier New',monospace;padding:2px 10px;border-radius:4px;font-size:13px;margin-left:8px}
+table{width:100%;border-collapse:collapse;margin-bottom:20px}
+thead th{background:#161b22;color:#e6edf3;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1px;text-align:left;font-family:'Courier New',monospace}
+tbody td{padding:10px 12px;border-bottom:1px solid #e8e8e8;font-size:12px}
+tbody tr:nth-child(even){background:#fafafa}
+.ref-cell{font-family:'Courier New',monospace;font-weight:700;color:#e6a817;font-size:11px}
+.qty-cell{text-align:center;font-family:'Courier New',monospace;font-weight:600}
+.price-cell{text-align:right;font-family:'Courier New',monospace}
+.total-row{border-top:2px solid #161b22}
+.total-row td{padding:14px 12px;font-size:14px;font-weight:800}
+.total-label{text-align:right;font-family:'Courier New',monospace;text-transform:uppercase;letter-spacing:1px}
+.total-val{text-align:right;font-family:'Courier New',monospace;color:#3fb950;font-size:16px}
+.desc-box{background:#f8f8f8;border:1px solid #e0e0e0;border-radius:6px;padding:12px;margin-bottom:24px}
+.desc-title{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#e6a817;font-weight:700;margin-bottom:6px;font-family:'Courier New',monospace}
+.desc-text{font-size:12px;color:#555;line-height:1.5}
+.footer{margin-top:40px;padding-top:16px;border-top:1px solid #ddd;text-align:center;font-size:10px;color:#999}
+.no-parts{padding:20px;text-align:center;color:#999;font-style:italic}
+@media print{body{padding:20px}button{display:none!important}}
+.print-btn{display:block;margin:30px auto 0;background:#e6a817;color:#000;border:none;font-size:13px;font-weight:700;padding:10px 30px;border-radius:6px;cursor:pointer;font-family:'Courier New',monospace}
+.print-btn:hover{background:#d49b15}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="brand">FISSA <span>PIECE</span> AUTO</div>
+    <div class="brand-sub">Pièces automobiles d'occasion</div>
+  </div>
+  <div class="invoice-info">
+    <div class="invoice-num">${num}</div>
+    <div class="invoice-date">Date : ${dateStr}</div>
+  </div>
+</div>
+
+<div class="parties">
+  <div class="party">
+    <div class="party-title">Client</div>
+    <div class="party-name">${intervention.clientName}</div>
+    <div class="party-detail">
+      ${intervention.clientPhone ? '📞 ' + intervention.clientPhone + '<br>' : ''}
+      ${intervention.clientEmail ? '✉ ' + intervention.clientEmail : ''}
+    </div>
+  </div>
+  <div class="party" style="text-align:right">
+    <div class="party-title">Intervention</div>
+    <div class="party-detail">
+      Prévu le : ${intervention.dateScheduled ? new Date(intervention.dateScheduled).toLocaleDateString('fr-FR') : '—'}<br>
+      ${intervention.dateDone ? 'Terminé le : ' + new Date(intervention.dateDone).toLocaleDateString('fr-FR') : ''}
+    </div>
+  </div>
+</div>
+
+<div class="vehicle-box">
+  <div class="vehicle-title">Véhicule</div>
+  <div class="vehicle-detail">
+    ${intervention.vehicleMake} ${intervention.vehicleModel}
+    <span class="vehicle-plate">${intervention.vehiclePlate}</span>
+  </div>
+</div>
+
+${intervention.description ? `<div class="desc-box"><div class="desc-title">Description des travaux</div><div class="desc-text">${intervention.description}</div></div>` : ''}
+
+<table>
+  <thead><tr><th>Réf</th><th>Désignation</th><th style="text-align:center">Qté</th><th style="text-align:right">Prix unit.</th><th style="text-align:right">Total</th></tr></thead>
+  <tbody>
+    ${parts.length ? parts.map(p => `<tr>
+      <td class="ref-cell">${p.ref}</td>
+      <td>${p.name}</td>
+      <td class="qty-cell">${p.qty}</td>
+      <td class="price-cell">${p.prixUnitaire.toFixed(2)} €</td>
+      <td class="price-cell">${(p.qty * p.prixUnitaire).toFixed(2)} €</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="no-parts">Aucune pièce facturée</td></tr>'}
+  </tbody>
+  <tr class="total-row">
+    <td colspan="4" class="total-label">Total TTC</td>
+    <td class="total-val">${subtotal.toFixed(2)} €</td>
+  </tr>
+</table>
+
+${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div><div class="desc-text">${intervention.notes}</div></div>` : ''}
+
+<div class="footer">
+  FISSA PIECE AUTO — Facture ${num} — Émise le ${dateStr}<br>
+  Merci de votre confiance
+</div>
+
+<button class="print-btn" onclick="window.print()">🖨 Imprimer / PDF</button>
+</body></html>`)
+  win.document.close()
+}
 </script>
 
 <template>
@@ -821,8 +944,15 @@ function truncate(str: string, len: number): string {
             </div>
           </div>
 
-          <!-- Save / Close -->
+          <!-- Invoice / Save / Close -->
           <div class="flex gap-2">
+            <button
+              v-if="editData"
+              @click="generateInvoice(editData)"
+              class="text-xs font-mono font-bold text-[#0d1117] bg-[#bc8cff] hover:bg-[#a371e3] px-4 py-2 rounded-lg transition-colors cursor-pointer"
+            >
+              🧾 Facture
+            </button>
             <button
               @click="showDetail = false"
               class="text-xs text-[#8b949e] hover:text-[#e6edf3] px-4 py-2 rounded-lg border border-[#30363d] hover:border-[#484f58] transition-colors cursor-pointer bg-transparent"
