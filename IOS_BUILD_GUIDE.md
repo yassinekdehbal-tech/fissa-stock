@@ -84,12 +84,74 @@ Pour generer les assets iOS aux bonnes tailles :
 npx @capacitor/assets generate --ios
 ```
 
+## TestFlight automatise (CI/CD)
+
+Le repo inclut un workflow GitHub Actions qui build et upload sur TestFlight automatiquement.
+
+### 1. Creer l'app sur App Store Connect
+
+- Va sur https://appstoreconnect.apple.com
+- Apps > + > Nouvelle app
+- Nom : FISSA PIECE AUTO
+- Bundle ID : com.fissa.pieceauto
+- SKU : fissa-piece-auto
+
+### 2. Generer une cle API App Store Connect
+
+- App Store Connect > Utilisateurs et acces > Integrations > Cles d'API
+- Cree une cle avec le role "Admin" ou "App Manager"
+- Note le **Key ID** et l'**Issuer ID**
+- Telecharge le fichier `.p8`
+
+### 3. Configurer Fastlane Match (certificats)
+
+Cree un repo Git prive pour stocker les certificats :
+
+```bash
+fastlane match init
+fastlane match appstore
+```
+
+### 4. Ajouter les secrets GitHub
+
+Va dans Settings > Secrets and variables > Actions du repo et ajoute :
+
+| Secret | Description |
+|--------|-------------|
+| `APPLE_ID` | Ton Apple ID (email) |
+| `APPLE_TEAM_ID` | Team ID (visible sur developer.apple.com) |
+| `APPLE_ITC_TEAM_ID` | Meme valeur que APPLE_TEAM_ID generalement |
+| `ASC_KEY_ID` | Key ID de la cle API App Store Connect |
+| `ASC_ISSUER_ID` | Issuer ID de la cle API |
+| `ASC_KEY_CONTENT` | Contenu du fichier .p8 encode en base64 |
+| `MATCH_GIT_URL` | URL du repo prive pour les certificats |
+| `MATCH_PASSWORD` | Mot de passe pour chiffrer les certificats |
+
+Pour encoder le fichier .p8 en base64 :
+```bash
+base64 -i AuthKey_XXXXX.p8 | tr -d '\n'
+```
+
+### 5. Declencher le build
+
+Deux facons :
+- **Tag** : `git tag v1.0.0 && git push --tags` → build auto
+- **Manuel** : GitHub > Actions > "Build iOS & Deploy to TestFlight" > Run workflow
+
+### 6. Tester sur iPhone
+
+- Ouvre l'app **TestFlight** sur ton iPhone
+- L'app FISSA apparait dans quelques minutes apres le build
+- Installe et teste
+
 ## Publication sur l'App Store
 
 1. Dans Xcode : Product > Archive
 2. Distribute App > App Store Connect
 3. Remplis les infos sur App Store Connect (description, screenshots, etc.)
 4. Soumets pour review Apple
+
+Ou via le meme workflow en changeant `upload_to_testflight` par `upload_to_app_store` dans le Fastfile.
 
 ## Fonctionnalites natives
 

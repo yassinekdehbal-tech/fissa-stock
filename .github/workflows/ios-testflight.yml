@@ -1,0 +1,51 @@
+name: Build iOS & Deploy to TestFlight
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web for Capacitor
+        run: npm run build:ios
+
+      - name: Add iOS platform
+        run: npx cap add ios
+
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Install Fastlane
+        run: gem install fastlane
+
+      - name: Setup Fastlane Match
+        env:
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ITC_TEAM_ID: ${{ secrets.APPLE_ITC_TEAM_ID }}
+        run: fastlane ios beta
