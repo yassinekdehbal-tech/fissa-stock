@@ -81,3 +81,32 @@ export const CATEGORIES: Record<PieceCategory, CategoryInfo> = {
   'autre': { label: 'Autre', icon: '⚫', color: '#8b949e', bgClass: 'bg-gray-500/10', textClass: 'text-gray-400', borderClass: 'border-gray-500/20' },
   '': { label: '—', icon: '', color: '#8b949e', bgClass: 'bg-gray-500/10', textClass: 'text-gray-400', borderClass: 'border-gray-500/20' }
 }
+
+export type InterventionStatus = 'todo' | 'in_progress' | 'done'
+
+export interface InterventionPart {
+  pieceId: string
+  ref: string
+  name: string
+  qty: number
+  prixUnitaire: number
+}
+
+export interface Intervention {
+  _id?: string
+  clientName: string
+  clientPhone: string
+  clientEmail: string
+  vehicleMake: string
+  vehicleModel: string
+  vehiclePlate: string
+  description: string
+  notes: string
+  status: InterventionStatus
+  parts: InterventionPart[]
+  estimatedTotal: number
+  dateScheduled: string
+  dateCreated: string
+  dateUpdated: string
+  dateDone?: string
+}

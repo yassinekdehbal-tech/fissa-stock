@@ -5,6 +5,7 @@ import { useAuthStore } from './stores/auth'
 import { useStockStore } from './stores/stock'
 import { useHistoryStore } from './stores/history'
 import { useUsersStore } from './stores/users'
+import { usePlanningStore } from './stores/planning'
 import AppHeader from './components/ui/AppHeader.vue'
 import AppNav from './components/ui/AppNav.vue'
 import ToastNotification from './components/ui/ToastNotification.vue'
@@ -15,12 +16,14 @@ const auth = useAuthStore()
 const stock = useStockStore()
 const history = useHistoryStore()
 const users = useUsersStore()
+const planning = usePlanningStore()
 
 onMounted(async () => {
   await auth.ensureAdmin()
   stock.listen()
   history.listen()
   users.listen()
+  planning.listen()
 })
 
 watch(() => auth.isLoggedIn, (loggedIn) => {

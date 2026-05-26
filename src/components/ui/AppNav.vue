@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { to: '/add', label: 'Ajouter', icon: '＋', show: auth.isAdmin || auth.hasPerm('magasinier') },
   { to: '/stock', label: 'Stock', icon: '📦', show: auth.isAdmin || auth.hasPerm('magasinier') },
   { to: '/scanner', label: 'Scanner', icon: '📷', show: auth.isAdmin || auth.hasPerm('vendeur') },
+  { to: '/planning', label: 'Atelier', icon: '🔧', show: auth.isAdmin || auth.hasPerm('magasinier') },
   { to: '/history', label: 'Historique', icon: '📋', show: true },
   { to: '/reporting', label: 'Reporting', icon: '📈', show: auth.isAdmin },
   { to: '/caisse', label: 'Caisse', icon: '💵', show: auth.isAdmin },
