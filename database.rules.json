@@ -1,0 +1,33 @@
+{
+  "rules": {
+    "stock": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$piece_id": {
+        ".validate": "newData.hasChildren(['ref', 'name', 'qty'])",
+        "ref": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50" },
+        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+        "qty": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "price": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+      }
+    },
+    "historique": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$entry_id": {
+        ".validate": "newData.hasChildren(['type', 'ts'])",
+        "type": { ".validate": "newData.isString() && newData.val().matches(/^(vente|ajout|modif|suppression|connexion)$/)" },
+        "ts": { ".validate": "newData.isNumber()" }
+      }
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$user_id": {
+        "pwd": {
+          ".read": false
+        }
+      }
+    }
+  }
+}
