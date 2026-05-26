@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com; img-src 'self' data: https: blob:;">
 <meta name="theme-color" content="#e6a817">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -484,6 +485,51 @@ const CATEGORIES = {
 };
 
 // ══════════════════════════════════════════
+// SECURITY
+// ══════════════════════════════════════════
+async function hashPwd(pwd) {
+  const data = new TextEncoder().encode(pwd + 'fissa_salt_2024');
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function sanitize(str) {
+  if (typeof str !== 'string') return str;
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+const loginAttempts = { count: 0, lockUntil: 0 };
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 60000;
+
+function checkRateLimit() {
+  if (Date.now() < loginAttempts.lockUntil) {
+    const secs = Math.ceil((loginAttempts.lockUntil - Date.now()) / 1000);
+    return { blocked: true, msg: `Trop de tentatives. Réessayez dans ${secs}s` };
+  }
+  return { blocked: false };
+}
+
+function recordLoginAttempt(success) {
+  if (success) { loginAttempts.count = 0; loginAttempts.lockUntil = 0; return; }
+  loginAttempts.count++;
+  if (loginAttempts.count >= MAX_LOGIN_ATTEMPTS) {
+    loginAttempts.lockUntil = Date.now() + LOCKOUT_DURATION;
+    loginAttempts.count = 0;
+  }
+}
+
+function generateSessionToken() {
+  const arr = new Uint8Array(32);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+let sessionToken = null;
+
+// ══════════════════════════════════════════
 // PWA
 // ══════════════════════════════════════════
 if('serviceWorker' in navigator) {
@@ -522,7 +568,10 @@ function initApp() {
 
 async function ensureAdmin() {
   const snap=await window._get(window._ref(window._db,'users/admin'));
-  if(!snap.exists()) await window._set(window._ref(window._db,'users/admin'),{id:'admin',name:'Administrateur',role:'admin',pwd:'admin123',perms:{}});
+  if(!snap.exists()) {
+    const hashed = await hashPwd('admin123');
+    await window._set(window._ref(window._db,'users/admin'),{id:'admin',name:'Administrateur',role:'admin',pwd:hashed,hashed:true,perms:{}});
+  }
 }
 
 function refreshUI() {
@@ -565,15 +614,30 @@ async function doLogin() {
   const err=document.getElementById('login-err');
   err.style.display='none';
   if(!id||!pwd){err.style.display='block';err.textContent='Remplissez tous les champs';return;}
+  const rl=checkRateLimit();
+  if(rl.blocked){err.style.display='block';err.textContent=rl.msg;return;}
   const snap=await window._get(window._ref(window._db,'users'));
-  const found=Object.values(snap.val()||{}).find(u=>u.id===id&&u.pwd===pwd);
-  if(!found){err.style.display='block';return;}
-  currentUser={_id:Object.keys(snap.val()||{}).find(k=>(snap.val()||{})[k].id===id),id:found.id,name:found.name,role:found.role,perms:found.perms||{}};
-  // Log connexion
+  const users=snap.val()||{};
+  const hashedPwd=await hashPwd(pwd);
+  let found=null;let foundKey=null;
+  for(const [k,u] of Object.entries(users)){
+    if(u.id!==id)continue;
+    if(u.hashed&&u.pwd===hashedPwd){found=u;foundKey=k;break;}
+    if(!u.hashed&&u.pwd===pwd){
+      found=u;foundKey=k;
+      await window._update(window._ref(window._db,'users/'+k),{pwd:hashedPwd,hashed:true});
+      break;
+    }
+  }
+  if(!found){recordLoginAttempt(false);err.style.display='block';return;}
+  recordLoginAttempt(true);
+  sessionToken=generateSessionToken();
+  sessionStorage.setItem('fissa_session',sessionToken);
+  currentUser={_id:foundKey,id:found.id,name:found.name,role:found.role,perms:found.perms||{}};
   await addHisto({type:'connexion',ref:'—',name:'Connexion',user:found.name,device:navigator.userAgent.includes('Mobile')?'Mobile':'Desktop',ts:Date.now(),date:new Date().toLocaleString('fr-FR')});
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
-  document.getElementById('hdr-name').textContent=found.name;
+  document.getElementById('hdr-name').textContent=sanitize(found.name);
   if(found.role==='admin'){document.getElementById('hdr-role').textContent='Admin';document.getElementById('hdr-role').className='role-tag role-admin';}
   else{const pl=Object.keys(found.perms||{}).filter(k=>found.perms[k]).map(k=>k[0].toUpperCase()+k.slice(1)).join(' · ')||'—';document.getElementById('hdr-role').textContent=pl;document.getElementById('hdr-role').className='role-tag role-user';}
   resetSessionTimer();
@@ -581,7 +645,8 @@ async function doLogin() {
 }
 
 function doLogout() {
-  currentUser=null;panier=[];
+  currentUser=null;panier=[];sessionToken=null;
+  sessionStorage.removeItem('fissa_session');
   if(sessionTimer){clearTimeout(sessionTimer);sessionTimer=null;}
   if(isScanning)stopCam();
   document.getElementById('login-screen').style.display='flex';
@@ -726,19 +791,19 @@ async function addPiece() {
   if(!ref){toast('La référence est requise',true);return;}
   if(!name){toast('La désignation est requise',true);return;}
   if(window._stock.find(p=>p.ref===ref)){toast('Référence déjà existante',true);return;}
-  const piece={ref,name,
+  const piece={ref:sanitize(ref),name:sanitize(name),
     cat:document.getElementById('f-cat').value||'',
-    vehicle:(document.getElementById('f-vehicle').value||'').trim(),
-    oem:(document.getElementById('f-oem').value||'').trim(),
-    supplier:(document.getElementById('f-supplier').value||'').trim(),
-    donor:(document.getElementById('f-donor').value||'').trim(),
+    vehicle:sanitize((document.getElementById('f-vehicle').value||'').trim()),
+    oem:sanitize((document.getElementById('f-oem').value||'').trim()),
+    supplier:sanitize((document.getElementById('f-supplier').value||'').trim()),
+    donor:sanitize((document.getElementById('f-donor').value||'').trim()),
     qty,price:parseFloat(document.getElementById('f-price').value)||0,
     threshold:parseInt(document.getElementById('f-threshold').value)||undefined,
-    zone:(document.getElementById('f-zone').value||'').trim(),
+    zone:sanitize((document.getElementById('f-zone').value||'').trim()),
     etat:document.getElementById('f-etat').value,
-    compat:(document.getElementById('f-compat').value||'').trim(),
+    compat:sanitize((document.getElementById('f-compat').value||'').trim()),
     photo:(document.getElementById('f-photo').value||'').trim(),
-    notes:(document.getElementById('f-notes').value||'').trim(),
+    notes:sanitize((document.getElementById('f-notes').value||'').trim()),
     fmt:document.getElementById('f-format').value,
     added:new Date().toISOString(),archived:false
   };
@@ -881,7 +946,7 @@ function openEdit(id) {
 
 async function saveEdit() {
   const id=document.getElementById('edit-id').value;
-  const data={name:document.getElementById('edit-name').value,cat:document.getElementById('edit-cat').value,vehicle:document.getElementById('edit-vehicle').value,oem:document.getElementById('edit-oem').value,supplier:document.getElementById('edit-supplier').value,donor:document.getElementById('edit-donor').value,qty:parseInt(document.getElementById('edit-qty').value)||0,threshold:parseInt(document.getElementById('edit-threshold').value)||null,price:parseFloat(document.getElementById('edit-price').value)||0,zone:document.getElementById('edit-zone').value,etat:document.getElementById('edit-etat').value,compat:document.getElementById('edit-compat').value,photo:document.getElementById('edit-photo').value,notes:document.getElementById('edit-notes').value};
+  const data={name:sanitize(document.getElementById('edit-name').value),cat:document.getElementById('edit-cat').value,vehicle:sanitize(document.getElementById('edit-vehicle').value),oem:sanitize(document.getElementById('edit-oem').value),supplier:sanitize(document.getElementById('edit-supplier').value),donor:sanitize(document.getElementById('edit-donor').value),qty:parseInt(document.getElementById('edit-qty').value)||0,threshold:parseInt(document.getElementById('edit-threshold').value)||null,price:parseFloat(document.getElementById('edit-price').value)||0,zone:sanitize(document.getElementById('edit-zone').value),etat:document.getElementById('edit-etat').value,compat:sanitize(document.getElementById('edit-compat').value),photo:document.getElementById('edit-photo').value,notes:sanitize(document.getElementById('edit-notes').value)};
   await window._update(window._ref(window._db,'stock/'+id),data);
   const p=window._stock.find(x=>x._id===id);
   await addHisto({type:'modif',ref:p?p.ref:id,name:data.name,user:currentUser.name,ts:Date.now(),date:new Date().toLocaleString('fr-FR')});
@@ -1209,15 +1274,16 @@ function renderUsers() {
 function openAddUser(){['nu-id','nu-name','nu-pwd'].forEach(id=>document.getElementById(id).value='');['perm-magasinier','perm-vendeur','perm-historique'].forEach(id=>document.getElementById(id).checked=false);document.getElementById('modal-add-user').classList.add('open');}
 
 async function createUser() {
-  const id=document.getElementById('nu-id').value.trim().toLowerCase();
+  const id=document.getElementById('nu-id').value.trim().toLowerCase().replace(/[^a-z0-9._-]/g,'');
   const name=document.getElementById('nu-name').value.trim();
   const pwd=document.getElementById('nu-pwd').value;
   if(!id||!name||!pwd){toast('Remplissez tous les champs',true);return;}
-  if(pwd.length<4){toast('Mot de passe trop court',true);return;}
+  if(pwd.length<6){toast('Mot de passe trop court (6 caractères min.)',true);return;}
   if(window._users.find(u=>u.id===id)){toast('Identifiant déjà utilisé',true);return;}
   const perms={magasinier:document.getElementById('perm-magasinier').checked,vendeur:document.getElementById('perm-vendeur').checked,historique:document.getElementById('perm-historique').checked};
+  const hashedPwd=await hashPwd(pwd);
   const r=window._push(window._ref(window._db,'users'));
-  await window._set(r,{id,name,role:'user',pwd,perms});
+  await window._set(r,{id,name:sanitize(name),role:'user',pwd:hashedPwd,hashed:true,perms});
   closeModal('modal-add-user');toast('✓ Compte créé pour '+name);
 }
 
@@ -1235,10 +1301,10 @@ function openEditUser(fbId) {
 async function saveUserEdit() {
   const fbId=document.getElementById('eu-id').value;
   const perms={magasinier:document.getElementById('eu-magasinier').checked,vendeur:document.getElementById('eu-vendeur').checked,historique:document.getElementById('eu-historique').checked};
-  const update={perms};
+  const upd={perms};
   const newPwd=document.getElementById('eu-pwd').value;
-  if(newPwd){if(newPwd.length<4){toast('Mot de passe trop court',true);return;}update.pwd=newPwd;}
-  await window._update(window._ref(window._db,'users/'+fbId),update);
+  if(newPwd){if(newPwd.length<6){toast('Mot de passe trop court (6 caractères min.)',true);return;}upd.pwd=await hashPwd(newPwd);upd.hashed=true;}
+  await window._update(window._ref(window._db,'users/'+fbId),upd);
   closeModal('modal-edit-user');toast('Compte mis à jour');
 }
 
