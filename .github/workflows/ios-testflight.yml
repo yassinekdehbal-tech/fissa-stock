@@ -30,6 +30,9 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync ios
 
+      - name: Write API Key file
+        run: echo "${{ secrets.ASC_KEY_CONTENT }}" > ./AuthKey.p8
+
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
@@ -38,13 +41,13 @@ jobs:
       - name: Install Fastlane
         run: gem install fastlane
 
-      - name: Setup Fastlane Match
+      - name: Run Fastlane
         env:
           MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          ASC_KEY_FILE: ./AuthKey.p8
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_ITC_TEAM_ID: ${{ secrets.APPLE_ITC_TEAM_ID }}
