@@ -31,7 +31,9 @@ jobs:
         run: npx cap sync ios
 
       - name: Write API Key file
-        run: echo "${{ secrets.ASC_KEY_CONTENT }}" > ./AuthKey.p8
+        env:
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+        run: printenv ASC_KEY_CONTENT > ./AuthKey.p8 && cat ./AuthKey.p8 | head -1
 
       - uses: ruby/setup-ruby@v1
         with:
