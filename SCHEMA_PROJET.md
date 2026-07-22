@@ -5,7 +5,7 @@
 > **À tenir à jour** : à chaque ajout de page, fonction ou entité, mettre à jour la section correspondante et le §7 Journal.
 
 - **Dernière mise à jour** : 22/07/2026
-- **Version** : 1.0
+- **Version** : 1.1
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock`
 
 ---
@@ -124,7 +124,7 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 
 | Champ | Type | Description |
 |-------|------|-------------|
-| `type` | enum | vente · ajout · modif · suppression · connexion |
+| `type` | enum | vente · ajout · modif · suppression · connexion · *(cible)* sortie-chantier · retour-chantier |
 | `ref` / `name` | string | Pièce concernée |
 | `qty` / `prixVente` / `prixCatalogue` / `remise` | number? | Détail vente |
 | `payment` | string? | espèces · carte · virement · chèque |
@@ -146,7 +146,7 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 - **`Facture`** : numéro séquentiel, type (devis/facture), client, lignes (pièces + MO), HT/TVA/TTC, statut, date, `interventionId?`, mentions légales.
 - **`Vente`** : distincte de `HistoryEntry`, pour la boutique/caisse (panier, paiement, remise).
 - **`Commande`** (boutique) : client en ligne, pièces réservées, paiement Stripe, statut (réservée/payée/retirée/expédiée).
-- **`MouvementStock`** : entrée/sortie unifiée (ajout, vente comptoir, sortie chantier, commande en ligne) → **source de vérité du stock**.
+- **`MouvementStock`** : entrée/sortie unifiée (ajout, vente comptoir, sortie chantier, retour chantier, commande en ligne) → **source de vérité du stock**.
 
 ---
 
@@ -157,7 +157,10 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 
 ### 4.2 `stores/planning.ts` (module 4) 🟡
 `listen()` · `addIntervention()` · `updateIntervention()` · `moveStatus()` · `deleteIntervention()` · `getClientHistory()` · getters : `todo`, `inProgress`, `done`.
-> **Manque (P0)** : `moveStatus('done')` ne **déduit pas** les `parts[]` du stock. Fonction à ajouter : `validateAndDeductStock(id)` → pour chaque part, `stockStore.updatePiece(part.pieceId, { qty: qty - part.qty })` + écriture `historique` type `vente`/`sortie-chantier`.
+> **Manque (P0) — logique validée 22/07/2026** : le stock n'est pas encore touché. Fonctions à ajouter :
+> - `addPart(id, part)` → ajoute à `parts[]` **et décompte le stock immédiatement** : `stockStore.updatePiece(part.pieceId, { qty: qty - part.qty })` + `historique` type `sortie-chantier`. (Ajout = chantier validé pour cette pièce, pas d'état « réservé ».)
+> - `removePart(id, part)` (désistement) → retire de `parts[]` **et retourne au stock** : `stockStore.updatePiece(part.pieceId, { qty: qty + part.qty })` + `historique` type `retour-chantier`.
+> - Garde-fou : refuser l'ajout si `qty` disponible insuffisante (pièces d'occasion uniques = qty 1).
 
 ### 4.3 `stores/auth.ts` (module 5) 🟡
 `login()` · `logout()` · `ensureAdmin()` · `hasPerm()` · getters `isAdmin`, `isLoggedIn`. Hash côté client + rate limit + token session. → à migrer vers Supabase Auth.
@@ -204,21 +207,25 @@ Validation vente + paiement
    └──►  historique: type=vente (+ client, paiement, remise)
 ```
 
-### 5.3 Chantier atelier avec déduction stock (module 4) — **cible**
+### 5.3 Chantier atelier avec déduction stock (module 4) — **logique validée 22/07/2026**
 
 ```
 Création chantier (client + véhicule + date/heure)
    │
    ▼
-Sélection pièces depuis le stock ──► parts[] + estimatedTotal
-   │                                   (option: réservation qty)
+AJOUT d'une pièce depuis le stock  ──►  parts[] + estimatedTotal
+   │                                     (ajout = validé, PAS de statut "réservé")
+   ├──►  déduction stock IMMÉDIATE : qty -= part.qty      ◄── À IMPLÉMENTER (P0)
+   └──►  historique: type=sortie-chantier
+   │
+   │   ┌─ DÉSISTEMENT (pièce finalement non utilisée)
+   │   └─►  retrait de parts[]  ──►  RETOUR au stock : qty += part.qty
+   │                              └─►  historique: type=retour-chantier
    ▼
 Suivi Kanban : todo ─► in_progress ─► done
    │
-   ▼  VALIDATION (done)
-   ├──►  déduction stock : pour chaque part → qty -= part.qty   ◄── À IMPLÉMENTER (P0)
-   ├──►  historique: type=sortie-chantier
-   └──►  génération facture-chiffrage (pièces + main d'œuvre)
+   ▼
+Génération facture-chiffrage (pièces + main d'œuvre)
 ```
 
 ### 5.4 Vente en ligne (module 2) — **cible**
@@ -263,6 +270,7 @@ Paiement Stripe ──► Commande "payée"
 | Date | Version | Résumé |
 |------|---------|--------|
 | 22/07/2026 | 1.0 | Création : cartographie des routes existantes, modèle de données (Piece, Intervention, HistoryEntry, User), fonctions des stores, flux métier des 5 modules, entités et pages cibles |
+| 22/07/2026 | 1.1 | Décisions actées : logique pièce↔chantier (décompte à l'ajout via `addPart`, retour au stock via `removePart` en cas de désistement) ; ajout des mouvements `sortie-chantier` / `retour-chantier`. MAJ §4.2, §5.3, §3.4 |
 
 ---
 
