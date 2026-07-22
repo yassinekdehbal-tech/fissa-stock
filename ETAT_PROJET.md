@@ -5,7 +5,7 @@
 > **À tenir à jour** : à chaque évolution significative, ajouter une entrée dans le §10 Journal des mises à jour et actualiser les sections concernées.
 
 - **Dernière mise à jour** : 22/07/2026
-- **Version du document** : 2.0
+- **Version du document** : 2.1
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock` (branche `main`)
 - **Document compagnon** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données)
 
@@ -36,7 +36,7 @@ Le projet est un **repositionnement** d'un premier jet démarré début 2026. On
 | Module | Existant | État | Reste à faire (clé) |
 |--------|----------|------|---------------------|
 | 3 — Stock + code-barres | Oui | 🟢 Fonctionnel | Photos en upload direct, pagination, fiche produit |
-| 4 — Atelier / chantiers | Partiel | 🟡 En cours | **Déduction stock à la validation**, facture/devis chantier, planning daté/heuré complet |
+| 4 — Atelier / chantiers | Partiel | 🟡 En cours | **Déduction stock à l'ajout de pièce + retour si désistement**, facture/devis chantier, planning daté/heuré complet |
 | 5 — Comptes / caisse | Partiel | 🟡 En cours | Facturation légale (TVA, numérotation), export comptable |
 | 1 — Vitrine | Non | 🔴 À faire | Catalogue public, SEO |
 | 2 — Boutique | Non | 🔴 À faire | Panier client, paiement en ligne, réservation |
@@ -56,7 +56,7 @@ Le projet a été migré d'un **mono-fichier HTML/JS vanilla** (`index.old.html`
 | State | Pinia (stores par domaine) |
 | Routing | vue-router (routes lazy-loaded) |
 | Style | Tailwind CSS 4 |
-| Backend / BDD | **Firebase Realtime Database** (temps réel) |
+| Backend / BDD | **Firebase Realtime Database** (temps réel) → **cible : Supabase (voir §7.2)** |
 | Auth | Custom (hash mot de passe côté client + rate limiting + token de session) |
 | App native | Capacitor 8 (iOS ; Android possible) |
 | Code-barres | JsBarcode (génération) + html5-qrcode (lecture caméra) |
@@ -108,13 +108,17 @@ src/
 **Cycle de vie d'un chantier**
 1. Création : client + véhicule + date/heure planifiée (`dateScheduled`) + description.
 2. Ajout des **pièces utilisées** (neuves ou occasion) sélectionnées depuis le stock → alimentent `parts[]` et `estimatedTotal`.
-3. Suivi Kanban : `todo` → `in_progress` → `done`.
-4. **Édition d'une facture-chiffrage** (devis puis facture).
-5. À la validation (`done`) : les pièces de `parts[]` doivent être **déduites du stock**.
+3. **Décision métier (validée 22/07/2026)** : **ajouter une pièce à un chantier = le chantier est validé pour cette pièce → le stock est décompté immédiatement** (`qty -= part.qty`) au moment de l'ajout. Il n'y a **pas d'état intermédiaire « réservé »**.
+4. **Désistement / retrait d'une pièce** : si, pour une raison quelconque, une pièce n'est finalement pas utilisée, son retrait du chantier **la retourne au stock** (`qty += part.qty`) et trace un mouvement de retour.
+5. Suivi Kanban : `todo` → `in_progress` → `done`.
+6. **Édition d'une facture-chiffrage** (devis puis facture).
 
-> ⚠️ **ÉCART CONNU (à corriger, P0)** : dans `planning.ts`, `moveStatus(id, 'done')` ne fait que positionner `dateDone`. **La déduction du stock n'est pas implémentée.** C'est LE point métier central du module 4 : sans déduction, pas de vrai suivi. À câbler : à la validation (ou à la sélection des pièces), décrémenter `qty` de chaque `Piece` correspondante + écrire une entrée `historique` liée au chantier.
-
-> ⚠️ **À clarifier avec le métier** : au moment précis où une pièce est « réservée » pour un chantier, doit-elle être décomptée du stock disponible dès l'ajout au chantier, ou seulement à la validation finale ? (Recommandation : réservation à l'ajout, décompte définitif à la validation, avec libération si la pièce est retirée du chantier.)
+> ⚠️ **ÉCART CONNU (à corriger, P0)** : aujourd'hui dans `planning.ts`, ni l'ajout ni la validation ne touchent le stock (`moveStatus('done')` ne fait que positionner `dateDone`). **La déduction du stock n'est pas implémentée.** C'est LE point métier central du module 4.
+>
+> **À câbler (logique cible validée)** :
+> - `addPart(interventionId, part)` → ajoute à `parts[]` **et** `stockStore.updatePiece(part.pieceId, { qty: qty - part.qty })` + entrée `historique` type `sortie-chantier`.
+> - `removePart(interventionId, part)` (désistement) → retire de `parts[]` **et** `stockStore.updatePiece(part.pieceId, { qty: qty + part.qty })` + entrée `historique` type `retour-chantier`.
+> - Garde-fou : refuser l'ajout si `qty` disponible insuffisante (surtout pour les pièces d'occasion uniques, qty = 1).
 
 ### 4.3 Module Comptes (fondamental 5)
 
@@ -145,14 +149,14 @@ Non commencés. Logique cible : catalogue public alimenté par **la même base s
 ## 6. Priorités court terme (proposition de feuille de route)
 
 **Sprint A — Consolider le socle métier (modules 3 & 4)**
-1. Implémenter la **déduction de stock à la validation d'un chantier** (écart §4.2). *(P0)*
+1. Implémenter la **déduction de stock à l'ajout d'une pièce au chantier + le retour au stock en cas de désistement** (écart §4.2). *(P0)*
 2. **Facture-chiffrage chantier** : devis → facture, avec pièces + main d'œuvre, numérotation séquentielle. *(P0)*
 3. **Planning daté/heuré** complet côté atelier (vue calendrier + statut). *(P1)*
-4. Fiabiliser le lien pièce↔chantier (réservation, libération). *(P1)*
+4. Fiabiliser le lien pièce↔chantier (garde-fou stock insuffisant, traçabilité des retours). *(P1)*
 
-**Sprint B — Sécuriser & fiabiliser**
-5. Migration de l'authentification vers une vraie auth (voir §7). *(P0)*
-6. Upload photos direct (au lieu d'URL). *(P1)*
+**Sprint B — Sécuriser & fiabiliser (via migration Supabase)**
+5. Migration backend Firebase → **Supabase** (Postgres + Auth + RLS). *(P0)*
+6. Upload photos direct (Supabase Storage, au lieu d'URL). *(P1)*
 7. Pagination du stock (> 1000 pièces). *(P2)*
 
 **Sprint C — Ouvrir au public (modules 1 & 2)**
@@ -163,15 +167,15 @@ Non commencés. Logique cible : catalogue public alimenté par **la même base s
 
 ## 7. Recommandation technique (demandée en session du 22/07/2026)
 
-> Contexte : l'utilisateur a demandé « recommande-moi ». Voici l'orientation conseillée, avec justification. **Rien n'est imposé** : ces choix sont à valider avant exécution.
+> Contexte : l'utilisateur a demandé « recommande-moi ». Voici l'orientation conseillée, avec justification.
 
 ### 7.1 Garder ce qui est bon
 
 Le **frontend est moderne et bien choisi** : Vue 3 + Vite + Pinia + Tailwind + Capacitor. On **le conserve**. Le scanner (JsBarcode + html5-qrcode) et l'app native Capacitor sont adaptés au terrain. Pas de refonte frontend.
 
-### 7.2 Décision structurante n°1 — Backend : migrer Firebase RTDB → Supabase
+### 7.2 Décision structurante n°1 — Backend : migrer Firebase RTDB → Supabase ✅ VALIDÉE (22/07/2026)
 
-**Recommandation : passer de Firebase Realtime Database à Supabase (PostgreSQL + Auth + Storage + Row Level Security).**
+**Décision actée : passer de Firebase Realtime Database à Supabase (PostgreSQL + Auth + Storage + Row Level Security).**
 
 Pourquoi :
 - Le métier devient **relationnel** : pièces ↔ chantiers ↔ factures ↔ mouvements de stock ↔ comptes ↔ commandes boutique. Un arbre NoSQL (RTDB) gère mal l'intégrité référentielle et les jointures ; Postgres est fait pour ça.
@@ -182,8 +186,6 @@ Pourquoi :
 - Un serveur MCP Supabase est déjà disponible dans l'environnement de travail → mise en place assistée.
 
 Coût du changement : réécrire la couche d'accès données (`composables/useFirebase` → client Supabase) et les stores. Le frontend et les composants restent. **Effort modéré, bénéfice structurel majeur.** À faire *avant* de construire boutique + facturation, pas après.
-
-> Alternative si l'on veut minimiser le changement immédiat : rester sur Firebase, mais migrer au minimum l'auth vers **Firebase Auth** et durcir les règles. Acceptable à court terme, mais repousse un problème qui grossira avec la boutique et la compta.
 
 ### 7.3 Décision structurante n°2 — Vitrine & boutique : catalogue sur-mesure, pas un e-commerce à variantes
 
@@ -205,7 +207,7 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 |-------|------|
 | Frontend | Vue 3 + Vite + Pinia + Tailwind (conserver) |
 | App native | Capacitor (conserver) |
-| Backend/BDD | **Supabase (Postgres)** — migration depuis Firebase RTDB |
+| Backend/BDD | **Supabase (Postgres)** — migration depuis Firebase RTDB ✅ validée |
 | Auth | **Supabase Auth + RLS** par rôle |
 | Fichiers/photos | Supabase Storage |
 | Vitrine + Boutique | Sur-mesure dans l'app Vue, source = stock |
@@ -216,11 +218,16 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 
 ---
 
-## 8. Décisions à trancher (en attente de l'utilisateur)
+## 8. Décisions
 
-1. **Backend** : valider la migration vers Supabase, ou rester Firebase pour l'instant ? *(bloque Sprint B/C)*
-2. **Réservation pièce chantier** : décompte à l'ajout ou à la validation ? *(§4.2)*
-3. **Régime TVA** : franchise en base ou TVA normale ? (impacte facturation)
+### 8.1 Décisions actées (22/07/2026)
+
+1. ✅ **Backend** : migration vers **Supabase** validée (Postgres + Auth + Storage + RLS).
+2. ✅ **Pièce ↔ chantier** : décompte du stock **dès l'ajout** de la pièce au chantier (ajout = chantier validé pour cette pièce, pas d'état « réservé ») ; **retour au stock en cas de désistement** (retrait de la pièce). Voir §4.2.
+
+### 8.2 Décisions encore à trancher
+
+3. **Régime TVA** : franchise en base ou TVA normale ? (impacte la facturation)
 4. **Paiement en ligne** : Stripe et/ou SumUp — comptes déjà existants ?
 5. **Vitrine/boutique** : sur-mesure (reco) ou solution tierce (Shopify) ?
 
@@ -234,6 +241,7 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 - **OEM** : référence constructeur d'origine (Original Equipment Manufacturer).
 - **Chantier / intervention** : prestation atelier sur un véhicule client.
 - **Chiffrage** : devis estimatif d'un chantier (pièces + main d'œuvre).
+- **Désistement** : retrait d'une pièce d'un chantier → retour au stock.
 
 ---
 
@@ -243,6 +251,7 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 |------|---------|--------|--------|
 | 26/05/2026 | 1.0 | — | CAHIER_DES_CHARGES initial (repo) |
 | 22/07/2026 | 2.0 | Session Cowork | Repositionnement autour des 5 fondamentaux ; analyse de l'existant Vue/Firebase ; recommandation technique (migration Supabase) ; identification de l'écart « déduction stock chantier » ; création de ETAT_PROJET.md + SCHEMA_PROJET.md |
+| 22/07/2026 | 2.1 | Session Cowork | Décisions actées : migration Supabase **validée** ; logique pièce↔chantier arrêtée (décompte à l'ajout, retour au stock si désistement). MAJ §4.2, §7.2, §8, §10 |
 
 ---
 
