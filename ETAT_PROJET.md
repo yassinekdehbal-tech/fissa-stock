@@ -5,7 +5,7 @@
 > **À tenir à jour** : à chaque évolution significative, ajouter une entrée dans le §10 Journal des mises à jour et actualiser les sections concernées.
 
 - **Dernière mise à jour** : 22/07/2026
-- **Version du document** : 2.1
+- **Version du document** : 2.2
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock` (branche `main`)
 - **Document compagnon** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données)
 
@@ -22,12 +22,12 @@ Le projet est un **repositionnement** d'un premier jet démarré début 2026. On
 | N° | Module | Description | Priorité actuelle |
 |----|--------|-------------|-------------------|
 | 1 | **Site vitrine** | Présentation publique de l'activité FISSA PIÈCE AUTO | P2 (moyen terme) |
-| 2 | **Boutique en ligne** | Vente des pièces en ligne aux clients | P2 (moyen terme) |
+| 2 | **Vente en ligne (multidiffusion)** | Publier une annonce une seule fois dans FISSA STOCK → diffusion auto sur les marketplaces (LeBonCoin actuel ; cible eBay, OVOKO, autres) | P2 (moyen terme) |
 | 3 | **Stock + code-barres** | Référencement des pièces par les préparateurs (formulaire → étiquette code-barres), sortie de stock à la vente | **P0 (prioritaire)** |
 | 4 | **Atelier / chantiers** | Enregistrement daté/heuré des chantiers, facture-chiffrage, pièces (neuves ou occasion) sélectionnables et déduites du stock, suivi des chantiers réalisés | **P0 (prioritaire)** |
 | 5 | **Gestion des comptes** | Comptes utilisateurs + suivi financier (caisse, CA, à terme comptabilité) | P1 |
 
-> **Décision de session (22/07/2026)** : cette phase se concentre sur les modules **3 (Stock)** et **4 (Atelier)**, déjà les plus avancés. La vitrine et la boutique viennent ensuite, une fois le socle backend consolidé.
+> **Décision de session (22/07/2026)** : cette phase se concentre sur les modules **3 (Stock)** et **4 (Atelier)**, déjà les plus avancés. La vitrine et la vente en ligne viennent ensuite, une fois le socle backend consolidé.
 
 ---
 
@@ -39,7 +39,7 @@ Le projet est un **repositionnement** d'un premier jet démarré début 2026. On
 | 4 — Atelier / chantiers | Partiel | 🟡 En cours | **Déduction stock à l'ajout de pièce + retour si désistement**, facture/devis chantier, planning daté/heuré complet |
 | 5 — Comptes / caisse | Partiel | 🟡 En cours | Facturation légale (TVA, numérotation), export comptable |
 | 1 — Vitrine | Non | 🔴 À faire | Catalogue public, SEO |
-| 2 — Boutique | Non | 🔴 À faire | Panier client, paiement en ligne, réservation |
+| 2 — Vente en ligne | Non | 🔴 À faire | Moteur de multidiffusion (eBay/OVOKO/LeBonCoin), anti-survente |
 
 Légende : 🟢 opérationnel · 🟡 démarré / incomplet · 🔴 non commencé
 
@@ -97,7 +97,7 @@ src/
 **Catégories** : moteur, carrosserie, train-avant, train-arrière, électronique, autre.
 **États (occasion)** : Bon état, Très bon état, État moyen, Pour pièces.
 
-> **Règle métier importante** : chaque pièce d'occasion est le plus souvent **unique** (qty = 1, issue d'un véhicule donneur précis). Ce n'est pas du stock fongible « classique ». → Impacte fortement le design de la boutique (§7) : un catalogue de pièces uniques, pas un e-commerce à variantes.
+> **Règle métier importante** : chaque pièce d'occasion est le plus souvent **unique** (qty = 1, issue d'un véhicule donneur précis). Ce n'est pas du stock fongible « classique ». → Impacte fortement la vente en ligne (§7.3) : catalogue de pièces uniques + **risque de survente** si la même pièce est listée sur plusieurs marketplaces.
 
 ### 4.2 Module Atelier / chantiers (fondamental 4)
 
@@ -125,11 +125,11 @@ src/
 - **Comptes utilisateurs** : rôles `admin` / `user`, permissions granulaires (`magasinier`, `vendeur`, `historique`). Store `auth.ts` + `users.ts`.
 - **Caisse journalière** : total du jour, répartition par mode de paiement, récapitulatif imprimable.
 - **Reporting** : CA mensuel/tendance, top pièces, délai entrée→vente.
-- **À construire** : facturation conforme (mentions légales, TVA, numérotation séquentielle), export comptable (FEC/Pennylane), suivi financier consolidé pièces + chantiers.
+- **À construire** : facturation conforme **TVA normale** (mentions légales, TVA, numérotation séquentielle), export comptable (FEC/Pennylane), suivi financier consolidé pièces + chantiers.
 
-### 4.4 Modules Vitrine & Boutique (fondamentaux 1 & 2)
+### 4.4 Modules Vitrine & Vente en ligne (fondamentaux 1 & 2)
 
-Non commencés. Logique cible : catalogue public alimenté par **la même base stock** (une pièce visible en ligne = une pièce du stock non archivée et marquée « publiable »), recherche par véhicule / référence, panier avec **réservation** (pièces uniques → gestion de la concurrence d'achat), paiement en ligne. Voir §7 pour la reco.
+Reformulés en session (22/07/2026). Le besoin réel n'est **pas** une boutique isolée mais la **multidiffusion** : une annonce créée dans FISSA STOCK est publiée automatiquement sur les marketplaces où FISSA a des comptes (LeBonCoin aujourd'hui ; cible eBay, OVOKO, autres). Le stock reste la **source de vérité unique** ; chaque pièce porte un **état de publication par canal**. Enjeu critique : **éviter la survente** d'une pièce unique → délistage automatique dès qu'elle est vendue sur un canal. Faisabilité par plateforme et reco en §7.3. La vitrine SEO sur le domaine propre devient secondaire.
 
 ---
 
@@ -141,7 +141,7 @@ Non commencés. Logique cible : catalogue public alimenté par **la même base s
 | Config Firebase | Exposée côté client | Règles de sécurité strictes indispensables |
 | Règles Firebase | Présentes (`database.rules.json`), basiques | Durcir par rôle (read/write granulaire) |
 | Validation données | Côté client uniquement | Validation serveur nécessaire |
-| Facturation légale | Absente | TVA, numérotation, archivage légal — bloquant avant commercialisation |
+| Facturation légale | Absente | TVA normale, numérotation, archivage légal — bloquant avant commercialisation |
 | RGPD | Non traité | Données clients (chantiers) → registre, durée de conservation |
 
 ---
@@ -150,7 +150,7 @@ Non commencés. Logique cible : catalogue public alimenté par **la même base s
 
 **Sprint A — Consolider le socle métier (modules 3 & 4)**
 1. Implémenter la **déduction de stock à l'ajout d'une pièce au chantier + le retour au stock en cas de désistement** (écart §4.2). *(P0)*
-2. **Facture-chiffrage chantier** : devis → facture, avec pièces + main d'œuvre, numérotation séquentielle. *(P0)*
+2. **Facture-chiffrage chantier** : devis → facture, avec pièces + main d'œuvre, TVA normale, numérotation séquentielle. *(P0)*
 3. **Planning daté/heuré** complet côté atelier (vue calendrier + statut). *(P1)*
 4. Fiabiliser le lien pièce↔chantier (garde-fou stock insuffisant, traçabilité des retours). *(P1)*
 
@@ -159,9 +159,9 @@ Non commencés. Logique cible : catalogue public alimenté par **la même base s
 6. Upload photos direct (Supabase Storage, au lieu d'URL). *(P1)*
 7. Pagination du stock (> 1000 pièces). *(P2)*
 
-**Sprint C — Ouvrir au public (modules 1 & 2)**
-8. Vitrine + catalogue public (SEO).
-9. Boutique : panier, réservation, paiement (Stripe/SumUp).
+**Sprint C — Vente en ligne (modules 1 & 2)**
+8. **Moteur de multidiffusion** : couche « canaux » + publication eBay + OVOKO (API), gestion anti-survente. *(P1)*
+9. LeBonCoin via connecteur tiers ; vitrine SEO sur domaine propre. *(P2)*
 
 ---
 
@@ -178,28 +178,34 @@ Le **frontend est moderne et bien choisi** : Vue 3 + Vite + Pinia + Tailwind + C
 **Décision actée : passer de Firebase Realtime Database à Supabase (PostgreSQL + Auth + Storage + Row Level Security).**
 
 Pourquoi :
-- Le métier devient **relationnel** : pièces ↔ chantiers ↔ factures ↔ mouvements de stock ↔ comptes ↔ commandes boutique. Un arbre NoSQL (RTDB) gère mal l'intégrité référentielle et les jointures ; Postgres est fait pour ça.
+- Le métier devient **relationnel** : pièces ↔ chantiers ↔ factures ↔ mouvements de stock ↔ comptes ↔ publications marketplace. Un arbre NoSQL (RTDB) gère mal l'intégrité référentielle et les jointures ; Postgres est fait pour ça.
 - **Facturation & comptabilité** : numérotation séquentielle fiable, TVA, exports (FEC/Pennylane) → beaucoup plus simples en SQL.
 - **Auth réelle** : Supabase Auth remplace le hash maison fragile ; les **RLS policies** appliquent les droits par rôle *côté serveur* (magasinier/vendeur/admin) — ce qui règle le point sécurité P0.
+- **Multidiffusion** : les **Edge Functions** Supabase hébergent proprement les appels aux API marketplaces et les webhooks de commande entrants.
 - **Reporting** : requêtes SQL agrégées (CA, top pièces, marges) natives.
 - Offre gratuite généreuse, migration progressive possible.
 - Un serveur MCP Supabase est déjà disponible dans l'environnement de travail → mise en place assistée.
 
-Coût du changement : réécrire la couche d'accès données (`composables/useFirebase` → client Supabase) et les stores. Le frontend et les composants restent. **Effort modéré, bénéfice structurel majeur.** À faire *avant* de construire boutique + facturation, pas après.
+Coût du changement : réécrire la couche d'accès données (`composables/useFirebase` → client Supabase) et les stores. Le frontend et les composants restent. **Effort modéré, bénéfice structurel majeur.** À faire *avant* de construire la facturation et la multidiffusion, pas après.
 
-### 7.3 Décision structurante n°2 — Vitrine & boutique : catalogue sur-mesure, pas un e-commerce à variantes
+### 7.3 Décision structurante n°2 — Vente en ligne : moteur de MULTIDIFFUSION, pas une boutique classique
 
-Les pièces d'occasion sont **uniques** (qty 1). Un Shopify/WooCommerce classique (pensé pour des produits à stock fongible et variantes) s'adapte mal. **Reco : construire vitrine + boutique dans la même app Vue**, en lecture directe de la base stock Supabase, avec :
-- catalogue public (pièces marquées « publiable »),
-- recherche par véhicule / immatriculation / référence,
-- **réservation** à l'ajout au panier (verrou sur pièce unique),
-- paiement **Stripe** (en ligne) et **SumUp** (au comptoir).
+Reformulation du besoin (session 22/07/2026) : l'objectif n'est pas d'abord une boutique e-commerce sur le domaine FISSA, mais de **créer une annonce une seule fois dans FISSA STOCK et la publier automatiquement sur les marketplaces** où FISSA a des comptes (aujourd'hui LeBonCoin ; cible eBay, OVOKO, et autres).
 
-Bénéfice : une seule source de vérité (le stock), pas de synchronisation à maintenir entre l'app interne et une boutique tierce.
+**État réel des canaux (vérifié 22/07/2026)** :
+- **eBay** : API officielle **Sell / Inventory** complète → création et publication d'annonces par programme. ✅ Automatisable proprement.
+- **OVOKO** : API fournisseur (« Ovoko API allows scrap yards to connect their warehouse management systems »). L'intégration est **à notre charge**. Bonus : OVOKO **rediffuse lui-même vers eBay et Allegro** et gère une partie de la logistique. ✅ Automatisable.
+- **LeBonCoin** : **pas d'API publique de dépôt d'annonces** pour les pièces. Passage obligé par un **connecteur de multidiffusion tiers** (type AllYouCanPost / X-Studio) ou dépôt semi-manuel. ⚠️ Maillon le plus contraignant — ne pas bloquer le projet dessus.
+
+**Reco** : faire de FISSA STOCK le **PIM / source de vérité** (déjà le cas — 1 pièce = 1 fiche) et construire une **couche « canaux »** qui publie vers chaque marketplace via son API. Démarrer par **eBay + OVOKO** (API propres, large couverture). Traiter **LeBonCoin** en best-effort via connecteur tiers.
+
+**⚠️ Point technique central — la survente (overselling)** : une pièce d'occasion est **unique (qty 1)** et sera listée sur plusieurs plateformes en même temps. Dès qu'elle se vend sur un canal, il faut **la retirer immédiatement des autres** (webhooks de commande entrants → statut `vendue` → délistage partout). C'est LE vrai défi et la vraie valeur du système.
+
+La **boutique/vitrine sur le domaine propre** devient secondaire (SEO + vente directe éventuelle), à faire après le moteur de multidiffusion.
 
 ### 7.4 Architecture cible en une phrase
 
-Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces : (1) **site public** vitrine + boutique (SEO), (2) **app interne** préparateurs/atelier (PWA + Capacitor), (3) **espace admin** (comptes, caisse, factures, reporting).
+Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces : (1) **site public** vitrine + moteur de multidiffusion, (2) **app interne** préparateurs/atelier (PWA + Capacitor), (3) **espace admin** (comptes, caisse, factures, reporting).
 
 ### 7.5 Récapitulatif des choix conseillés
 
@@ -210,8 +216,8 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 | Backend/BDD | **Supabase (Postgres)** — migration depuis Firebase RTDB ✅ validée |
 | Auth | **Supabase Auth + RLS** par rôle |
 | Fichiers/photos | Supabase Storage |
-| Vitrine + Boutique | Sur-mesure dans l'app Vue, source = stock |
-| Paiement | Stripe (en ligne) + SumUp (comptoir) |
+| Vente en ligne | **Multidiffusion** marketplaces : eBay + OVOKO (API) d'abord, LeBonCoin via connecteur tiers ; vitrine SEO secondaire |
+| Paiement | **TPE physique en magasin** (actuel) ; en ligne = géré par chaque marketplace ; Stripe reporté à une éventuelle vente directe |
 | Hébergement web | Vercel / Netlify / Cloudflare Pages |
 | Code-barres | JsBarcode + html5-qrcode (conserver) |
 | Monitoring | Sentry (déjà dispo en MCP) |
@@ -222,14 +228,17 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 
 ### 8.1 Décisions actées (22/07/2026)
 
-1. ✅ **Backend** : migration vers **Supabase** validée (Postgres + Auth + Storage + RLS).
-2. ✅ **Pièce ↔ chantier** : décompte du stock **dès l'ajout** de la pièce au chantier (ajout = chantier validé pour cette pièce, pas d'état « réservé ») ; **retour au stock en cas de désistement** (retrait de la pièce). Voir §4.2.
+1. ✅ **Backend** : migration vers **Supabase** (Postgres + Auth + Storage + RLS).
+2. ✅ **Pièce ↔ chantier** : décompte du stock **dès l'ajout**, **retour au stock si désistement** (§4.2).
+3. ✅ **TVA** : régime **TVA normale** → facturation avec TVA, numérotation séquentielle, mentions légales.
+4. ✅ **Paiement** : **TPE physique en magasin** pour l'instant. Aucun compte de paiement en ligne créé → le paiement en ligne est géré par chaque marketplace ; passerelle (Stripe) reportée à une éventuelle vente directe.
+5. ✅ **Vente en ligne** : priorité au **moteur de multidiffusion marketplaces** (eBay + OVOKO d'abord, LeBonCoin via connecteur tiers) plutôt qu'à une boutique classique. Voir §7.3.
 
 ### 8.2 Décisions encore à trancher
 
-3. **Régime TVA** : franchise en base ou TVA normale ? (impacte la facturation)
-4. **Paiement en ligne** : Stripe et/ou SumUp — comptes déjà existants ?
-5. **Vitrine/boutique** : sur-mesure (reco) ou solution tierce (Shopify) ?
+6. **LeBonCoin** : connecteur de multidiffusion tiers (lequel, budget) ou dépôt semi-manuel ?
+7. **OVOKO** : l'utiliser comme canal **et** rediffuseur (eBay/Allegro), ou intégrer eBay en direct pour garder marge + relation client ?
+8. **Vitrine/boutique directe** sur le domaine FISSA : à faire (SEO, vente directe) ou non prioritaire ?
 
 ---
 
@@ -242,6 +251,8 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 - **Chantier / intervention** : prestation atelier sur un véhicule client.
 - **Chiffrage** : devis estimatif d'un chantier (pièces + main d'œuvre).
 - **Désistement** : retrait d'une pièce d'un chantier → retour au stock.
+- **Multidiffusion** : publication automatique d'une même annonce sur plusieurs marketplaces depuis une source unique.
+- **Survente (overselling)** : vendre deux fois une pièce unique parce que le retrait n'a pas été propagé aux autres canaux.
 
 ---
 
@@ -252,6 +263,7 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 | 26/05/2026 | 1.0 | — | CAHIER_DES_CHARGES initial (repo) |
 | 22/07/2026 | 2.0 | Session Cowork | Repositionnement autour des 5 fondamentaux ; analyse de l'existant Vue/Firebase ; recommandation technique (migration Supabase) ; identification de l'écart « déduction stock chantier » ; création de ETAT_PROJET.md + SCHEMA_PROJET.md |
 | 22/07/2026 | 2.1 | Session Cowork | Décisions actées : migration Supabase **validée** ; logique pièce↔chantier arrêtée (décompte à l'ajout, retour au stock si désistement). MAJ §4.2, §7.2, §8, §10 |
+| 22/07/2026 | 2.2 | Session Cowork | Décisions : **TVA normale**, **paiement TPE magasin** (online reporté). Reformulation vente en ligne en **multidiffusion marketplaces** (eBay/OVOKO API, LeBonCoin via tiers) + enjeu anti-survente ; recherche faisabilité plateformes. MAJ §1, §4.4, §7.3, §7.5, §8, §10 |
 
 ---
 
