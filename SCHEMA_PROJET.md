@@ -5,7 +5,7 @@
 > **À tenir à jour** : à chaque ajout de page, fonction ou entité, mettre à jour la section correspondante et le §7 Journal.
 
 - **Dernière mise à jour** : 22/07/2026
-- **Version** : 1.1
+- **Version** : 1.2
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock`
 
 ---
@@ -18,14 +18,14 @@
                         │  (Supabase Postgres — cible)   │
                         │  stock · interventions ·       │
                         │  factures · ventes · users ·   │
-                        │  commandes · mouvements        │
+                        │  canaux · publications         │
                         └───────────────┬───────────────┘
               ┌───────────────────────┬─┴─┬───────────────────────┐
               ▼                       ▼   ▼                       ▼
    ┌────────────────────┐  ┌────────────────────┐  ┌────────────────────┐
    │  1. SITE PUBLIC    │  │  2. APP INTERNE    │  │  3. ESPACE ADMIN   │
-   │  Vitrine + Boutique│  │  Préparateurs +    │  │  Comptes, caisse,  │
-   │  (SEO, panier)     │  │  Atelier (PWA/app) │  │  factures, reporting│
+   │  Vitrine +         │  │  Préparateurs +    │  │  Comptes, caisse,  │
+   │  Multidiffusion    │  │  Atelier (PWA/app) │  │  factures, reporting│
    └────────────────────┘  └────────────────────┘  └────────────────────┘
         [À construire]         [🟢 avancé]              [🟡 partiel]
 ```
@@ -57,12 +57,12 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 |------------------|---------|--------|----------|
 | `/atelier/:id` | Interne | 4 | Fiche chantier détaillée + facture-chiffrage |
 | `/atelier/planning` | Interne | 4 | Vue calendrier datée/heurée |
-| `/factures` | Admin | 5 | Liste + génération de factures conformes |
+| `/factures` | Admin | 5 | Liste + génération de factures conformes (TVA) |
 | `/piece/:id` | Interne/Public | 3 | Fiche produit détaillée |
+| `/multidiffusion` | Interne/Admin | 2 | Suivi des publications par canal + statuts |
 | `(public) /` | Public | 1 | Vitrine (accueil, présentation) |
-| `(public) /boutique` | Public | 2 | Catalogue + recherche véhicule |
-| `(public) /boutique/:id` | Public | 2 | Fiche pièce + ajout panier |
-| `(public) /panier` | Public | 2 | Panier + réservation + paiement |
+| `(public) /catalogue` | Public | 1/2 | Catalogue public (SEO) + recherche véhicule |
+| `(public) /piece/:id` | Public | 1/2 | Fiche pièce publique + contact/réservation |
 
 ---
 
@@ -92,7 +92,7 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 | `fmt` | enum | CODE128 · CODE39 (format code-barres) |
 | `added` | string | Date d'ajout |
 | `archived` | boolean | Archivée |
-| *(cible)* `publishable` | boolean | Visible sur la boutique publique |
+| *(cible)* `publishable` | boolean | Visible / diffusable en ligne |
 | *(cible)* `costPrice` | number | Prix d'achat (calcul de marge) |
 
 ### 3.2 `Intervention` — chantier atelier (module 4)
@@ -124,7 +124,7 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 
 | Champ | Type | Description |
 |-------|------|-------------|
-| `type` | enum | vente · ajout · modif · suppression · connexion · *(cible)* sortie-chantier · retour-chantier |
+| `type` | enum | vente · ajout · modif · suppression · connexion · *(cible)* sortie-chantier · retour-chantier · vente-marketplace |
 | `ref` / `name` | string | Pièce concernée |
 | `qty` / `prixVente` / `prixCatalogue` / `remise` | number? | Détail vente |
 | `payment` | string? | espèces · carte · virement · chèque |
@@ -143,10 +143,11 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 
 ### 3.6 Entités cibles à créer
 
-- **`Facture`** : numéro séquentiel, type (devis/facture), client, lignes (pièces + MO), HT/TVA/TTC, statut, date, `interventionId?`, mentions légales.
-- **`Vente`** : distincte de `HistoryEntry`, pour la boutique/caisse (panier, paiement, remise).
-- **`Commande`** (boutique) : client en ligne, pièces réservées, paiement Stripe, statut (réservée/payée/retirée/expédiée).
-- **`MouvementStock`** : entrée/sortie unifiée (ajout, vente comptoir, sortie chantier, retour chantier, commande en ligne) → **source de vérité du stock**.
+- **`Facture`** : numéro séquentiel, type (devis/facture), client, lignes (pièces + MO), HT/**TVA (normale)**/TTC, statut, date, `interventionId?`, mentions légales.
+- **`Vente`** : distincte de `HistoryEntry`, pour la caisse (panier, paiement, remise).
+- **`MouvementStock`** : entrée/sortie unifiée (ajout, vente comptoir, sortie chantier, retour chantier, vente marketplace) → **source de vérité du stock**.
+- **`SalesChannel`** : marketplace configuré (`leboncoin` · `ebay` · `ovoko` · …) : libellé, type d'intégration (API / connecteur tiers / manuel), identifiants/API, actif ou non.
+- **`Publication`** (multidiffusion) : lien `pieceId` ↔ `channelId`, `status` (`draft` · `published` · `sold` · `error` · `delisted`), `externalId` (id de l'annonce sur la plateforme), `url`, `datePublished`, `errorMsg`. Permet de savoir **où** chaque pièce est publiée et de la **retirer partout** dès qu'elle est vendue (anti-survente).
 
 ---
 
@@ -172,9 +173,9 @@ Panier de vente (ajout/retrait pièces, total, remise).
 Traçabilité et gestion des comptes.
 
 ### 4.6 Fonctions cibles à créer
-- **Facturation** : `createInvoice(interventionOrCart)`, numérotation séquentielle, calcul TVA, PDF.
+- **Facturation** : `createInvoice(interventionOrCart)`, numérotation séquentielle, calcul TVA (normale), PDF.
 - **Stock unifié** : `recordMovement(type, pieceId, qty)` centralisant toutes les entrées/sorties.
-- **Boutique** : `reservePiece()`, `releaseReservation()`, `checkout()` (Stripe).
+- **Multidiffusion** (couche canaux, Supabase Edge Functions) : `publish(pieceId, channels[])`, `delist(pieceId, channel)`, `syncSale(channel, externalId)` (webhook), `delistEverywhereExcept(pieceId, soldChannel)`.
 
 ---
 
@@ -201,7 +202,7 @@ Impression étiquette 62×29mm ──► collée sur la pièce physique
 Scanner (caméra / douchette)  ──►  findByRef(ref)  ──►  Panier (cart)
    │
    ▼
-Validation vente + paiement
+Validation vente + paiement (TPE en magasin)
    │
    ├──►  décrément qty de chaque pièce (updatePiece)
    └──►  historique: type=vente (+ client, paiement, remise)
@@ -225,22 +226,32 @@ AJOUT d'une pièce depuis le stock  ──►  parts[] + estimatedTotal
 Suivi Kanban : todo ─► in_progress ─► done
    │
    ▼
-Génération facture-chiffrage (pièces + main d'œuvre)
+Génération facture-chiffrage (pièces + main d'œuvre, TVA normale)
 ```
 
-### 5.4 Vente en ligne (module 2) — **cible**
+### 5.4 Multidiffusion & anti-survente (modules 1 & 2) — **cible, reco 22/07/2026**
 
 ```
-Client (boutique publique)
-   │  recherche par véhicule / réf
+Pièce "publiable" dans FISSA STOCK
+   │  action « Publier » (choix des canaux)
    ▼
-Fiche pièce ──► Ajout panier ──► RÉSERVATION (verrou pièce unique)
+Couche Canaux (Supabase Edge Functions)
+   ├──► eBay        (Sell / Inventory API)     → Publication{ebay,  published, extId}
+   ├──► OVOKO       (API fournisseur)          → Publication{ovoko, published, extId}
+   └──► LeBonCoin   (connecteur tiers/manuel)  → Publication{lbc,   published | manuel}
    │
-   ▼
-Paiement Stripe ──► Commande "payée"
-   │
-   ├──►  sortie de stock (qty -= 1)
-   └──►  notification retrait / expédition
+   ▼   VENTE sur un canal (webhook de commande entrant)
+   ├──►  pièce → statut « vendue » (qty 0) + MouvementStock(vente-marketplace)
+   └──►  DÉLISTAGE automatique sur TOUS les autres canaux   ◄── anti-survente (clé)
+```
+
+Note : OVOKO rediffusant lui-même vers eBay/Allegro, un choix d'architecture est à trancher (intégrer eBay en direct ou déléguer à OVOKO — voir ETAT_PROJET §8.2).
+
+### 5.5 Vente directe sur domaine propre (secondaire) — cible
+
+```
+Client (vitrine/boutique FISSA, SEO)  ──►  fiche pièce  ──►  contact / réservation
+   (paiement en ligne différé : aucun compte créé à ce jour ; TPE en magasin)
 ```
 
 ---
@@ -253,15 +264,15 @@ Paiement Stripe ──► Commande "payée"
         └──────┬───────┘
      ┌─────────┼──────────┬───────────────┐
      ▼         ▼          ▼               ▼
- Vente      Chantier   Boutique       Reporting
- comptoir   (atelier)  en ligne       / Caisse
+ Vente      Chantier   Multidiffusion  Reporting
+ comptoir   (atelier)  (marketplaces)  / Caisse
      │         │          │               ▲
      └─────────┴──────────┴───────────────┘
         toutes les sorties décrémentent le STOCK
         et alimentent l'HISTORIQUE / les COMPTES
 ```
 
-**Principe directeur** : le **stock est la source de vérité unique**. Vente comptoir, chantier atelier et commande boutique sont trois canaux de sortie qui doivent tous décrémenter le même stock et tracer un mouvement. C'est la cohérence de ce principe qui garantit un « vrai suivi ».
+**Principe directeur** : le **stock est la source de vérité unique**. Vente comptoir, chantier atelier et publications marketplace sont trois canaux de sortie qui doivent tous décrémenter le même stock et tracer un mouvement. C'est la cohérence de ce principe qui garantit un « vrai suivi » — et qui empêche la survente d'une pièce unique.
 
 ---
 
@@ -271,6 +282,7 @@ Paiement Stripe ──► Commande "payée"
 |------|---------|--------|
 | 22/07/2026 | 1.0 | Création : cartographie des routes existantes, modèle de données (Piece, Intervention, HistoryEntry, User), fonctions des stores, flux métier des 5 modules, entités et pages cibles |
 | 22/07/2026 | 1.1 | Décisions actées : logique pièce↔chantier (décompte à l'ajout via `addPart`, retour au stock via `removePart` en cas de désistement) ; ajout des mouvements `sortie-chantier` / `retour-chantier`. MAJ §4.2, §5.3, §3.4 |
+| 22/07/2026 | 1.2 | Multidiffusion : entités `SalesChannel` + `Publication` (§3.6), flux multidiffusion & anti-survente (§5.4), vente directe secondaire (§5.5), fonctions couche canaux (§4.6), page `/multidiffusion` |
 
 ---
 
