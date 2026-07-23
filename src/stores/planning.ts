@@ -159,6 +159,18 @@ export const usePlanningStore = defineStore('planning', () => {
     await fetchAll()
   }
 
+  /** Ajuste la quantité d'une pièce (delta +/-) en synchronisant le stock. */
+  async function adjustPart(partId: string, delta: number) {
+    // RPC ajoutée hors types générés → appel non typé.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).rpc('adjust_intervention_part', {
+      p_part: partId,
+      p_delta: delta,
+    })
+    if (error) throw error
+    await fetchAll()
+  }
+
   async function deleteIntervention(id: string) {
     const { error } = await supabase.from('interventions').delete().eq('id', id)
     if (error) throw error
@@ -189,6 +201,7 @@ export const usePlanningStore = defineStore('planning', () => {
     moveStatus,
     addPart,
     removePart,
+    adjustPart,
     deleteIntervention,
     getClientHistory,
     dispose,
