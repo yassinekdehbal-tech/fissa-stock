@@ -28,14 +28,25 @@ Puis, sur l'écran de connexion, **créer le premier compte** (il sera admin). S
 
 ## Reste à faire (câblage restant)
 
-- **Stores non encore migrés** : `history`, `users`, ainsi que les écrans `reporting`/`caisse`/`users` (encore sur Firebase via `useFirebase`). À migrer vers Supabase (tables `stock_movements`, `sales`/`sale_items`, `profiles`). Tant qu'ils ne le sont pas, ces écrans afficheront des données vides (Firebase refuse l'accès sans session Firebase). `cart` reste local (pas de backend) et la vente comptoir (checkout) est à brancher sur `sales`/`sale_items` + décrément stock.
+- **Encaissement au comptoir (checkout)** : le panier (`cart`) se remplit mais **aucun écran ne valide la vente**. À créer : un écran panier qui, à la validation, écrit dans `sales` + `sale_items`, décrémente le stock, et laisse un mouvement `vente-comptoir`. Le store `history` sait déjà lire ces ventes.
 - **Facturation** : construire l'UI sur la table `invoices` (numérotation auto, TVA 20 %). *(mise de côté pour l'instant)*
+- **Retrait de Firebase** : `src/composables/useFirebase.ts` et la dépendance `firebase` ne sont plus utilisés (tous les stores sont sur Supabase). À supprimer.
+- **Multidiffusion (Sprint C)** : eBay + OVOKO via API, LeBonCoin via connecteur tiers ; anti-survente via `mark_piece_sold`.
 - **Migration des données** existantes Firebase → Supabase si nécessaire (export/import).
 
-## Fait (session 23/07/2026)
+## Gestion des comptes (users)
+
+Créer/supprimer un compte ne peut pas se faire depuis le client (nécessite `service_role`). C'est géré par la fonction **Edge `admin-users`** (déployée), réservée aux admins :
+- `create` (email + mot de passe + nom + permissions), `set_password`, `delete`.
+- Les employés peuvent aussi **s'inscrire eux-mêmes** depuis l'écran de connexion (ils démarrent en rôle `user` ; l'admin ajuste ensuite leurs permissions).
+- ⚠️ Dans l'écran `UsersView`, le champ « identifiant » doit désormais recevoir un **email**.
+
+## Fait (sessions 22–23/07/2026)
 
 - Écran de **connexion** migré (email + inscription, 1er compte = admin).
-- Écran **atelier** câblé sur les RPC (déduction à l'ajout, retour au désistement, ajustement de quantité). Build de production vérifié OK.
+- Écran **atelier** câblé sur les RPC (déduction à l'ajout, retour au désistement, ajustement de quantité).
+- Stores **`history`** (lecture depuis `stock_movements` + `sale_items`/`sales`) et **`users`** (`profiles` + fonction Edge `admin-users`) migrés vers Supabase. Realtime activé.
+- Build de production vérifié OK à chaque étape.
 
 ## Références
 
