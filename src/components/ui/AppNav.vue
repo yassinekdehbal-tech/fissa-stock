@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { to: '/add', label: 'Ajouter', icon: '＋', show: auth.isAdmin || auth.hasPerm('magasinier') },
   { to: '/stock', label: 'Stock', icon: '📦', show: auth.isAdmin || auth.hasPerm('magasinier') },
   { to: '/scanner', label: 'Scanner', icon: '📷', show: auth.isAdmin || auth.hasPerm('vendeur') },
+  { to: '/panier', label: 'Panier', icon: '🛒', show: auth.isAdmin || auth.hasPerm('vendeur') },
   { to: '/planning', label: 'Atelier', icon: '🔧', show: auth.isAdmin || auth.hasPerm('magasinier') },
   { to: '/history', label: 'Historique', icon: '📋', show: true },
   { to: '/reporting', label: 'Reporting', icon: '📈', show: auth.isAdmin },
@@ -39,7 +40,7 @@ const navItems: NavItem[] = [
         : 'text-[#8b949e] border-transparent hover:text-[#e6edf3]'"
     >
       {{ item.icon }} {{ item.label }}
-      <span v-if="item.to === '/scanner' && cart.count > 0" class="ml-1 text-[10px] text-orange-400">({{ cart.count }})</span>
+      <span v-if="item.to === '/panier' && cart.count > 0" class="ml-1 text-[10px] text-orange-400">({{ cart.count }})</span>
     </router-link>
   </nav>
 </template>

@@ -119,7 +119,7 @@ onUnmounted(() => { stopCam() })
         <button @click="toggleCam" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">
           {{ isScanning ? '⏹ Arrêter' : '▶ Démarrer' }}
         </button>
-        <button v-if="auth.hasPerm('vendeur')" @click="$router.push('/stock')" class="bg-[#f0883e] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">
+        <button v-if="auth.hasPerm('vendeur')" @click="$router.push('/panier')" class="bg-[#f0883e] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">
           🛒 Panier ({{ cart.count }})
         </button>
       </div>
