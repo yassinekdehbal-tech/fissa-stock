@@ -85,6 +85,7 @@ export const CATEGORIES: Record<PieceCategory, CategoryInfo> = {
 export type InterventionStatus = 'todo' | 'in_progress' | 'done'
 
 export interface InterventionPart {
+  id?: string
   pieceId: string
   ref: string
   name: string
