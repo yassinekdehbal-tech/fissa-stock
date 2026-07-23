@@ -11,6 +11,9 @@ Branchement de l'app Vue sur Supabase (session du 22/07/2026). Ce fichier expliq
 - **Atelier** : `src/stores/planning.ts` sur Supabase + **RPC métier** :
   - `addPart(interventionId, part)` → décompte le stock immédiatement (RPC `add_intervention_part`).
   - `removePart(partId)` → désistement, retour au stock (RPC `remove_intervention_part`).
+  - `adjustPart(partId, delta)` → ajuste la quantité (+/-) en synchronisant le stock (RPC `adjust_intervention_part`).
+- **Écran connexion** : `LoginView.vue` sur email + mot de passe, avec bascule **inscription** (1er compte = admin).
+- **Écran atelier** : `PlanningView.vue` branché sur les RPC ci-dessus — ajout/retrait/quantité d'une pièce agissent **en direct** sur le stock ; la clôture (`Terminé`) ne double plus la déduction.
 - **Bootstrap** : `src/main.ts` restaure la session avant le montage ; `src/router.ts` a un garde d'auth.
 
 ## Pour démarrer en local
@@ -25,11 +28,14 @@ Puis, sur l'écran de connexion, **créer le premier compte** (il sera admin). S
 
 ## Reste à faire (câblage restant)
 
-- **LoginView** : la connexion se fait désormais par **email** (plus par identifiant). Adapter le libellé du champ et, si besoin, ajouter un bouton d'inscription (`authStore.signUp`).
-- **Stores non encore migrés** : `history`, `users`, `cart`, ainsi que `reporting`/`caisse` (encore sur Firebase via `useFirebase`). À migrer vers Supabase (tables `stock_movements`, `sales`/`sale_items`, `profiles`).
-- **Atelier UI** : brancher les boutons d'ajout/retrait de pièce sur `planning.addPart` / `planning.removePart` (l'ancienne UI mettait juste à jour `parts[]` sans toucher au stock).
-- **Facturation** : construire l'UI sur la table `invoices` (numérotation auto, TVA 20 %).
+- **Stores non encore migrés** : `history`, `users`, ainsi que les écrans `reporting`/`caisse`/`users` (encore sur Firebase via `useFirebase`). À migrer vers Supabase (tables `stock_movements`, `sales`/`sale_items`, `profiles`). Tant qu'ils ne le sont pas, ces écrans afficheront des données vides (Firebase refuse l'accès sans session Firebase). `cart` reste local (pas de backend) et la vente comptoir (checkout) est à brancher sur `sales`/`sale_items` + décrément stock.
+- **Facturation** : construire l'UI sur la table `invoices` (numérotation auto, TVA 20 %). *(mise de côté pour l'instant)*
 - **Migration des données** existantes Firebase → Supabase si nécessaire (export/import).
+
+## Fait (session 23/07/2026)
+
+- Écran de **connexion** migré (email + inscription, 1er compte = admin).
+- Écran **atelier** câblé sur les RPC (déduction à l'ajout, retour au désistement, ajustement de quantité). Build de production vérifié OK.
 
 ## Références
 
