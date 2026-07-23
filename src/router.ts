@@ -14,6 +14,7 @@ const router = createRouter({
     { path: '/history', name: 'history', component: () => import('./components/history/HistoryView.vue'), meta: { requiresAuth: true } },
     { path: '/reporting', name: 'reporting', component: () => import('./components/reporting/ReportingView.vue'), meta: { requiresAuth: true } },
     { path: '/caisse', name: 'caisse', component: () => import('./components/caisse/CaisseView.vue'), meta: { requiresAuth: true } },
+    { path: '/multidiffusion', name: 'multidiffusion', component: () => import('./components/multidiffusion/MultidiffusionView.vue'), meta: { requiresAuth: true } },
     { path: '/users', name: 'users', component: () => import('./components/users/UsersView.vue'), meta: { requiresAuth: true } },
   ],
 })

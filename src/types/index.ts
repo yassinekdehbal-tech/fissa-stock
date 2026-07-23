@@ -18,6 +18,7 @@ export interface Piece {
   fmt: 'CODE128' | 'CODE39'
   added: string
   archived: boolean
+  publishable?: boolean
 }
 
 export type PieceCategory = 'moteur' | 'carrosserie' | 'train-avant' | 'train-arriere' | 'electronique' | 'autre' | ''

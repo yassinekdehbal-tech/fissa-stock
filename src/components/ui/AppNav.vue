@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
   { to: '/history', label: 'Historique', icon: '📋', show: true },
   { to: '/reporting', label: 'Reporting', icon: '📈', show: auth.isAdmin },
   { to: '/caisse', label: 'Caisse', icon: '💵', show: auth.isAdmin },
+  { to: '/multidiffusion', label: 'Multidiffusion', icon: '📡', show: auth.isAdmin || auth.hasPerm('vendeur') },
   { to: '/users', label: 'Utilisateurs', icon: '👥', show: auth.isAdmin },
 ]
 </script>

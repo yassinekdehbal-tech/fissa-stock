@@ -25,6 +25,7 @@ function rowToPiece(r: PieceRow): Piece {
     fmt: r.fmt,
     added: r.added,
     archived: r.archived,
+    publishable: r.publishable ?? false,
   }
 }
 
@@ -47,6 +48,7 @@ function pieceToRow(p: Partial<Piece>): Record<string, unknown> {
   if (p.notes !== undefined) row.notes = p.notes
   if (p.fmt !== undefined) row.fmt = p.fmt
   if (p.archived !== undefined) row.archived = p.archived
+  if (p.publishable !== undefined) row.publishable = p.publishable
   return row
 }
 
