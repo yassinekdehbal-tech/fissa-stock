@@ -5,9 +5,9 @@
 > **À tenir à jour** : à chaque évolution significative, ajouter une entrée dans le §10 Journal des mises à jour et actualiser les sections concernées.
 
 - **Dernière mise à jour** : 22/07/2026
-- **Version du document** : 2.3
+- **Version du document** : 2.4
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock` (branche `main`)
-- **Document compagnon** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données)
+- **Documents compagnons** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données) · `MIGRATION_SUPABASE.md` (état du branchement app ↔ Supabase et reste à câbler)
 
 ---
 
@@ -35,9 +35,9 @@ Le projet est un **repositionnement** d'un premier jet démarré début 2026. On
 
 | Module | Existant | État | Reste à faire (clé) |
 |--------|----------|------|---------------------|
-| 3 — Stock + code-barres | Oui | 🟢 Fonctionnel | Photos en upload direct, pagination, fiche produit |
-| 4 — Atelier / chantiers | Partiel | 🟡 En cours | **Déduction stock à l'ajout de pièce + retour si désistement** (logique dispo côté BDD Supabase), facture/devis chantier, planning daté/heuré complet |
-| 5 — Comptes / caisse | Partiel | 🟡 En cours | Facturation légale (TVA, numérotation), export comptable |
+| 3 — Stock + code-barres | Oui | 🟢 Branché sur Supabase | Câbler l'UI restante, photos en upload direct, pagination |
+| 4 — Atelier / chantiers | Partiel | 🟡 Store Supabase + RPC | Brancher les boutons ajout/retrait pièce sur `addPart`/`removePart`, facture chantier, planning daté/heuré |
+| 5 — Comptes / caisse | Partiel | 🟡 Auth Supabase branchée | Migrer stores `users`/`history`/`caisse`, facturation TVA (UI) |
 | 1 — Vitrine | Non | 🔴 À faire | Catalogue public, SEO |
 | 2 — Vente en ligne | Non | 🔴 À faire | Moteur de multidiffusion (eBay/OVOKO/LeBonCoin), anti-survente |
 
@@ -56,8 +56,8 @@ Le projet a été migré d'un **mono-fichier HTML/JS vanilla** (`index.old.html`
 | State | Pinia (stores par domaine) |
 | Routing | vue-router (routes lazy-loaded) |
 | Style | Tailwind CSS 4 |
-| Backend / BDD | **Firebase RTDB** (app actuelle) → **Supabase Postgres : socle créé le 22/07/2026** (voir §3bis) |
-| Auth | Custom (à migrer vers Supabase Auth) |
+| Backend / BDD | **Supabase Postgres** (socle + app branchée le 22/07/2026, voir §3bis) — *stores `users`/`history`/`cart`/`caisse` encore sur Firebase, à migrer* |
+| Auth | **Supabase Auth** (branchée ; finaliser LoginView) |
 | App native | Capacitor 8 (iOS ; Android possible) |
 | Code-barres | JsBarcode (génération) + html5-qrcode (lecture caméra) |
 | PWA | Service Worker + manifest |
@@ -68,20 +68,22 @@ Le projet a été migré d'un **mono-fichier HTML/JS vanilla** (`index.old.html`
 ```
 src/
 ├── App.vue
-├── main.ts
-├── router.ts              # 10 routes (login + 9 vues protégées)
-├── types/index.ts         # Piece, HistoryEntry, User, Intervention, ...
-├── stores/                # Pinia : auth, stock, cart, planning, history, users
-├── composables/           # useFirebase (accès BDD) → à remplacer par client Supabase
-├── utils/                 # security (hash, rate limit, token)
+├── main.ts               # init session Supabase avant montage
+├── router.ts             # 10 routes + garde d'auth
+├── lib/supabase.ts       # client Supabase typé
+├── types/
+│   ├── index.ts          # Piece, Intervention, ...
+│   └── database.types.ts # types générés depuis la base
+├── stores/               # auth, stock, planning → SUPABASE · cart, history, users → Firebase (à migrer)
+├── composables/          # useFirebase (legacy, en cours de retrait)
 └── components/
     ├── auth/  dashboard/  stock/  scanner/  planning/
     ├── history/  reporting/  caisse/  users/  ui/
 ```
 
-### 3bis. Infrastructure Supabase (socle créé le 22/07/2026)
+### 3bis. Infrastructure Supabase (socle créé + app branchée le 22/07/2026)
 
-Projet Supabase dédié créé dans l'organisation **FISSA LIV**. **À faire côté app** : brancher le client `@supabase/supabase-js` sur ces valeurs, puis migrer les stores Firebase → Supabase.
+Projet Supabase dédié créé dans l'organisation **FISSA LIV**. Le client `@supabase/supabase-js` est branché (voir `MIGRATION_SUPABASE.md` pour le reste à câbler).
 
 | Élément | Valeur |
 |---------|--------|
@@ -91,16 +93,18 @@ Projet Supabase dédié créé dans l'organisation **FISSA LIV**. **À faire cô
 | URL API | `https://mkgxnnihcldspbedqwge.supabase.co` |
 | Clé publique (publishable) | `sb_publishable_yry1baN65W8aJxPs28bk8Q_A_LskQQq` |
 
-> La clé *publishable* est publique par nature (destinée au client) : la sécurité repose sur l'**auth + les RLS**, pas sur le secret de cette clé. La clé `service_role` (secrète, côté serveur uniquement) est à récupérer dans le dashboard Supabase et **ne doit jamais** être mise dans le frontend.
+> La clé *publishable* est publique par nature (destinée au client) : la sécurité repose sur l'**auth + les RLS**, pas sur le secret de cette clé. La clé `service_role` (secrète, côté serveur uniquement) est à récupérer dans le dashboard Supabase et **ne doit jamais** être mise dans le frontend. La config front est dans `.env` (modèle : `.env.example`).
 
-**11 tables créées** (toutes avec RLS activé) : `profiles` (rôles), `pieces`, `stock_movements`, `interventions`, `intervention_parts`, `invoices`, `invoice_lines`, `sales_channels` (3 canaux pré-remplis : LeBonCoin/eBay/OVOKO), `publications`, `sales`, `sale_items`.
+**12 tables** (toutes avec RLS activé) : `profiles` (rôles), `pieces` (+ colonne `notes`), `stock_movements`, `interventions`, `intervention_parts`, `invoices`, `invoice_lines`, `sales_channels` (3 canaux pré-remplis : LeBonCoin/eBay/OVOKO), `publications`, `sales`, `sale_items`.
 
-**3 fonctions métier** (à appeler via RPC, logique atomique côté base) :
+**3 fonctions métier** (RPC, logique atomique côté base) :
 - `add_intervention_part(intervention, piece, qty, prix)` → ajoute la pièce au chantier **+ décompte le stock + trace le mouvement** (garde-fou stock insuffisant).
 - `remove_intervention_part(part)` → désistement : **retour au stock** + mouvement de retour.
 - `mark_piece_sold(piece, channel, prix)` → vente marketplace : stock à 0 + **délistage automatique des autres canaux** (anti-survente).
 
-**Sécurité** : auth Supabase + RLS par rôle (`admin`/`user` + permissions), profil auto-créé à l'inscription, rôle non modifiable par un non-admin, lecture publique limitée au catalogue diffusable. Advisors : alertes critiques corrigées ; restent des avertissements attendus (écritures ouvertes à l'équipe authentifiée) à durcir plus tard si besoin.
+**Auth & bootstrap** : Supabase Auth (email + mot de passe), profil auto-créé à l'inscription, **le 1er compte inscrit devient automatiquement `admin`**, rôle non modifiable par un non-admin. Realtime activé sur `pieces`, `interventions`, `intervention_parts`, `publications`.
+
+**Sécurité** : RLS par rôle, lecture publique limitée au catalogue diffusable. Advisors : alertes critiques corrigées ; restent des avertissements attendus (écritures ouvertes à l'équipe authentifiée) à durcir plus tard si besoin.
 
 ---
 
@@ -108,11 +112,11 @@ Projet Supabase dédié créé dans l'organisation **FISSA LIV**. **À faire cô
 
 ### 4.1 Module Stock (fondamental 3)
 
-**Entité `Piece`** — une pièce référencée en stock. Champs clés : `ref` (référence unique interne, sert de code-barres), `name`, `cat` (catégorie), `vehicle` (véhicule compatible), `oem` (n° OEM constructeur), `supplier`, `donor` (véhicule donneur pour l'occasion), `qty`, `price`, `threshold` (seuil d'alerte), `zone` (emplacement), `etat` (état de la pièce d'occasion), `compat` (compatibilités), `photo`, `fmt` (format code-barres CODE128/CODE39), `added`, `archived`.
+**Entité `Piece`** — une pièce référencée en stock. Champs clés : `ref` (référence unique interne, sert de code-barres), `name`, `cat` (catégorie), `vehicle` (véhicule compatible), `oem` (n° OEM constructeur), `supplier`, `donor` (véhicule donneur pour l'occasion), `qty`, `price`, `threshold` (seuil d'alerte), `zone` (emplacement), `etat` (état de la pièce d'occasion), `compat` (compatibilités), `photo`, `notes`, `fmt` (format code-barres CODE128/CODE39), `added`, `archived`.
 
 **Cycle de vie d'une pièce**
 1. Un **préparateur** remplit le formulaire d'ajout (vue `AddPieceView`).
-2. La pièce est enregistrée dans la base via `stockStore.addPiece()`.
+2. La pièce est enregistrée dans la base via `stockStore.addPiece()` (Supabase).
 3. Une **étiquette code-barres** est générée (à partir de `ref`) et imprimée (format 62×29 mm, Brother/Dymo/NIIMBOT), à coller sur la pièce physique.
 4. À la vente : le **scanner** lit le code-barres → la pièce est ajoutée au panier → la vente décrémente `qty` et écrit un mouvement de type `vente`.
 5. Archivage possible (`toggleArchive`) : passe `archived=true` et `qty=0`.
@@ -134,7 +138,7 @@ Projet Supabase dédié créé dans l'organisation **FISSA LIV**. **À faire cô
 5. Suivi Kanban : `todo` → `in_progress` → `done`.
 6. **Édition d'une facture-chiffrage** (devis puis facture, TVA normale).
 
-> ✅ **IMPLÉMENTÉ CÔTÉ BASE (Supabase, 22/07/2026)** : la logique de déduction/retour est disponible via les fonctions RPC `add_intervention_part` et `remove_intervention_part` (voir §3bis) — décompte immédiat à l'ajout, retour au stock au désistement, garde-fou stock insuffisant, traçabilité des mouvements. **Reste à câbler côté app Vue** (remplacer l'appel direct `parts[]` du store `planning.ts` par ces RPC une fois la migration Supabase branchée).
+> ✅ **IMPLÉMENTÉ (Supabase + store, 22/07/2026)** : la logique est disponible côté base (`add_intervention_part` / `remove_intervention_part`) **et exposée dans le store** `planning.ts` via `addPart(interventionId, part)` et `removePart(partId)`. **Reste à câbler côté UI** : brancher les boutons d'ajout/retrait de pièce de `PlanningView` sur ces méthodes (l'ancienne UI mettait juste à jour `parts[]` sans toucher au stock).
 
 ### 4.3 Module Comptes (fondamental 5)
 
@@ -153,9 +157,9 @@ Reformulés en session (22/07/2026). Le besoin réel n'est **pas** une boutique 
 
 | Sujet | État | Action |
 |-------|------|--------|
-| Auth | Migration vers **Supabase Auth + RLS** (socle prêt) | Brancher côté app, créer le 1er compte admin |
+| Auth | **Supabase Auth + RLS branchées** | Finaliser LoginView (email), créer le 1er compte (= admin) |
 | Config secrets | Clé publishable OK dans le front ; `service_role` à garder secrète | Ne jamais exposer la clé service_role |
-| Validation données | Contraintes + RLS côté Postgres (socle) | Compléter la validation applicative |
+| Validation données | Contraintes + RLS côté Postgres | Compléter la validation applicative |
 | Facturation légale | Table `invoices` prête (TVA, numérotation auto) | Construire l'UI + mentions légales |
 | RGPD | Non traité | Données clients (chantiers) → registre, durée de conservation |
 
@@ -165,19 +169,20 @@ Reformulés en session (22/07/2026). Le besoin réel n'est **pas** une boutique 
 
 **Sprint A — Consolider le socle métier (modules 3 & 4)**
 1. ✅ Socle Supabase (schéma + RLS + fonctions déduction/retour/anti-survente) — fait 22/07/2026.
-2. Brancher l'app Vue sur Supabase (client + migration des stores). *(P0)*
-3. Câbler la déduction/retour stock↔chantier sur les RPC. *(P0)*
-4. **Facture-chiffrage chantier** : devis → facture, pièces + main d'œuvre, TVA normale. *(P0)*
-5. **Planning daté/heuré** complet (vue calendrier + statut). *(P1)*
+2. ✅ Brancher l'app Vue sur Supabase (client + stores auth/stock/planning, build vérifié OK) — fait 22/07/2026.
+3. 🟡 Câbler la déduction/retour stock↔chantier sur les RPC — **méthodes du store faites** (`addPart`/`removePart`), reste l'UI `PlanningView`. *(P0)*
+4. Migrer les stores restants (`users`, `history`, `cart`, `caisse`) vers Supabase. *(P0)*
+5. **Facture-chiffrage chantier** : devis → facture, pièces + main d'œuvre, TVA normale. *(P0)*
+6. **Planning daté/heuré** complet (vue calendrier + statut). *(P1)*
 
 **Sprint B — Sécuriser & fiabiliser**
-6. Migrer l'auth vers Supabase Auth ; créer le compte admin. *(P0)*
-7. Upload photos direct (Supabase Storage). *(P1)*
-8. Pagination du stock (> 1000 pièces). *(P2)*
+7. Finaliser l'auth (LoginView email + inscription) ; créer le compte admin. *(P0)*
+8. Upload photos direct (Supabase Storage). *(P1)*
+9. Pagination du stock (> 1000 pièces). *(P2)*
 
 **Sprint C — Vente en ligne (modules 1 & 2)**
-9. **Moteur de multidiffusion** : couche « canaux » + publication eBay + OVOKO (API), anti-survente. *(P1)*
-10. LeBonCoin via connecteur tiers ; vitrine SEO. *(P2)*
+10. **Moteur de multidiffusion** : couche « canaux » + publication eBay + OVOKO (API), anti-survente. *(P1)*
+11. LeBonCoin via connecteur tiers ; vitrine SEO. *(P2)*
 
 ---
 
@@ -189,9 +194,9 @@ Reformulés en session (22/07/2026). Le besoin réel n'est **pas** une boutique 
 
 Le **frontend est moderne et bien choisi** : Vue 3 + Vite + Pinia + Tailwind + Capacitor. On **le conserve**. Le scanner (JsBarcode + html5-qrcode) et l'app native Capacitor sont adaptés au terrain. Pas de refonte frontend.
 
-### 7.2 Décision structurante n°1 — Backend : migrer Firebase RTDB → Supabase ✅ VALIDÉE + SOCLE CRÉÉ (22/07/2026)
+### 7.2 Décision structurante n°1 — Backend : migrer Firebase RTDB → Supabase ✅ VALIDÉE + SOCLE + APP BRANCHÉE (22/07/2026)
 
-**Décision actée et exécutée : Supabase (PostgreSQL + Auth + Storage + Row Level Security).** Projet, schéma, RLS et fonctions métier sont en place (§3bis). Reste la migration de l'app Vue (client + stores).
+**Décision actée et exécutée : Supabase (PostgreSQL + Auth + Storage + Row Level Security).** Projet, schéma, RLS, fonctions métier en place (§3bis), et **app Vue branchée** (client + stores auth/stock/planning, build OK). Reste à migrer les stores secondaires et finaliser l'UI.
 
 Pourquoi :
 - Le métier est **relationnel** : pièces ↔ chantiers ↔ factures ↔ mouvements ↔ comptes ↔ publications marketplace. Postgres gère l'intégrité référentielle et les jointures.
@@ -223,7 +228,7 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 |-------|------|
 | Frontend | Vue 3 + Vite + Pinia + Tailwind (conserver) |
 | App native | Capacitor (conserver) |
-| Backend/BDD | **Supabase (Postgres)** ✅ socle créé |
+| Backend/BDD | **Supabase (Postgres)** ✅ socle créé + app branchée |
 | Auth | **Supabase Auth + RLS** par rôle |
 | Fichiers/photos | Supabase Storage |
 | Vente en ligne | **Multidiffusion** : eBay + OVOKO (API) d'abord, LeBonCoin via connecteur tiers ; vitrine SEO secondaire |
@@ -238,8 +243,8 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 
 ### 8.1 Décisions actées (22/07/2026)
 
-1. ✅ **Backend** : migration vers **Supabase** — **socle créé** (projet, schéma, RLS, fonctions métier, voir §3bis).
-2. ✅ **Pièce ↔ chantier** : décompte du stock **dès l'ajout**, **retour au stock si désistement** — implémenté côté base (§4.2).
+1. ✅ **Backend** : migration vers **Supabase** — socle créé **et app branchée** (auth/stock/atelier, build OK), voir §3bis + `MIGRATION_SUPABASE.md`.
+2. ✅ **Pièce ↔ chantier** : décompte du stock **dès l'ajout**, **retour au stock si désistement** — implémenté (base + store).
 3. ✅ **TVA** : régime **TVA normale** → facturation avec TVA, numérotation séquentielle, mentions légales.
 4. ✅ **Paiement** : **TPE physique en magasin** pour l'instant. Aucun compte de paiement en ligne créé → le paiement en ligne est géré par chaque marketplace ; passerelle (Stripe) reportée.
 5. ✅ **Vente en ligne** : priorité au **moteur de multidiffusion marketplaces** (eBay + OVOKO d'abord, LeBonCoin via connecteur tiers). Voir §7.3.
@@ -274,7 +279,8 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 | 22/07/2026 | 2.0 | Session Cowork | Repositionnement autour des 5 fondamentaux ; analyse de l'existant Vue/Firebase ; recommandation technique (migration Supabase) ; identification de l'écart « déduction stock chantier » ; création de ETAT_PROJET.md + SCHEMA_PROJET.md |
 | 22/07/2026 | 2.1 | Session Cowork | Décisions : migration Supabase **validée** ; logique pièce↔chantier (décompte à l'ajout, retour si désistement) |
 | 22/07/2026 | 2.2 | Session Cowork | Décisions : **TVA normale**, **paiement TPE magasin**. Vente en ligne = **multidiffusion marketplaces** (eBay/OVOKO API, LeBonCoin via tiers) + anti-survente |
-| 22/07/2026 | 2.3 | Session Cowork | **Socle Supabase créé** : projet `fissa-stock` (§3bis), 11 tables + RLS, 3 fonctions métier (déduction/retour/anti-survente), durcissement sécurité. MAJ §2, §3, §4, §5, §6, §7, §8, §10 |
+| 22/07/2026 | 2.3 | Session Cowork | **Socle Supabase créé** : projet `fissa-stock` (§3bis), 11 tables + RLS, 3 fonctions métier (déduction/retour/anti-survente), durcissement sécurité |
+| 22/07/2026 | 2.4 | Session Cowork | **App Vue branchée sur Supabase** : client + stores auth/stock/planning, RPC exposés (`addPart`/`removePart`), types générés, 1er inscrit = admin, realtime, colonne `notes`. **Build de production vérifié OK.** Voir `MIGRATION_SUPABASE.md`. MAJ §2, §3, §4, §5, §6, §7, §8, §10 |
 
 ---
 
