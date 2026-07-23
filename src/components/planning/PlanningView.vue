@@ -1,19 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { usePlanningStore } from '@/stores/planning'
 import { useStockStore } from '@/stores/stock'
-import { useHistoryStore } from '@/stores/history'
-import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { sanitize } from '@/utils/security'
-import { formatPrice, formatDateShort } from '@/utils/format'
+import { formatPrice } from '@/utils/format'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import type { Intervention, InterventionPart, Piece } from '@/types'
+import type { Intervention, Piece } from '@/types'
 
 const planning = usePlanningStore()
 const stock = useStockStore()
-const history = useHistoryStore()
-const auth = useAuthStore()
 const { toast } = useToast()
 
 // ---------------------------------------------------------------------------
@@ -93,11 +89,26 @@ function openDetail(intervention: Intervention) {
   showDetail.value = true
 }
 
+/** Recharge la copie éditée depuis le store (après une opération sur les pièces). */
+function syncEditData() {
+  if (!editData.value?._id) return
+  const fresh = planning.interventions.find((i) => i._id === editData.value!._id)
+  if (fresh) editData.value = JSON.parse(JSON.stringify(fresh))
+}
+
+function errMsg(e: unknown): string {
+  const m = (e as { message?: string })?.message || ''
+  if (/stock insuffisant/i.test(m)) return m
+  return 'Erreur sur la pièce'
+}
+
 async function saveDetail() {
   if (!editData.value?._id) return
   saving.value = true
   try {
     const d = editData.value
+    // Les pièces sont gérées en direct (RPC : décompte/retour de stock) ; on ne
+    // renvoie que les informations du chantier.
     const data: Partial<Intervention> = {
       clientName: sanitize(d.clientName.trim()),
       clientPhone: sanitize(d.clientPhone.trim()),
@@ -107,9 +118,7 @@ async function saveDetail() {
       vehiclePlate: sanitize(d.vehiclePlate.trim().toUpperCase()),
       description: sanitize(d.description.trim()),
       notes: sanitize(d.notes.trim()),
-      dateScheduled: d.dateScheduled,
-      parts: d.parts,
-      estimatedTotal: partsTotal.value
+      dateScheduled: d.dateScheduled
     }
     await planning.updateIntervention(d._id!, data)
     toast('Intervention mise à jour')
@@ -149,34 +158,58 @@ const filteredParts = computed<Piece[]>(() => {
     .slice(0, 10)
 })
 
-function addPart(piece: Piece) {
-  if (!editData.value) return
-  const existing = editData.value.parts.find(p => p.pieceId === piece._id)
-  if (existing) {
-    existing.qty += 1
-  } else {
-    editData.value.parts.push({
+// Ajout d'une pièce : décompte immédiat du stock via RPC (add_intervention_part).
+async function addPart(piece: Piece) {
+  if (!editData.value?._id) return
+  if (editData.value.parts.find(p => p.pieceId === piece._id)) {
+    toast('Pièce déjà ajoutée au chantier', true)
+    return
+  }
+  try {
+    await planning.addPart(editData.value._id, {
       pieceId: piece._id!,
       ref: piece.ref,
       name: piece.name,
       qty: 1,
       prixUnitaire: piece.price
     })
+    syncEditData()
+    partSearch.value = ''
+    toast('Pièce ajoutée — stock décompté')
+  } catch (e) {
+    toast(errMsg(e), true)
   }
-  partSearch.value = ''
 }
 
-function removePart(index: number) {
-  editData.value?.parts.splice(index, 1)
+// Désistement : retrait de la pièce → retour au stock (remove_intervention_part).
+async function removePart(index: number) {
+  const part = editData.value?.parts[index]
+  if (!part?.id) return
+  try {
+    await planning.removePart(part.id)
+    syncEditData()
+    toast('Pièce retirée — retournée au stock')
+  } catch (e) {
+    toast(errMsg(e), true)
+  }
 }
 
-function updatePartQty(index: number, qty: number) {
-  if (!editData.value) return
+// Ajustement de quantité (+/-) → synchronise le stock (adjust_intervention_part).
+async function updatePartQty(index: number, qty: number) {
+  const part = editData.value?.parts[index]
+  if (!part?.id) return
   if (qty < 1) {
-    removePart(index)
+    await removePart(index)
     return
   }
-  editData.value.parts[index].qty = qty
+  const delta = qty - part.qty
+  if (delta === 0) return
+  try {
+    await planning.adjustPart(part.id, delta)
+    syncEditData()
+  } catch (e) {
+    toast(errMsg(e), true)
+  }
 }
 
 const partsTotal = computed(() => {
@@ -218,27 +251,11 @@ async function moveToTodo(intervention: Intervention) {
 
 async function moveToDone(intervention: Intervention) {
   if (!intervention._id) return
+  // Le stock est déjà décompté à l'ajout des pièces : la clôture ne fait que
+  // changer le statut (pas de double déduction).
   try {
-    // Deduct parts from stock and log history
-    for (const part of intervention.parts) {
-      const piece = stock.activePieces.find(p => p._id === part.pieceId)
-      if (piece) {
-        const newQty = Math.max(0, (piece.qty || 0) - part.qty)
-        await stock.updatePiece(part.pieceId, { qty: newQty })
-      }
-      await history.addEntry({
-        type: 'vente',
-        ref: part.ref,
-        name: part.name + ' [Atelier]',
-        qty: part.qty,
-        prixVente: part.prixUnitaire,
-        user: auth.currentUser?.name || 'Système',
-        ts: Date.now(),
-        date: new Date().toLocaleString('fr-FR')
-      })
-    }
     await planning.moveStatus(intervention._id, 'done')
-    toast('Intervention terminée — stock mis à jour')
+    toast('Intervention terminée')
   } catch {
     toast('Erreur lors de la clôture', true)
   }
