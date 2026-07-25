@@ -4,8 +4,8 @@
 >
 > **À tenir à jour** : à chaque évolution significative, ajouter une entrée dans le §10 Journal des mises à jour et actualiser les sections concernées.
 
-- **Dernière mise à jour** : 22/07/2026
-- **Version du document** : 2.4
+- **Dernière mise à jour** : 25/07/2026
+- **Version du document** : 2.8
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock` (branche `main`)
 - **Documents compagnons** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données) · `MIGRATION_SUPABASE.md` (état du branchement app ↔ Supabase et reste à câbler)
 
@@ -281,6 +281,10 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 | 22/07/2026 | 2.2 | Session Cowork | Décisions : **TVA normale**, **paiement TPE magasin**. Vente en ligne = **multidiffusion marketplaces** (eBay/OVOKO API, LeBonCoin via tiers) + anti-survente |
 | 22/07/2026 | 2.3 | Session Cowork | **Socle Supabase créé** : projet `fissa-stock` (§3bis), 11 tables + RLS, 3 fonctions métier (déduction/retour/anti-survente), durcissement sécurité |
 | 22/07/2026 | 2.4 | Session Cowork | **App Vue branchée sur Supabase** : client + stores auth/stock/planning, RPC exposés (`addPart`/`removePart`), types générés, 1er inscrit = admin, realtime, colonne `notes`. **Build de production vérifié OK.** Voir `MIGRATION_SUPABASE.md`. MAJ §2, §3, §4, §5, §6, §7, §8, §10 |
+| 23/07/2026 | 2.5 | Session Cowork | **Encaissement comptoir** (`/panier`, RPC `checkout_sale` atomique : stock + vente + mouvements), **historique** sur `stock_movements`/`sales`, **gestion utilisateurs** (edge `admin-users`). Firebase retiré des stores. |
+| 23/07/2026 | 2.6 | Session Cowork | **Multidiffusion** : tour de contrôle (`/multidiffusion`), 9 canaux, entités `sales_channels`/`publications`, edge `publish-listing` (connecteurs eBay/OVOKO en stubs lisant les secrets), edge `marketplace-webhook` anti-survente (`mark_piece_sold`). Voir `MULTIDIFFUSION.md`. |
+| 23/07/2026 | 2.7 | Session Cowork | **Boutique publique** : `/boutique` + `/boutique/:id`, lecture anonyme scopée RLS (`pieces_read_public` : publiable + non archivée + stock>0), bouton « Publiable ». Edge `product-feed` (Google Shopping XML/CSV) écrite, non déployée. Voir `BOUTIQUE.md`. |
+| 25/07/2026 | 2.8 | Session Cowork | **Hébergement web** : `.env.production` public commité (URL Supabase + clé publishable) pour que `deploy.yml` produise un build connecté au backend. Site GitHub Pages : `https://yassinekdehbal-tech.github.io/fissa-stock/` (à activer : Settings → Pages → Source = GitHub Actions). Build prod vérifié : creds injectés dans le bundle, fallback SPA `404.html` OK. |
 
 ---
 
