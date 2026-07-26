@@ -19,7 +19,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Build web for Capacitor
         run: npm run build:ios
@@ -33,11 +33,21 @@ jobs:
       - name: Write API Key file
         env:
           ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
         run: |
           mkdir -p ~/private_keys
-          printenv ASC_KEY_CONTENT > ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
-          echo "Key file written, first line:"
-          head -1 ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8
+          # Reconstruit un PEM valide meme si les retours a la ligne ont ete perdus au collage
+          BODY=$(printf '%s' "$ASC_KEY_CONTENT" \
+            | sed -e 's/-----BEGIN PRIVATE KEY-----//g' -e 's/-----END PRIVATE KEY-----//g' \
+            | tr -d '[:space:]')
+          {
+            echo "-----BEGIN PRIVATE KEY-----"
+            printf '%s' "$BODY" | fold -w 64
+            echo
+            echo "-----END PRIVATE KEY-----"
+          } > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo "Cle ecrite, nombre de lignes:"
+          wc -l < ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
 
       - name: Set up code signing
         env:
