@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { usePlanningStore } from '@/stores/planning'
 import { useStockStore } from '@/stores/stock'
 import { useToast } from '@/composables/useToast'
+import { supabase } from '@/lib/supabase'
 import { sanitize } from '@/utils/security'
 import { formatPrice } from '@/utils/format'
 import BaseModal from '@/components/ui/BaseModal.vue'
@@ -305,14 +306,40 @@ function truncate(str: string, len: number): string {
 // ---------------------------------------------------------------------------
 // Invoice generation
 // ---------------------------------------------------------------------------
-let invoiceCounter = Date.now()
+interface InvoiceResult {
+  id: string
+  number: string
+  date_issued: string
+  total_ht: number
+  total_tva: number
+  total_ttc: number
+  existing: boolean
+}
 
-function generateInvoice(intervention: Intervention) {
-  const num = 'FA-' + new Date().getFullYear() + '-' + String(++invoiceCounter).slice(-6)
-  const now = new Date()
-  const dateStr = now.toLocaleDateString('fr-FR')
+async function generateInvoice(intervention: Intervention) {
+  if (!intervention._id) return
+  // La facture est créée en base (table invoices) avec un numéro
+  // séquentiel par organisation ; ce même appel la retourne si elle
+  // existe déjà (réimpression, pas de doublon de numérotation).
+  let inv: InvoiceResult
+  try {
+    const { data, error } = await supabase.rpc('create_invoice_for_intervention', {
+      p_intervention: intervention._id
+    })
+    if (error) throw error
+    inv = data as unknown as InvoiceResult
+  } catch (e) {
+    toast('Erreur facture : ' + (e instanceof Error ? e.message : String(e)), true)
+    return
+  }
+  if (inv.existing) toast('Facture déjà émise — réimpression de ' + inv.number)
+
+  const num = inv.number
+  const dateStr = new Date(inv.date_issued).toLocaleDateString('fr-FR')
   const parts = intervention.parts || []
-  const subtotal = parts.reduce((s, p) => s + p.qty * p.prixUnitaire, 0)
+  const totalHT = Number(inv.total_ht)
+  const totalTVA = Number(inv.total_tva)
+  const totalTTC = Number(inv.total_ttc)
 
   const win = window.open('', '_blank', 'width=800,height=900')
   if (!win) { toast('Popup bloquée — autorisez les popups', true); return }
@@ -407,9 +434,17 @@ ${intervention.description ? `<div class="desc-box"><div class="desc-title">Desc
       <td class="price-cell">${(p.qty * p.prixUnitaire).toFixed(2)} €</td>
     </tr>`).join('') : '<tr><td colspan="5" class="no-parts">Aucune pièce facturée</td></tr>'}
   </tbody>
+  <tr>
+    <td colspan="4" class="total-label" style="text-align:right;font-family:'Courier New',monospace">Total HT</td>
+    <td class="price-cell">${totalHT.toFixed(2)} €</td>
+  </tr>
+  <tr>
+    <td colspan="4" class="total-label" style="text-align:right;font-family:'Courier New',monospace">TVA 20 %</td>
+    <td class="price-cell">${totalTVA.toFixed(2)} €</td>
+  </tr>
   <tr class="total-row">
     <td colspan="4" class="total-label">Total TTC</td>
-    <td class="total-val">${subtotal.toFixed(2)} €</td>
+    <td class="total-val">${totalTTC.toFixed(2)} €</td>
   </tr>
 </table>
 
@@ -417,6 +452,9 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
 
 <div class="footer">
   FISSA PIECE AUTO — Facture ${num} — Émise le ${dateStr}<br>
+  TVA au taux normal de 20 % incluse. Paiement à réception — pénalités de retard : 3 × le taux d'intérêt légal ;
+  indemnité forfaitaire de recouvrement : 40 € (art. L441-10 C. com.).<br>
+  Pièces d'occasion : garantie légale de conformité de 12 mois (art. L217-3 s. C. conso.).<br>
   Merci de votre confiance
 </div>
 
