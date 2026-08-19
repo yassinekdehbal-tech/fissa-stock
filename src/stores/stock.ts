@@ -14,6 +14,7 @@ function rowToPiece(r: PieceRow): Piece {
     oem: r.oem ?? '',
     supplier: r.supplier ?? '',
     donor: r.donor ?? '',
+    source: (r.source ?? 'autre') as Piece['source'],
     qty: r.qty,
     price: Number(r.price),
     threshold: r.threshold ?? 1,
@@ -38,6 +39,7 @@ function pieceToRow(p: Partial<Piece>): Record<string, unknown> {
   if (p.oem !== undefined) row.oem = p.oem
   if (p.supplier !== undefined) row.supplier = p.supplier
   if (p.donor !== undefined) row.donor = p.donor
+  if (p.source !== undefined) row.source = p.source
   if (p.qty !== undefined) row.qty = p.qty
   if (p.price !== undefined) row.price = p.price
   if (p.threshold !== undefined) row.threshold = p.threshold

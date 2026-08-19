@@ -1,3 +1,5 @@
+export type PieceSource = 'don' | 'demontage' | 'lot-occasion' | 'grossiste-neuf' | 'web' | 'autre'
+
 export interface Piece {
   _id?: string
   ref: string
@@ -7,6 +9,7 @@ export interface Piece {
   oem: string
   supplier: string
   donor: string
+  source: PieceSource
   qty: number
   price: number
   threshold?: number

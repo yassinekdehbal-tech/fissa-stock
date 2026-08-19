@@ -221,6 +221,7 @@ export type Database = {
           publishable: boolean
           qty: number
           ref: string
+          source: string
           supplier: string | null
           threshold: number | null
           updated_at: string
@@ -246,6 +247,7 @@ export type Database = {
           publishable?: boolean
           qty?: number
           ref: string
+          source?: string
           supplier?: string | null
           threshold?: number | null
           updated_at?: string
@@ -271,6 +273,7 @@ export type Database = {
           publishable?: boolean
           qty?: number
           ref?: string
+          source?: string
           supplier?: string | null
           threshold?: number | null
           updated_at?: string
@@ -501,6 +504,24 @@ export type Database = {
         }
         Returns: string
       }
+      adjust_intervention_part: {
+        Args: { p_part: string; p_delta: number }
+        Returns: undefined
+      }
+      checkout_sale: {
+        Args: {
+          p_items: Json
+          p_payment?: Database['public']['Enums']['payment_method']
+          p_discount?: number
+          p_client?: string
+        }
+        Returns: string
+      }
+      create_invoice_for_intervention: {
+        Args: { p_intervention: string; p_labor?: Json }
+        Returns: Json
+      }
+      current_org_id: { Args: Record<never, never>; Returns: string }
       has_perm: { Args: { p: string }; Returns: boolean }
       is_admin: { Args: Record<never, never>; Returns: boolean }
       mark_piece_sold: {

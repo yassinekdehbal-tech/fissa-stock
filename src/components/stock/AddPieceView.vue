@@ -5,7 +5,7 @@ import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { sanitize } from '@/utils/security'
-import type { PieceCategory, PieceState } from '@/types'
+import type { PieceCategory, PieceSource, PieceState } from '@/types'
 
 const stock = useStockStore()
 const history = useHistoryStore()
@@ -20,6 +20,7 @@ const form = ref({
   oem: '',
   supplier: '',
   donor: '',
+  source: 'autre' as PieceSource,
   qty: 1,
   price: 0,
   threshold: 0,
@@ -32,7 +33,7 @@ const form = ref({
 })
 
 function clearForm() {
-  form.value = { ref: '', name: '', cat: '', vehicle: '', oem: '', supplier: '', donor: '', qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état', compat: '', photo: '', notes: '', fmt: 'CODE128' }
+  form.value = { ref: '', name: '', cat: '', vehicle: '', oem: '', supplier: '', donor: '', source: 'autre', qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état', compat: '', photo: '', notes: '', fmt: 'CODE128' }
 }
 
 async function submit() {
@@ -50,6 +51,7 @@ async function submit() {
     oem: sanitize(form.value.oem.trim()),
     supplier: sanitize(form.value.supplier.trim()),
     donor: sanitize(form.value.donor.trim()),
+    source: form.value.source,
     qty: form.value.qty,
     price: form.value.price,
     threshold: form.value.threshold || undefined,
@@ -120,6 +122,17 @@ async function submit() {
       <div class="flex flex-col gap-1">
         <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Véhicule donneur</label>
         <input v-model="form.donor" placeholder="Immatriculation ou VIN" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Provenance</label>
+        <select v-model="form.source" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]">
+          <option value="demontage">Démontage</option>
+          <option value="don">Don</option>
+          <option value="lot-occasion">Lot d'occasion</option>
+          <option value="grossiste-neuf">Grossiste neuf</option>
+          <option value="web">Web</option>
+          <option value="autre">Autre</option>
+        </select>
       </div>
       <div class="flex flex-col gap-1">
         <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Quantité <span class="text-red-400">*</span></label>

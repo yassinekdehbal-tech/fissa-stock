@@ -5,7 +5,7 @@
 > **À tenir à jour** : à chaque évolution significative, ajouter une entrée dans le §11 Journal des mises à jour et actualiser les sections concernées.
 
 - **Dernière mise à jour** : 19/08/2026
-- **Version du document** : 3.0
+- **Version du document** : 3.1
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock` (branche `main`)
 - **Documents compagnons** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données) · `MIGRATION_SUPABASE.md` (état du branchement app ↔ Supabase et reste à câbler)
 
@@ -185,19 +185,19 @@ Reformulés en session (22/07/2026). Le besoin réel n'est **pas** une boutique 
 > Feuille de route **réordonnée le 19/08/2026** d'après l'audit : le socle logiciel est fait, ce qui bloque est la mise en service et la conformité.
 
 **Sprint 0 — Démarrer pour de vrai (le vrai blocage)**
-1. **Schéma multi-tenant** (`organizations`, `org_id` sur toutes les tables, RLS par organisation, champ `source` sur `pieces`, table `sites` pour le multi-dépôt) — **à faire tant que la base est vide**, voir §1bis. *(P0)*
+1. 🟡 **Schéma multi-tenant** — **écrit et versionné** (19/08/2026) : 3 migrations dans `supabase/migrations/` (`organizations`+`sites`, `org_id` partout, unicités par org, RLS par org, RPC org-aware, champ `source`, compteur de factures par org). ⚠️ **Reste à APPLIQUER sur le projet Supabase** — action utilisateur ou permission requise (l'agent a été bloqué par les permissions). **À faire avant de merger la PR frontend et avant la première donnée réelle.** *(P0)*
 2. **Créer le 1er compte** sur l'app déployée (il devient automatiquement admin de l'organisation FISSA PIÈCE AUTO), puis les comptes préparateurs. *(P0)*
 3. **Saisir 10 pièces réelles** + imprimer les étiquettes : c'est ce qui transforme le livrable en outil et fera remonter les vrais irritants terrain. *(P0)*
 
 **Sprint A — Conformité (le seul risque réglementaire)**
-3. **Facture chantier sur la table `invoices`** : numérotation séquentielle en base (et non `Date.now()`), persistance, mentions légales, TVA normale. *(P0)* — voir §5.
+3. 🟡 **Facture chantier sur la table `invoices`** — **implémentée** (19/08/2026) : RPC `create_invoice_for_intervention` (numéro séquentiel par org/année via `invoice_counters`, idempotent, lignes pièces + main d'œuvre, prix TTC → HT/TVA 20 % décomposées) + `PlanningView` réécrit (impression avec vrai numéro, totaux HT/TVA/TTC, mentions légales). Actif dès que la migration du point 1 est appliquée. Reste : SIRET/adresse/TVA intracom à saisir dans `organizations` (colonnes prêtes). *(P0)* — voir §5.
 4. **Planning daté/heuré** complet (vue calendrier + statut). *(P1)*
 
 **Sprint B — Fiabiliser**
 5. ✅ Garde-fou CI sur les PR (`npm ci` + typecheck + build) — fait 19/08/2026, workflow `ci.yml`.
 6. **Build iOS TestFlight** : débloquer côté compte Apple (droits de la clé App Store Connect, App ID `com.fissa.pieceauto`, certificat de distribution) — le code et le workflow ne sont pas en cause. *(P1)* — voir §10.
 7. Upload photos direct (Supabase Storage) — aujourd'hui simple champ URL. *(P1)*
-8. Supprimer `src/composables/useFirebase.ts` (orphelin). *(P2)*
+8. ✅ `useFirebase.ts`, `firebase.json`, `database.rules.json` supprimés + dépendance `firebase` retirée (−72 paquets) — fait 19/08/2026.
 9. Pagination du stock (> 1000 pièces). *(P2)*
 
 **Sprint C — Vente en ligne (modules 1 & 2)**
@@ -311,7 +311,7 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 | Chaîne | Workflow | État | Détail |
 |--------|----------|------|--------|
 | Validation PR | `ci.yml` | 🟢 Ajouté le 19/08/2026 | `npm ci` (strict lockfile) + `vue-tsc --noEmit` + `npm run build`. Jusque-là **aucune** validation ne tournait sur les PR. |
-| Web (GitHub Pages) | `deploy.yml` | 🟢 Vert depuis le 26/07/2026 | Déclenché sur push `main`. Reste à confirmer l'activation Settings → Pages → Source = GitHub Actions. |
+| Web (GitHub Pages) | `deploy.yml` | 🟢 Vert (passé à `npm ci` le 19/08/2026) | Déclenché sur push `main`. Reste à confirmer l'activation Settings → Pages → Source = GitHub Actions. |
 | iOS (TestFlight) | `ios-testflight.yml` | 🔴 **En échec** (5 échecs, dernier le 30/07/2026) | L'archive **se compile** ; c'est l'`exportArchive` qui casse. |
 
 **Diagnostic du build iOS** — erreurs renvoyées par `xcodebuild -exportArchive` :
@@ -342,6 +342,7 @@ C'est un problème **de compte Apple, pas de code** : la clé App Store Connect 
 | 25/07/2026 | 2.8 | Session Cowork | **Hébergement web** : `.env.production` public commité (URL Supabase + clé publishable) pour que `deploy.yml` produise un build connecté au backend. Site GitHub Pages : `https://yassinekdehbal-tech.github.io/fissa-stock/` (à activer : Settings → Pages → Source = GitHub Actions). Build prod vérifié : creds injectés dans le bundle, fallback SPA `404.html` OK. |
 | 19/08/2026 | 2.9 | Session Claude Code | **Audit d'état** (code + Supabase + CI, pas seulement la doc). Constats : base de production **vide** (0 profil / 0 pièce → jamais mise en service) ; **facture non conforme** (`Date.now()`, table `invoices` inutilisée) ; **connecteurs marketplaces = stubs** ; **build iOS en échec** (cloud signing Apple) ; `PlanningView` en fait **déjà câblé** (la doc 2.4→2.8 disait le contraire). Correctifs : **lockfile resynchronisé** (`@supabase/supabase-js` absent depuis `99f1e71`, `npm ci` cassé) + **workflow `ci.yml`** (garde-fou `npm ci`/typecheck/build sur les PR). Feuille de route §6 réordonnée, §10 ajoutée. |
 | 19/08/2026 | 3.0 | Session Claude Code | **Vision SaaS actée** (§1bis) : FISSA STOCK = solution multi-exploitant, FISSA PIÈCE AUTO = premier exploitant. Hiérarchie super-admin → admin exploitant → utilisateur → sous-utilisateur. Reco : **schéma multi-tenant maintenant** (base vide, migration triviale), plomberie SaaS (billing, self-service) après validation en magasin. Champ `source` (don/démontage/lot/grossiste/web), import en masse, backlog standards (§8.3 : inventaire tournant, OR signé, garantie légale occasion, offline, multi-site). Décisions 9-11 ouvertes (§8.2). |
+| 19/08/2026 | 3.1 | Session Claude Code | **Exécution Sprint 0/A** : PR #2 mergée + déployée. **3 migrations multi-tenant écrites et versionnées** (`supabase/migrations/`) — ⚠️ à appliquer sur Supabase (permission requise). **Facture conforme implémentée** (RPC `create_invoice_for_intervention` + PlanningView : numéro séquentiel par org, HT/TVA/TTC, mentions légales, idempotence). Champ `source` (provenance) dans AddPieceView. **Firebase supprimé** (code + config + dépendance). `deploy.yml` passé à `npm ci`. Types Supabase complétés (`source`, RPC). |
 
 ---
 
