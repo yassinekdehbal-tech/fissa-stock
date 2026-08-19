@@ -5,7 +5,7 @@
 > **À tenir à jour** : à chaque évolution significative, ajouter une entrée dans le §11 Journal des mises à jour et actualiser les sections concernées.
 
 - **Dernière mise à jour** : 19/08/2026
-- **Version du document** : 2.9
+- **Version du document** : 3.0
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock` (branche `main`)
 - **Documents compagnons** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données) · `MIGRATION_SUPABASE.md` (état du branchement app ↔ Supabase et reste à câbler)
 
@@ -28,6 +28,18 @@ Le projet est un **repositionnement** d'un premier jet démarré début 2026. On
 | 5 | **Gestion des comptes** | Comptes utilisateurs + suivi financier (caisse, CA, à terme comptabilité) | P1 |
 
 > **Décision de session (22/07/2026)** : cette phase se concentre sur les modules **3 (Stock)** et **4 (Atelier)**, déjà les plus avancés. La vitrine et la vente en ligne viennent ensuite, une fois le socle backend consolidé.
+
+### 1bis. Vision SaaS (exprimée le 19/08/2026)
+
+**FISSA STOCK est pensé comme un SaaS** : la solution doit pouvoir être vendue à d'autres exploitants (magasins de pièces auto). **FISSA PIÈCE AUTO est le premier exploitant** — le client n°1 et le banc d'essai du produit.
+
+Conséquences structurantes :
+
+- **Hiérarchie de comptes** : super-admin plateforme (FISSA LIV) → **admin exploitant** → **utilisateur** → **sous-utilisateur** (permissions granulaires `magasinier` / `vendeur` / `historique`, déjà amorcées dans le store `users`).
+- **Isolation des données par exploitant** : table `organizations` + colonne `org_id` sur toutes les tables métier + RLS par organisation. ⚠️ **À faire AVANT la première donnée réelle** : la base est vide aujourd'hui (audit v2.9), la migration est donc triviale ; elle deviendrait risquée une fois le stock FISSA référencé.
+- **Séquencement volontaire** : le schéma multi-tenant se pose maintenant (coût quasi nul), mais la **plomberie SaaS** (inscription self-service, facturation d'abonnement Stripe Billing, branding par exploitant, CGU/CGV/DPA RGPD) attend que FISSA utilise l'outil au quotidien — pas de produit à vendre avant un produit validé en magasin.
+- **Provenance des pièces** : les pièces proviennent de canaux distincts — don, démontage (véhicule donneur), achat de lot d'occasion, grossiste neuf, web. Un champ `source` normalisé doit être ajouté à `pieces` (analyse de marge par canal). L'« achat de lot » implique aussi un **import en masse** (CSV) + impression d'étiquettes en lot.
+- **Style** : UI et app voulues **dynamiques** ; le passage design se fera une fois les écrans stabilisés par l'usage réel.
 
 ---
 
@@ -173,8 +185,9 @@ Reformulés en session (22/07/2026). Le besoin réel n'est **pas** une boutique 
 > Feuille de route **réordonnée le 19/08/2026** d'après l'audit : le socle logiciel est fait, ce qui bloque est la mise en service et la conformité.
 
 **Sprint 0 — Démarrer pour de vrai (le vrai blocage)**
-1. **Créer le 1er compte** sur l'app déployée (il devient automatiquement `admin`), puis les comptes préparateurs. *(P0)*
-2. **Saisir 10 pièces réelles** + imprimer les étiquettes : c'est ce qui transforme le livrable en outil et fera remonter les vrais irritants terrain. *(P0)*
+1. **Schéma multi-tenant** (`organizations`, `org_id` sur toutes les tables, RLS par organisation, champ `source` sur `pieces`, table `sites` pour le multi-dépôt) — **à faire tant que la base est vide**, voir §1bis. *(P0)*
+2. **Créer le 1er compte** sur l'app déployée (il devient automatiquement admin de l'organisation FISSA PIÈCE AUTO), puis les comptes préparateurs. *(P0)*
+3. **Saisir 10 pièces réelles** + imprimer les étiquettes : c'est ce qui transforme le livrable en outil et fera remonter les vrais irritants terrain. *(P0)*
 
 **Sprint A — Conformité (le seul risque réglementaire)**
 3. **Facture chantier sur la table `invoices`** : numérotation séquentielle en base (et non `Date.now()`), persistance, mentions légales, TVA normale. *(P0)* — voir §5.
@@ -261,6 +274,21 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 6. **LeBonCoin** : connecteur de multidiffusion tiers (lequel, budget) ou dépôt semi-manuel ?
 7. **OVOKO** : l'utiliser comme canal **et** rediffuseur (eBay/Allegro), ou intégrer eBay en direct pour garder marge + relation client ?
 8. **Vitrine/boutique directe** sur le domaine FISSA : à faire (SEO, vente directe) ou non prioritaire ?
+9. **Multi-tenant** : valider le passage du schéma en multi-organisation **maintenant** (base vide, recommandé §1bis) — puis calendrier de la plomberie SaaS (billing, self-service).
+10. **Étiquettes** : ajouter un QR code en complément du CODE128 (scan téléphone plus rapide et tolérant) ?
+11. **Compatibilité véhicule** : passer de `compat` texte libre à des champs structurés marque/modèle/motorisation (voire données type TecDoc, payantes) ?
+
+### 8.3 Standards à prévoir (suggestions actées comme backlog, 19/08/2026)
+
+| Sujet | Détail | Priorité |
+|-------|--------|----------|
+| Inventaire tournant | Comptage par scan d'un rayon, écart théorique/réel automatique | Haute |
+| Ordre de réparation signé | Devis accepté → OR signé client → facture (protection juridique atelier) | Haute |
+| Garantie légale occasion | Vente pro→particulier : garantie légale de conformité 12 mois, à mentionner sur les factures | Haute (conformité) |
+| Import en masse + étiquettes en lot | Indispensable pour les achats de lots d'occasion | Haute |
+| Mode hors-ligne de l'app | File d'attente locale synchronisée (wifi d'entrepôt peu fiable) | Moyenne |
+| Multi-site par exploitant | Table `sites`, stock par dépôt — schéma dès maintenant, UI plus tard | Moyenne |
+| CGU/CGV + DPA RGPD du SaaS | Bloquant avant le premier exploitant tiers, pas avant | Basse aujourd'hui |
 
 ---
 
@@ -313,6 +341,7 @@ C'est un problème **de compte Apple, pas de code** : la clé App Store Connect 
 | 23/07/2026 | 2.7 | Session Cowork | **Boutique publique** : `/boutique` + `/boutique/:id`, lecture anonyme scopée RLS (`pieces_read_public` : publiable + non archivée + stock>0), bouton « Publiable ». Edge `product-feed` (Google Shopping XML/CSV) écrite, non déployée. Voir `BOUTIQUE.md`. |
 | 25/07/2026 | 2.8 | Session Cowork | **Hébergement web** : `.env.production` public commité (URL Supabase + clé publishable) pour que `deploy.yml` produise un build connecté au backend. Site GitHub Pages : `https://yassinekdehbal-tech.github.io/fissa-stock/` (à activer : Settings → Pages → Source = GitHub Actions). Build prod vérifié : creds injectés dans le bundle, fallback SPA `404.html` OK. |
 | 19/08/2026 | 2.9 | Session Claude Code | **Audit d'état** (code + Supabase + CI, pas seulement la doc). Constats : base de production **vide** (0 profil / 0 pièce → jamais mise en service) ; **facture non conforme** (`Date.now()`, table `invoices` inutilisée) ; **connecteurs marketplaces = stubs** ; **build iOS en échec** (cloud signing Apple) ; `PlanningView` en fait **déjà câblé** (la doc 2.4→2.8 disait le contraire). Correctifs : **lockfile resynchronisé** (`@supabase/supabase-js` absent depuis `99f1e71`, `npm ci` cassé) + **workflow `ci.yml`** (garde-fou `npm ci`/typecheck/build sur les PR). Feuille de route §6 réordonnée, §10 ajoutée. |
+| 19/08/2026 | 3.0 | Session Claude Code | **Vision SaaS actée** (§1bis) : FISSA STOCK = solution multi-exploitant, FISSA PIÈCE AUTO = premier exploitant. Hiérarchie super-admin → admin exploitant → utilisateur → sous-utilisateur. Reco : **schéma multi-tenant maintenant** (base vide, migration triviale), plomberie SaaS (billing, self-service) après validation en magasin. Champ `source` (don/démontage/lot/grossiste/web), import en masse, backlog standards (§8.3 : inventaire tournant, OR signé, garantie légale occasion, offline, multi-site). Décisions 9-11 ouvertes (§8.2). |
 
 ---
 
