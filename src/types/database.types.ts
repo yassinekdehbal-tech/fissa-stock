@@ -287,6 +287,7 @@ export type Database = {
           created_at: string
           id: string
           name: string | null
+          org_id: string
           perm_historique: boolean
           perm_magasinier: boolean
           perm_vendeur: boolean
@@ -298,6 +299,7 @@ export type Database = {
           created_at?: string
           id: string
           name?: string | null
+          org_id?: string
           perm_historique?: boolean
           perm_magasinier?: boolean
           perm_vendeur?: boolean
@@ -309,6 +311,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string | null
+          org_id?: string
           perm_historique?: boolean
           perm_magasinier?: boolean
           perm_vendeur?: boolean
