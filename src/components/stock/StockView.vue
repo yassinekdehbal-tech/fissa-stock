@@ -6,6 +6,7 @@ import { useCartStore } from '@/stores/cart'
 import { useToast } from '@/composables/useToast'
 import StatCard from '@/components/ui/StatCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import type { Piece, PieceCategory, PieceState } from '@/types'
 import { CATEGORIES } from '@/types'
 import { formatPrice } from '@/utils/format'
@@ -15,6 +16,13 @@ const stock = useStockStore()
 const auth = useAuthStore()
 const cart = useCartStore()
 const { toast } = useToast()
+
+const labelPiece = ref<Piece | null>(null)
+const showLabel = ref(false)
+function openLabel(p: Piece) {
+  labelPiece.value = p
+  showLabel.value = true
+}
 
 const search = ref('')
 const filterCat = ref<PieceCategory | ''>('')
@@ -207,6 +215,7 @@ function exportCSV() {
             </td>
             <td class="px-3 py-2">
               <div class="flex gap-1 flex-wrap">
+                <button @click="openLabel(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-[#e6a817] hover:text-[#e6a817] transition-colors">🏷</button>
                 <button v-if="auth.hasPerm('vendeur') && !p.archived" @click="openAddCart(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-green-400 hover:text-green-400 transition-colors">🛒</button>
                 <button v-if="(auth.isAdmin || auth.hasPerm('magasinier')) && !p.archived" @click="openEdit(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-[#e6a817] hover:text-[#e6a817] transition-colors">✏</button>
                 <button v-if="auth.isAdmin" @click="handleArchive(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-[#e6a817] hover:text-[#e6a817] transition-colors">{{ p.archived ? '↺' : '📦' }}</button>
@@ -256,5 +265,6 @@ function exportCSV() {
         <button @click="cartModalOpen = false" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase hover:border-[#e6a817] hover:text-[#e6a817]">Annuler</button>
       </div>
     </BaseModal>
-  </div>
+    <BarcodeLabelModal :piece="labelPiece" :open="showLabel" @close="showLabel = false" />
+</div>
 </template>
