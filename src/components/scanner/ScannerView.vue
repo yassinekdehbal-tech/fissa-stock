@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useStockStore } from '@/stores/stock'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
@@ -13,9 +13,17 @@ const cart = useCartStore()
 const auth = useAuthStore()
 const { toast } = useToast()
 
+const SOURCES: Record<string, string> = {
+  'demontage': 'Démontage',
+  'don': 'Don',
+  'lot-occasion': "Lot d'occasion",
+  'grossiste-neuf': 'Grossiste neuf',
+  'web': 'Web',
+  'autre': 'Autre',
+}
+
 const isScanning = ref(false)
-const scanResult = ref<Piece | null>(null)
-const scanError = ref('')
+const camError = ref('')
 const usbInput = ref('')
 const scanLog = ref<{ time: string; code: string; found: boolean; name: string }[]>([])
 
@@ -23,8 +31,11 @@ let html5QrCode: any = null
 let lastCode = ''
 let lastCodeTime = 0
 
-async function toggleCam() {
-  if (isScanning.value) { stopCam(); return }
+// La caméra démarre seule à l'ouverture de l'écran ; le scan est mis en
+// pause pendant que la fiche pièce est ouverte, puis reprend à sa fermeture.
+async function startCam() {
+  if (isScanning.value) return
+  camError.value = ''
   try {
     const { Html5Qrcode } = await import('html5-qrcode')
     html5QrCode = new Html5Qrcode('camera-view')
@@ -42,7 +53,8 @@ async function toggleCam() {
     )
     isScanning.value = true
   } catch (e: any) {
-    toast('Caméra inaccessible: ' + e.message, true)
+    camError.value = e?.message || 'Caméra inaccessible'
+    isScanning.value = false
   }
 }
 
@@ -54,6 +66,14 @@ function stopCam() {
   isScanning.value = false
 }
 
+function pauseCam() {
+  try { html5QrCode?.pause(true) } catch { /* déjà arrêté */ }
+}
+
+function resumeCam() {
+  try { html5QrCode?.resume() } catch { /* caméra coupée entre-temps */ }
+}
+
 function processUSB() {
   const val = usbInput.value.trim().toUpperCase()
   if (!val) return
@@ -61,43 +81,95 @@ function processUSB() {
   processCode(val)
 }
 
+const scanError = ref('')
+
 function processCode(code: string) {
   const p = stock.findByRef(code)
   const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
   if (p) {
-    scanResult.value = p
     scanError.value = ''
-    toast('✓ ' + p.ref + ' — ' + p.name)
     scanLog.value.unshift({ time, code: p.ref, found: true, name: p.name })
+    openFiche(p)
   } else {
-    scanResult.value = null
     scanError.value = code
     toast('Code inconnu : ' + code, true)
     scanLog.value.unshift({ time, code, found: false, name: 'Inconnu' })
   }
 }
 
-// Cart from scan
-const cartModalOpen = ref(false)
+// ---------------------------------------------------------------------------
+// Fiche pièce (modal) : consultation, édition, panier
+// ---------------------------------------------------------------------------
+const fiche = ref<Piece | null>(null)
+const ficheOpen = ref(false)
+const editing = ref(false)
+const saving = ref(false)
+const editForm = ref({ name: '', price: 0, qty: 0, zone: '', notes: '' })
+
 const cartQty = ref(1)
 const cartPrice = ref(0)
 
-function openAddCart(p: Piece) {
+function openFiche(p: Piece) {
+  fiche.value = p
+  editing.value = false
   cartQty.value = 1
   cartPrice.value = p.price || 0
-  cartModalOpen.value = true
+  ficheOpen.value = true
+  pauseCam()
+}
+
+function closeFiche() {
+  ficheOpen.value = false
+  editing.value = false
+  fiche.value = null
+  resumeCam()
+}
+
+function startEdit() {
+  if (!fiche.value) return
+  editForm.value = {
+    name: fiche.value.name,
+    price: fiche.value.price,
+    qty: fiche.value.qty,
+    zone: fiche.value.zone,
+    notes: fiche.value.notes,
+  }
+  editing.value = true
+}
+
+async function saveEdit() {
+  if (!fiche.value?._id) return
+  saving.value = true
+  try {
+    await stock.updatePiece(fiche.value._id, {
+      name: editForm.value.name.trim(),
+      price: editForm.value.price,
+      qty: editForm.value.qty,
+      zone: editForm.value.zone.trim(),
+      notes: editForm.value.notes.trim(),
+    })
+    const fresh = stock.findByRef(fiche.value.ref)
+    if (fresh) fiche.value = fresh
+    editing.value = false
+    toast('✓ Fiche mise à jour')
+  } catch (e) {
+    toast('Erreur : ' + (e instanceof Error ? e.message : String(e)), true)
+  } finally {
+    saving.value = false
+  }
 }
 
 function addToCart() {
-  if (!scanResult.value) return
+  if (!fiche.value) return
   if (cartQty.value < 1 || cartPrice.value <= 0) { toast('Valeurs invalides', true); return }
-  if (cartQty.value > scanResult.value.qty) { toast('Stock insuffisant', true); return }
-  cart.add(scanResult.value, cartQty.value, cartPrice.value)
-  cartModalOpen.value = false
-  toast(`✓ ${scanResult.value.ref} ajouté au panier`)
+  if (cartQty.value > fiche.value.qty) { toast('Stock insuffisant', true); return }
+  cart.add(fiche.value, cartQty.value, cartPrice.value)
+  toast(`✓ ${fiche.value.ref} ajouté au panier`)
+  closeFiche()
 }
 
+onMounted(() => { void startCam() })
 onUnmounted(() => { stopCam() })
 </script>
 
@@ -112,39 +184,20 @@ onUnmounted(() => { stopCam() })
 
       <div class="flex items-center gap-2 mt-2 text-[11px] font-mono text-[#8b949e]">
         <div class="w-2 h-2 rounded-full" :class="isScanning ? 'bg-green-400 animate-pulse' : 'bg-[#8b949e]'"></div>
-        <span>{{ isScanning ? 'Scanning…' : 'Caméra arrêtée' }}</span>
+        <span>{{ isScanning ? 'Visez un code-barres…' : camError ? 'Caméra inaccessible' : 'Caméra arrêtée' }}</span>
+      </div>
+
+      <div v-if="camError" class="mt-3 bg-[#21262d] border border-red-500/50 rounded-lg p-3 text-xs text-[#8b949e]">
+        <div class="text-red-400 font-semibold mb-1">{{ camError }}</div>
+        Autorisez l'accès à la caméra dans votre navigateur, puis réessayez.
+        <button @click="startCam" class="block mt-2 bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">↻ Réessayer</button>
       </div>
 
       <div class="flex gap-2 mt-3 flex-wrap">
-        <button @click="toggleCam" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">
-          {{ isScanning ? '⏹ Arrêter' : '▶ Démarrer' }}
-        </button>
+        <button v-if="isScanning" @click="stopCam" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase hover:text-[#e6edf3]">⏹ Couper la caméra</button>
         <button v-if="auth.hasPerm('vendeur')" @click="$router.push('/panier')" class="bg-[#f0883e] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">
           🛒 Panier ({{ cart.count }})
         </button>
-      </div>
-
-      <!-- Scan result -->
-      <div v-if="scanResult" class="mt-4 bg-[#21262d] border-2 border-green-500 rounded-xl p-3.5">
-        <div class="flex items-center gap-2.5 flex-wrap">
-          <img v-if="scanResult.photo" :src="scanResult.photo" class="w-14 h-14 object-cover rounded-md border border-[#30363d]" @error="($event.target as HTMLImageElement).style.display='none'">
-          <div class="flex-1">
-            <div class="font-mono text-[15px] font-bold text-[#e6a817]">
-              {{ scanResult.ref }}
-              <span v-if="scanResult.cat && CATEGORIES[scanResult.cat]" class="text-[10px] ml-1" :class="CATEGORIES[scanResult.cat].textClass">{{ CATEGORIES[scanResult.cat].icon }} {{ CATEGORIES[scanResult.cat].label }}</span>
-            </div>
-            <div class="text-sm font-semibold mt-0.5">{{ scanResult.name }}</div>
-            <div class="text-[11px] text-[#8b949e]">
-              <span v-if="scanResult.vehicle">🚗 {{ scanResult.vehicle }} </span>
-              📍 {{ scanResult.zone || '—' }}
-              📦 <strong :class="scanResult.qty <= 1 ? 'text-red-400' : 'text-[#e6a817]'">{{ scanResult.qty }}</strong>
-            </div>
-            <div v-if="scanResult.price" class="text-[#3fb950] font-mono text-xs font-semibold mt-1">Prix : {{ scanResult.price.toFixed(2) }} €</div>
-          </div>
-        </div>
-        <div v-if="auth.hasPerm('vendeur')" class="flex gap-2 mt-2">
-          <button @click="openAddCart(scanResult)" class="bg-[#3fb950] text-black font-mono text-[11px] font-semibold px-3 py-1.5 rounded-lg">🛒 Ajouter au panier</button>
-        </div>
       </div>
 
       <div v-if="scanError" class="mt-4 bg-[#21262d] border-2 border-red-500 rounded-xl p-3.5">
@@ -179,18 +232,59 @@ onUnmounted(() => { stopCam() })
       </div>
     </div>
 
-    <!-- Add to cart modal -->
-    <BaseModal title="🛒 Ajouter au panier" :open="cartModalOpen" @close="cartModalOpen = false" max-width="400px">
-      <div v-if="scanResult" class="mb-3 text-sm">
-        <span class="font-mono text-[#e6a817] font-bold">{{ scanResult.ref }}</span> — {{ scanResult.name }}
-      </div>
-      <div class="grid grid-cols-2 gap-2.5">
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Quantité</label><input v-model.number="cartQty" type="number" min="1" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Prix (€)</label><input v-model.number="cartPrice" type="number" step="0.01" min="0.01" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-      </div>
-      <div class="flex gap-2 mt-3.5">
-        <button @click="addToCart" class="bg-[#3fb950] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">Ajouter</button>
-        <button @click="cartModalOpen = false" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase">Annuler</button>
+    <!-- Fiche pièce -->
+    <BaseModal :title="fiche ? '🔩 ' + fiche.ref : ''" :open="ficheOpen" @close="closeFiche" max-width="480px">
+      <div v-if="fiche">
+        <img v-if="fiche.photo" :src="fiche.photo" class="w-full max-h-44 object-cover rounded-lg border border-[#30363d] mb-3" @error="($event.target as HTMLImageElement).style.display='none'">
+
+        <!-- Consultation -->
+        <template v-if="!editing">
+          <div class="text-base font-semibold">{{ fiche.name }}</div>
+          <div v-if="fiche.cat && CATEGORIES[fiche.cat]" class="text-[11px] mt-0.5" :class="CATEGORIES[fiche.cat].textClass">
+            {{ CATEGORIES[fiche.cat].icon }} {{ CATEGORIES[fiche.cat].label }}
+          </div>
+
+          <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 text-xs">
+            <div><span class="text-[#8b949e]">Stock</span><div class="font-mono font-bold" :class="fiche.qty <= 1 ? 'text-red-400' : 'text-[#e6a817]'">{{ fiche.qty }}</div></div>
+            <div><span class="text-[#8b949e]">Prix</span><div class="font-mono font-bold text-[#3fb950]">{{ (fiche.price || 0).toFixed(2) }} €</div></div>
+            <div><span class="text-[#8b949e]">Zone</span><div class="font-mono">{{ fiche.zone || '—' }}</div></div>
+            <div><span class="text-[#8b949e]">État</span><div>{{ fiche.etat || '—' }}</div></div>
+            <div><span class="text-[#8b949e]">Véhicule</span><div>{{ fiche.vehicle || '—' }}</div></div>
+            <div><span class="text-[#8b949e]">OEM</span><div class="font-mono">{{ fiche.oem || '—' }}</div></div>
+            <div><span class="text-[#8b949e]">Provenance</span><div>{{ SOURCES[fiche.source] || fiche.source }}</div></div>
+            <div><span class="text-[#8b949e]">Donneur</span><div>{{ fiche.donor || '—' }}</div></div>
+          </div>
+          <div v-if="fiche.notes" class="mt-2 text-xs text-[#8b949e] bg-[#0d1117] border border-[#30363d] rounded-lg p-2">{{ fiche.notes }}</div>
+
+          <!-- Panier -->
+          <div v-if="auth.hasPerm('vendeur') && fiche.qty > 0" class="mt-4 pt-3 border-t border-[#30363d]">
+            <div class="grid grid-cols-2 gap-2.5">
+              <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Quantité</label><input v-model.number="cartQty" type="number" min="1" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+              <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Prix (€)</label><input v-model.number="cartPrice" type="number" step="0.01" min="0.01" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mt-4 flex-wrap">
+            <button v-if="auth.hasPerm('vendeur') && fiche.qty > 0" @click="addToCart" class="bg-[#3fb950] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">🛒 Panier</button>
+            <button v-if="auth.isAdmin || auth.hasPerm('magasinier')" @click="startEdit" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">✏ Modifier</button>
+            <button @click="closeFiche" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase ml-auto">Fermer</button>
+          </div>
+        </template>
+
+        <!-- Édition -->
+        <template v-else>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="flex flex-col gap-1 col-span-2"><label class="text-[11px] text-[#8b949e] uppercase">Désignation</label><input v-model="editForm.name" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+            <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Prix (€)</label><input v-model.number="editForm.price" type="number" step="0.01" min="0" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+            <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Quantité</label><input v-model.number="editForm.qty" type="number" min="0" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+            <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Zone</label><input v-model="editForm.zone" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+            <div class="flex flex-col gap-1 col-span-2"><label class="text-[11px] text-[#8b949e] uppercase">Notes</label><textarea v-model="editForm.notes" rows="2" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></textarea></div>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button @click="saveEdit" :disabled="saving" class="bg-[#3fb950] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase disabled:opacity-50">{{ saving ? '…' : '💾 Enregistrer' }}</button>
+            <button @click="editing = false" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase">Annuler</button>
+          </div>
+        </template>
       </div>
     </BaseModal>
   </div>
