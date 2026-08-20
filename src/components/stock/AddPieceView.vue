@@ -5,7 +5,8 @@ import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { sanitize } from '@/utils/security'
-import type { PieceCategory, PieceSource, PieceState } from '@/types'
+import type { Piece, PieceCategory, PieceSource, PieceState } from '@/types'
+import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 
 const stock = useStockStore()
 const history = useHistoryStore()
@@ -77,8 +78,15 @@ async function submit() {
   })
 
   toast('✓ ' + r + ' enregistré !')
+  // Ouvre l'étiquette de la pièce qui vient d'être créée (flux préparateur :
+  // référencer → imprimer → coller sur la pièce)
+  labelPiece.value = { ...(piece as unknown as Piece) }
+  showLabel.value = true
   clearForm()
 }
+
+const labelPiece = ref<Piece | null>(null)
+const showLabel = ref(false)
 </script>
 
 <template>
@@ -172,5 +180,6 @@ async function submit() {
         <button type="button" @click="clearForm" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2.5 rounded-lg uppercase hover:border-[#e6a817] hover:text-[#e6a817]">Effacer</button>
       </div>
     </form>
-  </div>
+    <BarcodeLabelModal :piece="labelPiece" :open="showLabel" @close="showLabel = false" />
+</div>
 </template>
