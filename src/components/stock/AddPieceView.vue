@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast'
 import { sanitize } from '@/utils/security'
 import type { Piece, PieceCategory, PieceSource, PieceState } from '@/types'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
+import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
 
 const stock = useStockStore()
 const history = useHistoryStore()
@@ -167,10 +168,7 @@ const showLabel = ref(false)
         <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Compatibilités</label>
         <input v-model="form.compat" placeholder="ex: Peugeot 208, 3008, Citroën C3..." class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]">
       </div>
-      <div class="flex flex-col gap-1">
-        <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">URL Photo</label>
-        <input v-model="form.photo" type="url" placeholder="https://..." class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]">
-      </div>
+      <PhotoUploadField v-model="form.photo" />
       <div class="flex flex-col gap-1">
         <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Notes</label>
         <input v-model="form.notes" placeholder="Remarques..." class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]">

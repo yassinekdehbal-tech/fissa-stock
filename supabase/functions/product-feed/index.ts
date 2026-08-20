@@ -26,12 +26,20 @@ function csvCell(s: unknown): string {
 Deno.serve(async (req: Request) => {
   const url = Deno.env.get('SUPABASE_URL')!
   const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const site = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://fissa-piece-auto.example').replace(/\/$/, '')
+  const site = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://yassinekdehbal-tech.github.io/fissa-stock').replace(/\/$/, '')
 
   const admin = createClient(url, service)
+
+  // Multi-tenant : le flux est celui d'UN exploitant (slug en parametre,
+  // FISSA PIECE AUTO par defaut).
+  const slug = new URL(req.url).searchParams.get('org') ?? 'fissa-piece-auto'
+  const { data: org } = await admin.from('organizations').select('id, name').eq('slug', slug).single()
+  if (!org) return new Response(JSON.stringify({ error: 'organisation inconnue' }), { status: 404 })
+
   const { data, error } = await admin
     .from('pieces')
     .select('id, ref, name, cat, vehicle, oem, supplier, price, photo, etat, compat, qty, publishable, archived')
+    .eq('org_id', org.id)
     .eq('publishable', true)
     .eq('archived', false)
     .gt('qty', 0)

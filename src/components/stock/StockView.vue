@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast'
 import StatCard from '@/components/ui/StatCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
+import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
 import type { Piece, PieceCategory, PieceState } from '@/types'
 import { CATEGORIES } from '@/types'
 import { formatPrice } from '@/utils/format'
@@ -242,6 +243,7 @@ function exportCSV() {
         <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Zone</label><input v-model="editForm.zone" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
         <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">État</label><select v-model="editForm.etat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none"><option>Bon état</option><option>Très bon état</option><option>État moyen</option><option>Pour pièces</option></select></div>
         <div class="col-span-2 flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Compatibilités</label><input v-model="editForm.compat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+        <div class="col-span-2"><PhotoUploadField v-model="editForm.photo" /></div>
       </div>
       <div class="flex gap-2 mt-3.5">
         <button @click="saveEdit" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">Enregistrer</button>
