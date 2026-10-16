@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick, onUnmounted } from 'vue'
 import { useStockStore } from '@/stores/stock'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { sanitize } from '@/utils/security'
+import { normalizeCode } from '@/utils/codes'
 import type { Piece, PieceCategory, PieceSource, PieceState } from '@/types'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
 
 const stock = useStockStore()
@@ -31,12 +33,56 @@ const form = ref({
   compat: '',
   photo: '',
   notes: '',
+  // Pièce neuve : codes déjà présents sur l'emballage / chez le fournisseur
+  ean: '',
+  supplierRef: '',
   fmt: 'CODE128' as 'CODE128' | 'CODE39'
 })
 
 function clearForm() {
-  form.value = { ref: '', name: '', cat: '', vehicle: '', oem: '', supplier: '', donor: '', source: 'autre', qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état', compat: '', photo: '', notes: '', fmt: 'CODE128' }
+  form.value = { ref: '', name: '', cat: '', vehicle: '', oem: '', supplier: '', donor: '', source: 'autre', qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état', compat: '', photo: '', notes: '', ean: '', supplierRef: '', fmt: 'CODE128' }
 }
+
+// ---------------------------------------------------------------------------
+// Scan du code-barres de l'emballage (caméra) pour remplir le champ EAN.
+// Une douchette USB fonctionne aussi : focus sur le champ, scan, le code s'y tape.
+// ---------------------------------------------------------------------------
+const eanScanOpen = ref(false)
+const eanScanError = ref('')
+let eanScanner: any = null
+
+async function openEanScan() {
+  eanScanError.value = ''
+  eanScanOpen.value = true
+  await nextTick()
+  try {
+    const { Html5Qrcode } = await import('html5-qrcode')
+    eanScanner = new Html5Qrcode('ean-camera')
+    await eanScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 130 } },
+      (val: string) => {
+        if (!val) return
+        form.value.ean = normalizeCode(val)
+        toast('✓ Code emballage lu : ' + form.value.ean)
+        closeEanScan()
+      },
+      () => {}
+    )
+  } catch (e: any) {
+    eanScanError.value = e?.message || 'Caméra inaccessible'
+  }
+}
+
+function closeEanScan() {
+  if (eanScanner) {
+    eanScanner.stop().then(() => eanScanner?.clear()).catch(() => {})
+    eanScanner = null
+  }
+  eanScanOpen.value = false
+}
+
+onUnmounted(() => { if (eanScanner) closeEanScan() })
 
 async function submit() {
   const r = form.value.ref.trim().toUpperCase()
@@ -44,6 +90,16 @@ async function submit() {
   if (!r) { toast('La référence est requise', true); return }
   if (!name) { toast('La désignation est requise', true); return }
   if (stock.pieces.find(p => p.ref === r)) { toast('Référence déjà existante', true); return }
+
+  const ean = normalizeCode(form.value.ean)
+  const supplierRef = form.value.supplierRef.trim()
+  // Pièce neuve déjà référencée (réassort) : on prévient, l'ajout de quantité
+  // sur la fiche existante est souvent le bon geste.
+  const twin = stock.activePieces.find(p =>
+    (ean && normalizeCode(p.ean) === ean) ||
+    (supplierRef && normalizeCode(p.supplierRef) === normalizeCode(supplierRef))
+  )
+  if (twin && !confirm(`Une pièce porte déjà ce code emballage / réf fournisseur :\n${twin.ref} — ${twin.name} (stock ${twin.qty}, zone ${twin.zone || '—'})\n\nCréer quand même une nouvelle fiche ?`)) return
 
   const piece = {
     ref: sanitize(r),
@@ -62,12 +118,14 @@ async function submit() {
     compat: sanitize(form.value.compat.trim()),
     photo: form.value.photo.trim(),
     notes: sanitize(form.value.notes.trim()),
+    ean,
+    supplierRef: sanitize(supplierRef),
     fmt: form.value.fmt,
     added: new Date().toISOString(),
     archived: false
   }
 
-  await stock.addPiece(piece as any)
+  const id = await stock.addPiece(piece as any)
   await history.addEntry({
     type: 'ajout',
     ref: r,
@@ -79,9 +137,11 @@ async function submit() {
   })
 
   toast('✓ ' + r + ' enregistré !')
-  // Ouvre l'étiquette de la pièce qui vient d'être créée (flux préparateur :
-  // référencer → imprimer → coller sur la pièce)
-  labelPiece.value = { ...(piece as unknown as Piece) }
+  // Ouvre la fiche d'identification de la pièce qui vient d'être créée (flux
+  // magasinier : référencer → imprimer l'étiquette OU écrire le code court au
+  // marqueur). On relit la pièce depuis le store : le code court est généré
+  // par la base à l'insertion.
+  labelPiece.value = stock.findById(id) ?? { ...(piece as unknown as Piece) }
   showLabel.value = true
   clearForm()
 }
@@ -173,11 +233,45 @@ const showLabel = ref(false)
         <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Notes</label>
         <input v-model="form.notes" placeholder="Remarques..." class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]">
       </div>
+
+      <!-- Pièce neuve : codes déjà présents sur l'emballage -->
+      <fieldset class="md:col-span-2 border border-blue-400/30 rounded-xl p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <legend class="px-1.5 font-mono text-[11px] font-semibold text-blue-400 uppercase tracking-[2px]">📦 Pièce neuve — codes de l'emballage</legend>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Code-barres emballage (EAN)</label>
+          <div class="flex gap-2">
+            <input
+              v-model="form.ean"
+              inputmode="numeric"
+              placeholder="3165143210987"
+              @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
+              class="flex-1 min-w-0 bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"
+            >
+            <button type="button" @click="openEanScan" title="Scanner avec la caméra" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-3 py-2 rounded-lg hover:border-[#e6a817] hover:text-[#e6a817]">📷</button>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Réf. fournisseur</label>
+          <input v-model="form.supplierRef" placeholder="Telle qu'affichée sur le site fournisseur" @keydown.enter.prevent="($event.target as HTMLInputElement).blur()" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]">
+        </div>
+        <p class="md:col-span-2 text-[10px] text-[#8b949e]">
+          Scannez le code-barres de la boîte (caméra ou douchette USB) et recopiez la référence du fournisseur :
+          le vendeur pourra vérifier au comptoir si la pièce est en stock avant de la commander.
+          Pour une pièce d'occasion, laissez vide.
+        </p>
+      </fieldset>
       <div class="md:col-span-2 flex gap-2 mt-2">
         <button type="submit" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2.5 rounded-lg uppercase tracking-wider hover:brightness-110">Enregistrer</button>
         <button type="button" @click="clearForm" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2.5 rounded-lg uppercase hover:border-[#e6a817] hover:text-[#e6a817]">Effacer</button>
       </div>
     </form>
     <BarcodeLabelModal :piece="labelPiece" :open="showLabel" @close="showLabel = false" />
+
+    <!-- Lecture caméra du code-barres de l'emballage -->
+    <BaseModal title="📷 Code-barres de l'emballage" :open="eanScanOpen" max-width="440px" @close="closeEanScan">
+      <div id="ean-camera" class="w-full rounded-lg overflow-hidden border-2 border-[#30363d] bg-black min-h-[160px]"></div>
+      <div v-if="eanScanError" class="mt-3 text-xs text-red-400">{{ eanScanError }} — tapez le code à la main ou utilisez la douchette USB.</div>
+      <p v-else class="mt-2 text-[11px] text-[#8b949e] font-mono">Visez le code-barres imprimé sur la boîte…</p>
+    </BaseModal>
 </div>
 </template>

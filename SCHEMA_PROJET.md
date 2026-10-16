@@ -75,7 +75,10 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 | Champ | Type | Description |
 |-------|------|-------------|
 | `_id` / `id` | string/uuid | Identifiant |
-| `ref` | string | Référence interne unique = **valeur du code-barres** |
+| `ref` | string | Référence interne unique = **valeur du code-barres** imprimé |
+| `short_code` / `shortCode` | string | Code court (5 car., sans 0/O/1/I/L) **écrit au marqueur** sur la pièce ; généré par la base, unique par organisation |
+| `ean` | string? | Code-barres déjà présent sur l'emballage (pièce **neuve**) |
+| `supplier_ref` / `supplierRef` | string? | Référence fournisseur (pièce **neuve**) : saisie par le vendeur pour vérifier la dispo avant commande |
 | `name` | string | Désignation |
 | `cat` | enum | moteur · carrosserie · train-avant · train-arriere · electronique · autre |
 | `vehicle` | string | Véhicule compatible |
@@ -184,16 +187,20 @@ Traçabilité et gestion des comptes.
 ### 5.1 Référencement d'une pièce (module 3)
 
 ```
-Préparateur
+Magasinier
    │  remplit formulaire (AddPieceView)
+   │  pièce neuve : scanne l'EAN de la boîte + recopie la réf fournisseur
    ▼
-addPiece()  ──►  stock/{id} (BDD)
+addPiece()  ──►  pieces (BDD)  ──► trigger : short_code attribué
    │
    ▼
-Génération code-barres (JsBarcode, à partir de `ref`)
-   │
-   ▼
-Impression étiquette 62×29mm ──► collée sur la pièce physique
+Fiche d'identification (BarcodeLabelModal) — les deux options ensemble :
+   ├─ 1. Code-barres (JsBarcode, à partir de `ref`)
+   │       └─► étiquette 62×29 / 50×30 mm imprimée ou PNG ──► collée sur la pièce
+   └─ 2. Code court `short_code` ──► écrit au marqueur sur la pièce (sans imprimante)
+
+Au comptoir : scanner / douchette / saisie ──► findByAnyCode()
+   ref · short_code · ean (emballage) · supplier_ref · oem  ──► fiche (stock, zone)
 ```
 
 ### 5.2 Sortie de stock à la vente (module 3)

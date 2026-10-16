@@ -210,6 +210,7 @@ export type Database = {
           cost_price: number | null
           created_by: string | null
           donor: string | null
+          ean: string | null
           etat: Database['public']['Enums']['piece_state'] | null
           fmt: Database['public']['Enums']['barcode_format']
           id: string
@@ -221,8 +222,10 @@ export type Database = {
           publishable: boolean
           qty: number
           ref: string
+          short_code: string
           source: string
           supplier: string | null
+          supplier_ref: string | null
           threshold: number | null
           updated_at: string
           vehicle: string | null
@@ -236,6 +239,7 @@ export type Database = {
           cost_price?: number | null
           created_by?: string | null
           donor?: string | null
+          ean?: string | null
           etat?: Database['public']['Enums']['piece_state'] | null
           fmt?: Database['public']['Enums']['barcode_format']
           id?: string
@@ -247,8 +251,10 @@ export type Database = {
           publishable?: boolean
           qty?: number
           ref: string
+          short_code?: string
           source?: string
           supplier?: string | null
+          supplier_ref?: string | null
           threshold?: number | null
           updated_at?: string
           vehicle?: string | null
@@ -262,6 +268,7 @@ export type Database = {
           cost_price?: number | null
           created_by?: string | null
           donor?: string | null
+          ean?: string | null
           etat?: Database['public']['Enums']['piece_state'] | null
           fmt?: Database['public']['Enums']['barcode_format']
           id?: string
@@ -273,8 +280,10 @@ export type Database = {
           publishable?: boolean
           qty?: number
           ref?: string
+          short_code?: string
           source?: string
           supplier?: string | null
+          supplier_ref?: string | null
           threshold?: number | null
           updated_at?: string
           vehicle?: string | null

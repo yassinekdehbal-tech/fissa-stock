@@ -2,7 +2,18 @@ export type PieceSource = 'don' | 'demontage' | 'lot-occasion' | 'grossiste-neuf
 
 export interface Piece {
   _id?: string
+  /** Référence interne unique : valeur encodée dans le code-barres imprimé. */
   ref: string
+  /**
+   * Code court (5 caractères, alphabet sans ambiguïté) généré par la base à
+   * l'insertion. Le magasinier l'écrit au marqueur sur la pièce quand une
+   * étiquette ne tient pas ou qu'aucune imprimante n'est disponible.
+   */
+  shortCode: string
+  /** Code-barres déjà présent sur l'emballage d'une pièce neuve (EAN-13 / UPC). */
+  ean: string
+  /** Référence fournisseur telle qu'affichée sur le site du fournisseur. */
+  supplierRef: string
   name: string
   cat: PieceCategory
   vehicle: string

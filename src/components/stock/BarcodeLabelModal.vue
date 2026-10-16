@@ -5,6 +5,16 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import { useToast } from '@/composables/useToast'
 import type { Piece } from '@/types'
 
+/**
+ * Identification d'une pièce : les deux moyens de marquage sont proposés
+ * ensemble, le magasinier choisit selon la pièce et le matériel disponible.
+ *  1. Étiquette code-barres (ref) à imprimer et coller.
+ *  2. Code court à écrire au marqueur directement sur la pièce : aucune
+ *     imprimante nécessaire, et pas d'étiquette qui se décolle sur une pièce
+ *     d'occasion grasse ou rouillée.
+ * Pour une pièce neuve, le code-barres de l'emballage (EAN) et la référence
+ * fournisseur sont rappelés : ils suffisent à la retrouver au comptoir.
+ */
 const props = defineProps<{
   piece: Piece | null
   open: boolean
@@ -29,8 +39,16 @@ watch(format, (f) => localStorage.setItem(FORMAT_STORAGE_KEY, f))
 
 const dims = computed(() => FORMATS[format.value])
 
+const hasPackagingCodes = computed(() => !!(props.piece?.ean || props.piece?.supplierRef))
+
 function meta(p: Piece): string {
   return [p.vehicle, p.price ? p.price.toFixed(2) + ' €' : null, p.etat].filter(Boolean).join(' | ')
+}
+
+// Ligne de désignation sur l'étiquette : le code court y figure pour qu'on
+// puisse aussi le lire (et le réécrire) une fois l'étiquette collée.
+function labelTitle(p: Piece): string {
+  return p.shortCode ? `[${p.shortCode}] ${p.name}` : p.name
 }
 
 watch(
@@ -57,6 +75,17 @@ watch(
   { immediate: true },
 )
 
+async function copyShortCode() {
+  const code = props.piece?.shortCode
+  if (!code) return
+  try {
+    await navigator.clipboard.writeText(code)
+    toast('✓ Code ' + code + ' copié')
+  } catch {
+    toast('Copie impossible — recopiez le code : ' + code, true)
+  }
+}
+
 function printLabel() {
   const p = props.piece
   if (!p || !svgEl.value) return
@@ -80,7 +109,7 @@ body{font-family:'Courier New',monospace;width:${w}mm;height:${h}mm;overflow:hid
 </style></head><body>
 <div class="label">
   <div>${svg}</div>
-  <div class="label-name">${p.name}</div>
+  <div class="label-name">${labelTitle(p)}</div>
   <div class="label-meta">${meta(p)}</div>
 </div>
 <button class="print-btn" onclick="window.print()">🖨 Imprimer</button>
@@ -132,11 +161,11 @@ function downloadPng() {
   const bh = barcodeCanvas.height * ratio
   ctx.drawImage(barcodeCanvas, (W - bw) / 2, Math.round(H * 0.06), bw, bh)
 
-  // Désignation + méta
+  // Désignation (avec code court) + méta
   ctx.fillStyle = '#000000'
   ctx.textAlign = 'center'
   ctx.font = `bold ${Math.round(H * 0.115)}px 'Courier New', monospace`
-  ctx.fillText(p.name, W / 2, Math.round(H * 0.78), maxBw)
+  ctx.fillText(labelTitle(p), W / 2, Math.round(H * 0.78), maxBw)
   ctx.font = `${Math.round(H * 0.09)}px 'Courier New', monospace`
   ctx.fillText(meta(p), W / 2, Math.round(H * 0.93), maxBw)
 
@@ -154,40 +183,90 @@ function downloadPng() {
 </script>
 
 <template>
-  <BaseModal :open="open" title="🏷 Étiquette code-barres" max-width="420px" @close="emit('close')">
-    <div v-if="piece" class="space-y-3">
-      <div class="bg-white rounded-lg p-3 flex justify-center">
-        <svg ref="svgEl"></svg>
-      </div>
+  <BaseModal :open="open" title="🏷 Identification de la pièce" max-width="440px" @close="emit('close')">
+    <div v-if="piece" class="space-y-4">
       <div class="text-center">
         <div class="font-mono font-bold text-[#e6edf3]">{{ piece.name }}</div>
         <div class="text-xs text-[#8b949e] font-mono">{{ meta(piece) }}</div>
       </div>
 
-      <div class="flex flex-col gap-1">
-        <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Format d'étiquette</label>
-        <select v-model="format" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-xs px-3 py-2 outline-none focus:border-[#e6a817]">
-          <option v-for="(f, key) in FORMATS" :key="key" :value="key">{{ f.label }}</option>
-        </select>
-      </div>
+      <!-- Option 1 : étiquette code-barres -->
+      <section class="bg-[#0d1117] border border-[#30363d] rounded-xl p-3 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="font-mono text-[11px] font-semibold text-[#e6a817] uppercase tracking-[2px]">1 · Étiquette code-barres</div>
+          <span class="text-[10px] text-[#8b949e]">à imprimer et coller</span>
+        </div>
+        <div class="bg-white rounded-lg p-3 flex justify-center">
+          <svg ref="svgEl"></svg>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Format d'étiquette</label>
+          <select v-model="format" class="bg-[#161b22] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-xs px-3 py-2 outline-none focus:border-[#e6a817]">
+            <option v-for="(f, key) in FORMATS" :key="key" :value="key">{{ f.label }}</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <button
+            @click="printLabel"
+            class="flex-1 bg-[#e6a817] text-black font-mono text-xs font-bold px-4 py-2.5 rounded-lg uppercase tracking-wider hover:bg-[#d49b15] transition-colors"
+          >
+            🖨 Imprimer
+          </button>
+          <button
+            @click="downloadPng"
+            class="flex-1 border border-[#e6a817] text-[#e6a817] font-mono text-xs font-bold px-4 py-2.5 rounded-lg uppercase tracking-wider hover:bg-[#e6a817]/10 transition-colors"
+          >
+            ⬇ Image
+          </button>
+        </div>
+        <p class="text-[10px] text-[#8b949e] text-center">
+          🖨 Imprimer : imprimante AirPrint (Brother QL…) · ⬇ Image : PNG pour l'appli NIIMBOT / Phomemo
+        </p>
+      </section>
 
-      <div class="flex gap-2">
+      <!-- Option 2 : code à écrire au marqueur -->
+      <section class="bg-[#0d1117] border border-[#30363d] rounded-xl p-3 space-y-2">
+        <div class="flex items-center justify-between">
+          <div class="font-mono text-[11px] font-semibold text-[#e6a817] uppercase tracking-[2px]">2 · Code à écrire sur la pièce</div>
+          <span class="text-[10px] text-[#8b949e]">sans imprimante</span>
+        </div>
+        <div v-if="piece.shortCode" class="bg-white rounded-lg py-3 px-2 text-center">
+          <div class="font-mono font-black text-black text-4xl tracking-[0.35em] pl-[0.35em] select-all">{{ piece.shortCode }}</div>
+        </div>
+        <div v-else class="text-xs text-[#8b949e] text-center py-2">
+          Code court non encore attribué — rechargez la fiche (la base le génère à l'enregistrement).
+        </div>
+        <p class="text-[10px] text-[#8b949e] text-center">
+          Écrivez ce code au marqueur indélébile sur la pièce. Au comptoir, il se tape dans le scanner
+          ou la recherche du stock : lettres et chiffres sans ambiguïté (pas de 0/O ni de 1/I/L).
+        </p>
         <button
-          @click="printLabel"
-          class="flex-1 bg-[#e6a817] text-black font-mono text-xs font-bold px-4 py-2.5 rounded-lg uppercase tracking-wider hover:bg-[#d49b15] transition-colors"
+          v-if="piece.shortCode"
+          @click="copyShortCode"
+          class="w-full border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase hover:border-[#e6a817] hover:text-[#e6a817] transition-colors"
         >
-          🖨 Imprimer
+          📋 Copier le code
         </button>
-        <button
-          @click="downloadPng"
-          class="flex-1 border border-[#e6a817] text-[#e6a817] font-mono text-xs font-bold px-4 py-2.5 rounded-lg uppercase tracking-wider hover:bg-[#e6a817]/10 transition-colors"
-        >
-          ⬇ Image
-        </button>
-      </div>
-      <p class="text-[10px] text-[#8b949e] text-center">
-        🖨 Imprimer : imprimante AirPrint (Brother QL…) · ⬇ Image : PNG pour l'appli NIIMBOT / Phomemo
-      </p>
+      </section>
+
+      <!-- Pièce neuve : codes de l'emballage -->
+      <section v-if="hasPackagingCodes" class="bg-[#0d1117] border border-blue-400/30 rounded-xl p-3 space-y-2">
+        <div class="font-mono text-[11px] font-semibold text-blue-400 uppercase tracking-[2px]">📦 Codes de l'emballage (pièce neuve)</div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div v-if="piece.ean">
+            <div class="text-[#8b949e]">Code-barres emballage</div>
+            <div class="font-mono font-bold text-[#e6edf3]">{{ piece.ean }}</div>
+          </div>
+          <div v-if="piece.supplierRef">
+            <div class="text-[#8b949e]">Réf. fournisseur</div>
+            <div class="font-mono font-bold text-[#e6edf3]">{{ piece.supplierRef }}</div>
+          </div>
+        </div>
+        <p class="text-[10px] text-[#8b949e]">
+          Tant que la pièce reste dans son emballage, scanner ce code-barres ou saisir la réf fournisseur
+          suffit à la retrouver : le marquage ci-dessus est facultatif.
+        </p>
+      </section>
     </div>
   </BaseModal>
 </template>

@@ -126,13 +126,24 @@ Projet Supabase dédié créé dans l'organisation **FISSA LIV**. Le client `@su
 
 ### 4.1 Module Stock (fondamental 3)
 
-**Entité `Piece`** — une pièce référencée en stock. Champs clés : `ref` (référence unique interne, sert de code-barres), `name`, `cat` (catégorie), `vehicle` (véhicule compatible), `oem` (n° OEM constructeur), `supplier`, `donor` (véhicule donneur pour l'occasion), `qty`, `price`, `threshold` (seuil d'alerte), `zone` (emplacement), `etat` (état de la pièce d'occasion), `compat` (compatibilités), `photo`, `notes`, `fmt` (format code-barres CODE128/CODE39), `added`, `archived`.
+**Entité `Piece`** — une pièce référencée en stock. Champs clés : `ref` (référence unique interne, sert de code-barres), `short_code` (code court manuscrit, 5 caractères, généré par la base), `ean` (code-barres de l'emballage d'une pièce neuve), `supplier_ref` (référence fournisseur), `name`, `cat` (catégorie), `vehicle` (véhicule compatible), `oem` (n° OEM constructeur), `supplier`, `donor` (véhicule donneur pour l'occasion), `qty`, `price`, `threshold` (seuil d'alerte), `zone` (emplacement), `etat` (état de la pièce d'occasion), `compat` (compatibilités), `photo`, `notes`, `fmt` (format code-barres CODE128/CODE39), `added`, `archived`.
+
+**Identification d'une pièce — quatre codes, un seul point d'entrée**
+
+| Code | Qui le pose | Usage |
+|------|-------------|-------|
+| `ref` | Magasinier (saisie) | Encodé dans l'**étiquette code-barres** imprimée (62×29 / 50×30 mm). |
+| `short_code` | Base de données (trigger à l'insertion) | **Écrit au marqueur** sur la pièce quand l'étiquette ne tiendrait pas (pièce d'occasion grasse/rouillée) ou sans imprimante. Alphabet sans ambiguïté (pas de 0/O, 1/I/L), unique par organisation. |
+| `ean` | Fabricant (déjà sur l'emballage) | Pièce **neuve** : scanné tel quel, aucune étiquette interne nécessaire tant que la pièce reste en boîte. |
+| `supplier_ref` | Fournisseur (site / facture) | Pièce **neuve** : le vendeur, en recherche sur le site du grossiste devant le client, tape cette réf dans FISSA pour savoir **si la pièce est en stock et où elle est rangée** avant de la commander. |
+
+Le scanner (caméra, douchette USB ou saisie manuelle) et la recherche du stock résolvent **n'importe lequel** de ces codes (plus l'OEM en repli) via `stockStore.findByAnyCode()` / `utils/codes.ts`. La comparaison ignore casse, espaces et ponctuation. Si plusieurs fiches partagent un code (même EAN en neuf et en occasion, par exemple), l'utilisateur choisit dans une liste.
 
 **Cycle de vie d'une pièce**
-1. Un **préparateur** remplit le formulaire d'ajout (vue `AddPieceView`).
-2. La pièce est enregistrée dans la base via `stockStore.addPiece()` (Supabase).
-3. Une **étiquette code-barres** est générée (à partir de `ref`) et imprimée (format 62×29 mm, Brother/Dymo/NIIMBOT), à coller sur la pièce physique.
-4. À la vente : le **scanner** lit le code-barres → la pièce est ajoutée au panier → la vente décrémente `qty` et écrit un mouvement de type `vente`.
+1. Un **magasinier** remplit le formulaire d'ajout (vue `AddPieceView`). Pour une pièce neuve, il scanne le code-barres de la boîte (caméra ou douchette) et recopie la réf fournisseur.
+2. La pièce est enregistrée dans la base via `stockStore.addPiece()` (Supabase) ; la base attribue le `short_code`.
+3. La **fiche d'identification** s'ouvre et propose les deux marquages **en même temps** : étiquette code-barres à imprimer (Brother/NIIMBOT, ou export PNG) **ou** code court à écrire au marqueur sur la pièce. Le magasinier choisit selon la pièce et le matériel.
+4. À la vente : le **scanner** lit l'étiquette ou le code emballage, ou le vendeur tape le code manuscrit / la réf fournisseur → la fiche s'ouvre (stock, zone) → ajout au panier → la vente décrémente `qty` et écrit un mouvement de type `vente`.
 5. Archivage possible (`toggleArchive`) : passe `archived=true` et `qty=0`.
 
 **Catégories** : moteur, carrosserie, train-avant, train-arrière, électronique, autre.
