@@ -48,6 +48,12 @@ Créer/supprimer un compte ne peut pas se faire depuis le client (nécessite `se
 - Stores **`history`** (lecture depuis `stock_movements` + `sale_items`/`sales`) et **`users`** (`profiles` + fonction Edge `admin-users`) migrés vers Supabase. Realtime activé.
 - Build de production vérifié OK à chaque étape.
 
+## Migrations à appliquer
+
+Les fichiers de `supabase/migrations/` s'appliquent dans l'ordre (dashboard SQL ou `supabase db push`). Dernière ajoutée :
+
+- `20260821500001_piece_codes.sql` — colonnes `short_code` (code court manuscrit, généré par trigger, **backfill des pièces existantes**), `ean`, `supplier_ref` sur `pieces` + index. Sans elle, le front affiche « Code court non encore attribué » et les champs emballage ne s'enregistrent pas. Après application, régénérer `src/types/database.types.ts` si l'outil est utilisé (les types ont été mis à jour à la main).
+
 ## Références
 
 - Détails infra (project ref, URL, clé, tables, fonctions) : `ETAT_PROJET.md` §3bis.

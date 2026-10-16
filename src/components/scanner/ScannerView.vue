@@ -5,8 +5,10 @@ import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import type { Piece } from '@/types'
 import { CATEGORIES } from '@/types'
+import { CODE_KIND_LABEL, type CodeMatch } from '@/utils/codes'
 
 const stock = useStockStore()
 const cart = useCartStore()
@@ -25,7 +27,7 @@ const SOURCES: Record<string, string> = {
 const isScanning = ref(false)
 const camError = ref('')
 const usbInput = ref('')
-const scanLog = ref<{ time: string; code: string; found: boolean; name: string }[]>([])
+const scanLog = ref<{ time: string; code: string; found: boolean; name: string; via?: string }[]>([])
 
 let html5QrCode: any = null
 let lastCode = ''
@@ -83,20 +85,50 @@ function processUSB() {
 
 const scanError = ref('')
 
+// Un code lu ou tapé peut être : la réf interne (étiquette), le code court
+// écrit au marqueur, le code-barres de l'emballage d'une pièce neuve, la réf
+// fournisseur (vendeur qui vérifie la dispo avant de commander) ou l'OEM.
 function processCode(code: string) {
-  const p = stock.findByRef(code)
+  const matches = stock.findByAnyCode(code)
   const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
-  if (p) {
+  if (matches.length === 1) {
+    const { piece, kind } = matches[0]
     scanError.value = ''
-    scanLog.value.unshift({ time, code: p.ref, found: true, name: p.name })
-    openFiche(p)
+    scanLog.value.unshift({ time, code: piece.ref, found: true, name: piece.name, via: CODE_KIND_LABEL[kind] })
+    openFiche(piece)
+  } else if (matches.length > 1) {
+    // Même EAN ou même OEM sur plusieurs fiches (neuf + occasion, états différents…)
+    scanError.value = ''
+    scanLog.value.unshift({ time, code, found: true, name: matches.length + ' pièces possibles' })
+    choices.value = matches
+    chooserOpen.value = true
+    pauseCam()
   } else {
     scanError.value = code
     toast('Code inconnu : ' + code, true)
     scanLog.value.unshift({ time, code, found: false, name: 'Inconnu' })
   }
 }
+
+// Plusieurs pièces répondent au même code : l'utilisateur choisit
+const choices = ref<CodeMatch[]>([])
+const chooserOpen = ref(false)
+
+function pickChoice(p: Piece) {
+  chooserOpen.value = false
+  choices.value = []
+  openFiche(p)
+}
+
+function closeChooser() {
+  chooserOpen.value = false
+  choices.value = []
+  resumeCam()
+}
+
+// Fiche d'identification (étiquette + code manuscrit) depuis le scanner
+const labelOpen = ref(false)
 
 // ---------------------------------------------------------------------------
 // Fiche pièce (modal) : consultation, édition, panier
@@ -205,18 +237,21 @@ onUnmounted(() => { stopCam() })
         <div class="text-[#8b949e] text-xs mt-1">Cette référence n'existe pas dans le stock actif.</div>
       </div>
 
-      <!-- USB input -->
+      <!-- USB input / saisie manuelle -->
       <div class="mt-5">
-        <div class="font-mono text-[11px] font-semibold text-[#e6a817] uppercase tracking-[2px] mb-2">Douchette USB</div>
+        <div class="font-mono text-[11px] font-semibold text-[#e6a817] uppercase tracking-[2px] mb-2">Douchette USB · saisie manuelle</div>
         <div class="flex gap-2">
           <input
             v-model="usbInput"
             @keydown.enter="processUSB"
-            placeholder="Code reçu…"
+            placeholder="Réf, code écrit sur la pièce, réf fournisseur, EAN, OEM…"
             class="flex-1 bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"
           >
           <button @click="processUSB" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg">OK</button>
         </div>
+        <p class="mt-1.5 text-[10px] text-[#8b949e]">
+          Vendeur : tapez la <strong class="text-[#e6edf3]">réf fournisseur</strong> trouvée sur le site du grossiste pour savoir si la pièce est en stock et où elle est rangée, avant de la commander.
+        </p>
       </div>
     </div>
 
@@ -227,7 +262,7 @@ onUnmounted(() => { stopCam() })
       <div v-for="(entry, i) in scanLog" :key="i" class="flex items-center gap-2 py-1.5 border-b border-[#30363d] font-mono text-[10px]">
         <span class="text-[#8b949e] min-w-[55px]">{{ entry.time }}</span>
         <span class="text-[#e6a817] font-bold">{{ entry.code }}</span>
-        <span class="flex-1">{{ entry.name }}</span>
+        <span class="flex-1">{{ entry.name }}<span v-if="entry.via && entry.via !== 'Référence interne'" class="text-[#8b949e]"> · via {{ entry.via }}</span></span>
         <span :class="entry.found ? 'text-green-400' : 'text-red-400'">{{ entry.found ? '✓' : '✕' }}</span>
       </div>
     </div>
@@ -253,6 +288,9 @@ onUnmounted(() => { stopCam() })
             <div><span class="text-[#8b949e]">OEM</span><div class="font-mono">{{ fiche.oem || '—' }}</div></div>
             <div><span class="text-[#8b949e]">Provenance</span><div>{{ SOURCES[fiche.source] || fiche.source }}</div></div>
             <div><span class="text-[#8b949e]">Donneur</span><div>{{ fiche.donor || '—' }}</div></div>
+            <div><span class="text-[#8b949e]">Code écrit sur la pièce</span><div class="font-mono font-bold tracking-widest">{{ fiche.shortCode || '—' }}</div></div>
+            <div v-if="fiche.supplierRef"><span class="text-[#8b949e]">Réf. fournisseur</span><div class="font-mono">{{ fiche.supplierRef }}</div></div>
+            <div v-if="fiche.ean"><span class="text-[#8b949e]">Code-barres emballage</span><div class="font-mono">{{ fiche.ean }}</div></div>
           </div>
           <div v-if="fiche.notes" class="mt-2 text-xs text-[#8b949e] bg-[#0d1117] border border-[#30363d] rounded-lg p-2">{{ fiche.notes }}</div>
 
@@ -267,6 +305,7 @@ onUnmounted(() => { stopCam() })
           <div class="flex gap-2 mt-4 flex-wrap">
             <button v-if="auth.hasPerm('vendeur') && fiche.qty > 0" @click="addToCart" class="bg-[#3fb950] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">🛒 Panier</button>
             <button v-if="auth.isAdmin || auth.hasPerm('magasinier')" @click="startEdit" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">✏ Modifier</button>
+            <button @click="labelOpen = true" title="Étiquette et code à écrire" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase hover:border-[#e6a817] hover:text-[#e6a817]">🏷 Codes</button>
             <button @click="closeFiche" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase ml-auto">Fermer</button>
           </div>
         </template>
@@ -286,6 +325,32 @@ onUnmounted(() => { stopCam() })
           </div>
         </template>
       </div>
+    </BaseModal>
+
+    <BarcodeLabelModal :piece="fiche" :open="labelOpen && ficheOpen" @close="labelOpen = false" />
+
+    <!-- Plusieurs pièces pour un même code -->
+    <BaseModal title="🔍 Plusieurs pièces correspondent" :open="chooserOpen" @close="closeChooser" max-width="480px">
+      <p class="text-xs text-[#8b949e] mb-3">Ce code est partagé par plusieurs fiches (neuf et occasion, états différents…). Choisissez la bonne pièce :</p>
+      <button
+        v-for="m in choices"
+        :key="m.piece._id"
+        @click="pickChoice(m.piece)"
+        class="w-full text-left flex items-center gap-3 p-2.5 mb-2 rounded-lg border border-[#30363d] bg-[#0d1117] hover:border-[#e6a817] transition-colors"
+      >
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-[10px] text-[#e6a817] font-bold bg-[#e6a817]/10 px-1.5 py-0.5 rounded border border-[#e6a817]/30">{{ m.piece.ref }}</span>
+            <span v-if="m.piece.shortCode" class="font-mono text-[10px] text-[#8b949e]">✎ {{ m.piece.shortCode }}</span>
+          </div>
+          <div class="text-sm truncate mt-0.5">{{ m.piece.name }}</div>
+          <div class="text-[10px] text-[#8b949e]">{{ m.piece.etat }} · {{ SOURCES[m.piece.source] || m.piece.source }} · via {{ CODE_KIND_LABEL[m.kind] }}</div>
+        </div>
+        <div class="text-right">
+          <div class="font-mono font-bold" :class="m.piece.qty <= 1 ? 'text-red-400' : 'text-[#e6a817]'">×{{ m.piece.qty }}</div>
+          <div class="text-[10px] text-blue-400">{{ m.piece.zone || '—' }}</div>
+        </div>
+      </button>
     </BaseModal>
   </div>
 </template>

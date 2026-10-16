@@ -3,11 +3,15 @@ import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import type { PieceRow } from '@/lib/supabase'
 import type { Piece } from '@/types'
+import { findPiecesByCode, type CodeMatch } from '@/utils/codes'
 
 function rowToPiece(r: PieceRow): Piece {
   return {
     _id: r.id,
     ref: r.ref,
+    shortCode: r.short_code ?? '',
+    ean: r.ean ?? '',
+    supplierRef: r.supplier_ref ?? '',
     name: r.name,
     cat: (r.cat ?? '') as Piece['cat'],
     vehicle: r.vehicle ?? '',
@@ -33,6 +37,10 @@ function rowToPiece(r: PieceRow): Piece {
 function pieceToRow(p: Partial<Piece>): Record<string, unknown> {
   const row: Record<string, unknown> = {}
   if (p.ref !== undefined) row.ref = p.ref
+  // short_code : jamais envoyé vide, la base le génère (trigger) à l'insertion
+  if (p.shortCode) row.short_code = p.shortCode
+  if (p.ean !== undefined) row.ean = p.ean || null
+  if (p.supplierRef !== undefined) row.supplier_ref = p.supplierRef || null
   if (p.name !== undefined) row.name = p.name
   if (p.cat !== undefined) row.cat = p.cat ? p.cat : null
   if (p.vehicle !== undefined) row.vehicle = p.vehicle
@@ -125,6 +133,18 @@ export const useStockStore = defineStore('stock', () => {
     return activePieces.value.find((p) => p.ref === refCode)
   }
 
+  function findById(id: string): Piece | undefined {
+    return pieces.value.find((p) => p._id === id)
+  }
+
+  /**
+   * Résout un code scanné ou tapé (réf interne, code court manuscrit, EAN de
+   * l'emballage, réf fournisseur, OEM) vers les pièces du stock actif.
+   */
+  function findByAnyCode(code: string): CodeMatch[] {
+    return findPiecesByCode(activePieces.value, code)
+  }
+
   function dispose() {
     channel?.unsubscribe()
     channel = null
@@ -145,6 +165,8 @@ export const useStockStore = defineStore('stock', () => {
     deletePiece,
     toggleArchive,
     findByRef,
+    findById,
+    findByAnyCode,
     dispose,
   }
 })

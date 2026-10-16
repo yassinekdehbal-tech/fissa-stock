@@ -12,6 +12,7 @@ import type { Piece, PieceCategory, PieceState } from '@/types'
 import { CATEGORIES } from '@/types'
 import { formatPrice } from '@/utils/format'
 import { sanitize } from '@/utils/security'
+import { normalizeCode, codeFieldsInclude } from '@/utils/codes'
 
 const stock = useStockStore()
 const auth = useAuthStore()
@@ -44,7 +45,9 @@ const filteredPieces = computed(() => {
       (p.vehicle || '').toLowerCase().includes(q) ||
       (p.oem || '').toLowerCase().includes(q) ||
       (p.zone || '').toLowerCase().includes(q) ||
-      (p.compat || '').toLowerCase().includes(q)
+      (p.compat || '').toLowerCase().includes(q) ||
+      // code écrit sur la pièce, code-barres emballage, réf fournisseur
+      codeFieldsInclude(p, q)
     )
   }
   return list
@@ -53,11 +56,11 @@ const filteredPieces = computed(() => {
 // Edit modal
 const editOpen = ref(false)
 const editPiece = ref<Piece | null>(null)
-const editForm = ref({ name: '', cat: '' as PieceCategory, vehicle: '', oem: '', supplier: '', donor: '', qty: 0, threshold: 0, price: 0, zone: '', etat: 'Bon état' as PieceState, compat: '', photo: '', notes: '' })
+const editForm = ref({ name: '', cat: '' as PieceCategory, vehicle: '', oem: '', supplier: '', donor: '', qty: 0, threshold: 0, price: 0, zone: '', etat: 'Bon état' as PieceState, compat: '', photo: '', notes: '', ean: '', supplierRef: '' })
 
 function openEdit(p: Piece) {
   editPiece.value = p
-  editForm.value = { name: p.name, cat: p.cat, vehicle: p.vehicle, oem: p.oem, supplier: p.supplier, donor: p.donor, qty: p.qty, threshold: p.threshold || 0, price: p.price, zone: p.zone, etat: p.etat, compat: p.compat, photo: p.photo, notes: p.notes }
+  editForm.value = { name: p.name, cat: p.cat, vehicle: p.vehicle, oem: p.oem, supplier: p.supplier, donor: p.donor, qty: p.qty, threshold: p.threshold || 0, price: p.price, zone: p.zone, etat: p.etat, compat: p.compat, photo: p.photo, notes: p.notes, ean: p.ean, supplierRef: p.supplierRef }
   editOpen.value = true
 }
 
@@ -77,7 +80,9 @@ async function saveEdit() {
     etat: editForm.value.etat,
     compat: sanitize(editForm.value.compat),
     photo: editForm.value.photo,
-    notes: sanitize(editForm.value.notes)
+    notes: sanitize(editForm.value.notes),
+    ean: normalizeCode(editForm.value.ean),
+    supplierRef: sanitize(editForm.value.supplierRef.trim())
   })
   editOpen.value = false
   toast('Pièce mise à jour')
@@ -124,8 +129,8 @@ function qtyClass(p: Piece) {
 }
 
 function exportCSV() {
-  const header = ['Référence', 'Désignation', 'Catégorie', 'Véhicule', 'OEM', 'Quantité', 'Prix', 'Zone', 'État']
-  const rows = stock.pieces.map(p => [p.ref, p.name, p.cat, p.vehicle, p.oem, p.qty, p.price, p.zone, p.etat])
+  const header = ['Référence', 'Code court', 'Désignation', 'Catégorie', 'Véhicule', 'OEM', 'Réf fournisseur', 'EAN', 'Quantité', 'Prix', 'Zone', 'État']
+  const rows = stock.pieces.map(p => [p.ref, p.shortCode, p.name, p.cat, p.vehicle, p.oem, p.supplierRef, p.ean, p.qty, p.price, p.zone, p.etat])
   const csv = '﻿' + [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n')
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
@@ -149,7 +154,7 @@ function exportCSV() {
       <input
         v-model="search"
         type="text"
-        placeholder="🔍 Réf, désignation, véhicule, OEM, zone…"
+        placeholder="🔍 Réf, code pièce, réf fournisseur, EAN, désignation, OEM, zone…"
         class="flex-1 min-w-[140px] bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"
       >
       <select v-model="filterCat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-xs px-2 py-2 outline-none">
@@ -193,10 +198,14 @@ function exportCSV() {
           >
             <td class="px-3 py-2">
               <span class="font-mono text-[10px] text-[#e6a817] font-bold bg-[#e6a817]/10 px-1.5 py-0.5 rounded border border-[#e6a817]/30">{{ p.ref }}</span>
+              <div v-if="p.shortCode" class="font-mono text-[10px] text-[#8b949e] mt-1 tracking-wider" title="Code écrit sur la pièce">✎ {{ p.shortCode }}</div>
             </td>
             <td class="px-3 py-2">
               <div>{{ p.name }}</div>
               <div v-if="p.compat" class="text-[10px] text-blue-400 mt-0.5">↔ {{ p.compat }}</div>
+              <div v-if="p.supplierRef || p.ean" class="text-[10px] text-[#8b949e] mt-0.5 font-mono">
+                📦 <span v-if="p.supplierRef">réf {{ p.supplierRef }}</span><span v-if="p.supplierRef && p.ean"> · </span><span v-if="p.ean">EAN {{ p.ean }}</span>
+              </div>
             </td>
             <td class="px-3 py-2 hidden md:table-cell">
               <span v-if="p.cat && CATEGORIES[p.cat]" class="text-[10px] px-1.5 py-0.5 rounded border" :class="[CATEGORIES[p.cat].bgClass, CATEGORIES[p.cat].textClass, CATEGORIES[p.cat].borderClass]">
@@ -243,6 +252,9 @@ function exportCSV() {
         <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Zone</label><input v-model="editForm.zone" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
         <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">État</label><select v-model="editForm.etat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none"><option>Bon état</option><option>Très bon état</option><option>État moyen</option><option>Pour pièces</option></select></div>
         <div class="col-span-2 flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Compatibilités</label><input v-model="editForm.compat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Réf. fournisseur</label><input v-model="editForm.supplierRef" placeholder="Pièce neuve" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Code-barres emballage (EAN)</label><input v-model="editForm.ean" inputmode="numeric" placeholder="Pièce neuve" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+        <div v-if="editPiece?.shortCode" class="col-span-2 text-[11px] text-[#8b949e]">Code écrit sur la pièce : <span class="font-mono font-bold text-[#e6edf3] tracking-widest">{{ editPiece.shortCode }}</span> (attribué par la base, non modifiable)</div>
         <div class="col-span-2"><PhotoUploadField v-model="editForm.photo" /></div>
       </div>
       <div class="flex gap-2 mt-3.5">
