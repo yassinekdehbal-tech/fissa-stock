@@ -14,7 +14,8 @@
  * Ce qui est appliqué :
  *   iOS     → Info.plist : textes d'usage caméra / photothèque (obligatoires
  *             App Store, sinon crash au 1er scan et rejet en review),
- *             langue de développement "fr".
+ *             langue de développement "fr", conformité export (pas de
+ *             chiffrement non exempté).
  *   Android → AndroidManifest.xml : permissions CAMERA + accès images
  *             (scanner code-barres, photo de pièce) ;
  *             build.gradle : versionCode / versionName + signature release
@@ -74,6 +75,16 @@ function prepareIos() {
     /<key>CFBundleDevelopmentRegion<\/key>\s*<string>[^<]*<\/string>/,
     '<key>CFBundleDevelopmentRegion</key>\n\t<string>fr</string>',
   )
+  // Conformité export (chiffrement) : l'app n'utilise que le TLS fourni par iOS,
+  // ce qui est exempté. Évite la question « attestation pour l'exportation »
+  // dans App Store Connect à chaque nouveau build.
+  if (!plist.includes('<key>ITSAppUsesNonExemptEncryption</key>')) {
+    plist = plist.replace(
+      /<\/dict>\s*<\/plist>\s*$/,
+      '\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n</dict>\n</plist>\n',
+    )
+    added++
+  }
   writeFileSync(plistPath, plist)
   console.log(`iOS : Info.plist OK (${added} clé(s) d'usage ajoutée(s), région fr).`)
   console.log(
