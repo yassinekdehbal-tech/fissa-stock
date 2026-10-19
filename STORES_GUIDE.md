@@ -6,7 +6,7 @@
 > (comptes développeur, clés, fiches app) et ne peut être fait que par le titulaire
 > des comptes.
 
-- **Dernière mise à jour** : 19/10/2026
+- **Dernière mise à jour** : 19/10/2026 — ✅ premier build iOS envoyé sur TestFlight (run #14)
 - **Identifiant d'app (les deux stores)** : `com.fissa.pieceauto`
 - **Nom affiché** : FISSA PIECE AUTO
 
