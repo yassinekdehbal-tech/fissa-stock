@@ -59,9 +59,10 @@ export const useAuthStore = defineStore('auth', () => {
     userId.value = data.session?.user.id ?? null
     email.value = data.session?.user.email ?? null
     if (userId.value) await loadProfile()
-    supabase.auth.onAuthStateChange((_event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       userId.value = session?.user.id ?? null
       email.value = session?.user.email ?? null
+      if (event === 'PASSWORD_RECOVERY') passwordRecovery.value = true
       void loadProfile()
     })
     ready.value = true
@@ -118,10 +119,37 @@ export const useAuthStore = defineStore('auth', () => {
     /* no-op */
   }
 
+  /** Met à jour le nom affiché du compte connecté (table `profiles`). */
+  async function updateName(name: string) {
+    if (!userId.value) throw new Error('Non connecté')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: e } = await supabase.from('profiles').update({ name: name.trim() } as any).eq('id', userId.value)
+    if (e) throw new Error(traduire(e.message))
+    await loadProfile()
+  }
+
+  /** Change le mot de passe du compte connecté (Supabase Auth). */
+  async function updatePassword(password: string) {
+    const { error: e } = await supabase.auth.updateUser({ password })
+    if (e) throw new Error(traduire(e.message))
+  }
+
+  /** Envoie l'e-mail de réinitialisation ; le lien ramène sur la page profil. */
+  async function resetPassword(mail: string) {
+    const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}profil?reset=1`
+    const { error: e } = await supabase.auth.resetPasswordForEmail(mail.trim(), { redirectTo })
+    if (e) throw new Error(traduire(e.message))
+  }
+
+  /** Vrai le temps qu'un lien de récupération de mot de passe est actif. */
+  const passwordRecovery = ref(false)
+
   function traduire(msg: string): string {
     if (/Invalid login credentials/i.test(msg)) return 'Email ou mot de passe incorrect'
     if (/Email not confirmed/i.test(msg)) return 'Email non confirmé — vérifiez votre boîte mail'
     if (/User already registered/i.test(msg)) return 'Un compte existe déjà avec cet email'
+    if (/Password should be at least/i.test(msg)) return 'Mot de passe trop court (6 caractères minimum)'
+    if (/rate limit/i.test(msg)) return 'Trop de tentatives, réessayez dans quelques minutes'
     return msg
   }
 
@@ -141,5 +169,9 @@ export const useAuthStore = defineStore('auth', () => {
     signUp,
     logout,
     ensureAdmin,
+    updateName,
+    updatePassword,
+    resetPassword,
+    passwordRecovery,
   }
 })

@@ -9,6 +9,8 @@ import { usePlanningStore } from './stores/planning'
 import { useNative } from './composables/useNative'
 import AppSidebar from './components/ui/AppSidebar.vue'
 import AppTopbar from './components/ui/AppTopbar.vue'
+import AppMobileHeader from './components/ui/AppMobileHeader.vue'
+import AppTabBar from './components/ui/AppTabBar.vue'
 import AppLogo from './components/ui/AppLogo.vue'
 import ToastNotification from './components/ui/ToastNotification.vue'
 
@@ -48,6 +50,13 @@ watch(
   },
 )
 
+// Lien de récupération de mot de passe : on ouvre directement le profil
+// avec le formulaire « nouveau mot de passe ».
+watch(
+  () => auth.passwordRecovery,
+  (v) => { if (v) void router.push({ path: '/profil', query: { reset: '1' } }) },
+)
+
 watch(() => route.path, () => { menuOpen.value = false })
 </script>
 
@@ -83,18 +92,21 @@ watch(() => route.path, () => { menuOpen.value = false })
 
   <!-- Application interne (authentifiée) -->
   <div v-else-if="auth.isLoggedIn" class="min-h-screen flex bg-page">
+    <!-- Barre latérale (desktop) / menu secondaire « Plus » (mobile) -->
     <AppSidebar :open="menuOpen" @close="menuOpen = false" />
     <div class="flex-1 flex flex-col min-w-0">
-      <AppTopbar @toggle-menu="menuOpen = !menuOpen" />
-      <main class="flex-1 w-full max-w-[1280px] mx-auto p-4 md:p-6" style="padding-bottom: calc(env(safe-area-inset-bottom) + 1.5rem);">
+      <AppTopbar class="hidden lg:block" />
+      <AppMobileHeader />
+      <main class="flex-1 w-full max-w-[1280px] mx-auto p-4 md:p-6 pb-28 lg:pb-6" style="padding-bottom: calc(env(safe-area-inset-bottom) + 7rem);">
         <router-view />
       </main>
     </div>
+    <AppTabBar @more="menuOpen = true" />
     <ToastNotification />
   </div>
 
   <!-- Connexion -->
-  <div v-else class="min-h-screen bg-page" style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);">
+  <div v-else class="min-h-screen bg-page" style="padding-bottom: env(safe-area-inset-bottom);">
     <router-view />
     <ToastNotification />
   </div>

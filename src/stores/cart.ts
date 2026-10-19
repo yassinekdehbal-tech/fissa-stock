@@ -1,11 +1,33 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
 import type { CartItem, Piece } from '@/types'
 
+const STORAGE_KEY = 'fissa-cart'
+
+function load(): { items: CartItem[]; discount: number } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return { items: [], discount: 0 }
+    const parsed = JSON.parse(raw) as { items?: CartItem[]; discount?: number }
+    return { items: Array.isArray(parsed.items) ? parsed.items : [], discount: Number(parsed.discount) || 0 }
+  } catch {
+    return { items: [], discount: 0 }
+  }
+}
+
+/**
+ * Panier de sortie. Persisté sur l'appareil (localStorage) pour survivre à un
+ * rechargement ou à une mise en veille de l'app pendant une préparation.
+ */
 export const useCartStore = defineStore('cart', () => {
-  const items = ref<CartItem[]>([])
-  const discount = ref(0)
+  const saved = load()
+  const items = ref<CartItem[]>(saved.items)
+  const discount = ref(saved.discount)
+
+  watch([items, discount], () => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ items: items.value, discount: discount.value })) } catch { /* stockage indisponible */ }
+  }, { deep: true })
 
   const count = computed(() => items.value.length)
   const subtotal = computed(() => items.value.reduce((acc, i) => acc + i.qty * i.prixUnitaire, 0))
