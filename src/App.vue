@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, computed, ref } from 'vue'
+import { onMounted, watch, watchEffect, computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useStockStore } from './stores/stock'
@@ -26,6 +26,12 @@ const { initNative } = useNative()
 const isPublic = computed(() => route.meta.public === true)
 const menuOpen = ref(false)
 const scrollEl = ref<HTMLElement | null>(null)
+
+// Coque interne active : on verrouille le document (html/body) pour que la
+// WebView native n'ait aucune marge de défilement propre.
+watchEffect(() => {
+  document.documentElement.classList.toggle('app-shell', auth.isLoggedIn && !isPublic.value)
+})
 
 let started = false
 function startInternal() {

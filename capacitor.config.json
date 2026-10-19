@@ -24,6 +24,6 @@
   "ios": {
     "scheme": "FISSA",
     "backgroundColor": "#0d1117",
-    "contentInset": "automatic"
+    "contentInset": "never"
   }
 }
