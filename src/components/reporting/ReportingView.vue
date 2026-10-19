@@ -51,40 +51,40 @@ const chartMax = computed(() => Math.max(...months.value.map(m => m.ca), 1))
 <template>
   <div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
-      <StatCard :value="formatPrice(stats.caMonth)" label="CA ce mois" color="text-[#3fb950]" />
-      <StatCard :value="stats.qteMonth" label="Pièces vendues (30j)" color="text-[#58a6ff]" />
-      <StatCard :value="formatPrice(stats.caPrev)" label="CA mois précédent" color="text-[#f0883e]" />
-      <StatCard v-if="stats.trend !== null" :value="`${stats.trend >= 0 ? '+' : ''}${stats.trend}%`" label="Tendance" :color="stats.trend >= 0 ? 'text-[#3fb950]' : 'text-red-400'" />
+      <StatCard :value="formatPrice(stats.caMonth)" label="CA ce mois" color="text-green-600" />
+      <StatCard :value="stats.qteMonth" label="Pièces vendues (30j)" color="text-blue-600" />
+      <StatCard :value="formatPrice(stats.caPrev)" label="CA mois précédent" color="text-orange-600" />
+      <StatCard v-if="stats.trend !== null" :value="`${stats.trend >= 0 ? '+' : ''}${stats.trend}%`" label="Tendance" :color="stats.trend >= 0 ? 'text-green-600' : 'text-red-600'" />
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
       <!-- Top pièces -->
-      <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-5">
-        <div class="font-mono text-[11px] font-semibold text-[#e6a817] uppercase tracking-[2px] mb-3.5">🏆 Top 10 pièces vendues</div>
-        <div v-if="!topPieces.length" class="text-[#8b949e] text-xs py-3">Aucune vente</div>
-        <div v-for="(p, i) in topPieces" :key="p.ref" class="flex items-center gap-2 py-1.5 border-b border-[#30363d] text-xs">
-          <span class="font-mono font-bold text-sm text-[#e6a817] min-w-[22px]">#{{ i + 1 }}</span>
+      <div class="card p-5">
+        <div class="card-title">Top 10 pièces vendues</div>
+        <div v-if="!topPieces.length" class="text-gray-500 text-xs py-3">Aucune vente</div>
+        <div v-for="(p, i) in topPieces" :key="p.ref" class="flex items-center gap-2 py-1.5 border-b border-gray-200 text-xs">
+          <span class="font-bold text-sm text-amber-600 min-w-[22px]">#{{ i + 1 }}</span>
           <div class="flex-1">
             <div class="font-semibold">{{ p.name }}</div>
-            <div class="font-mono text-[10px] text-[#e6a817]">{{ p.ref }}</div>
+            <div class="text-[10px] text-amber-600">{{ p.ref }}</div>
           </div>
-          <span class="text-[#8b949e] text-[11px]">{{ p.qty }} vendu(s)</span>
-          <span class="font-mono text-[#3fb950] font-semibold ml-2">{{ p.ca.toFixed(2) }} €</span>
+          <span class="text-gray-500 text-[11px]">{{ p.qty }} vendu(s)</span>
+          <span class="text-green-600 font-semibold ml-2">{{ p.ca.toFixed(2) }} €</span>
         </div>
       </div>
 
       <!-- Graphique mois -->
-      <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-5">
-        <div class="font-mono text-[11px] font-semibold text-[#e6a817] uppercase tracking-[2px] mb-3.5">📅 CA mois sur mois</div>
+      <div class="card p-5">
+        <div class="card-title">CA mois sur mois</div>
         <div class="flex items-end gap-1 h-20">
           <div v-for="(m, i) in months" :key="m.label" class="flex-1 flex flex-col items-center gap-0.5">
-            <span class="text-[8px] text-[#e6a817] font-mono">{{ m.ca > 0 ? m.ca.toFixed(0) + '€' : '' }}</span>
+            <span class="text-[8px] text-amber-600">{{ m.ca > 0 ? m.ca.toFixed(0) + '€' : '' }}</span>
             <div
               class="w-full rounded-t min-h-[2px]"
-              :class="i === months.length - 1 ? 'bg-[#3fb950]' : 'bg-[#e6a817]'"
+              :class="i === months.length - 1 ? 'bg-green-500' : 'bg-brand'"
               :style="{ height: Math.max((m.ca / chartMax) * 65, 2) + 'px' }"
             ></div>
-            <span class="text-[9px] text-[#8b949e] font-mono">{{ m.label }}</span>
+            <span class="text-[9px] text-gray-500">{{ m.label }}</span>
           </div>
         </div>
       </div>

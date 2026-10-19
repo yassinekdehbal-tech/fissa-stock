@@ -1,5 +1,10 @@
 # Guide de build iOS — FISSA PIECE AUTO
 
+> **Publication sur les stores (App Store / Play Store) via GitHub Actions** : voir `STORES_GUIDE.md`.
+> Ce guide couvre uniquement le build **local** sur un Mac avec Xcode. Après `npm run cap:init`,
+> lancer `npm run assets:ios` (icônes) et `node scripts/prepare-native.mjs ios` (permissions caméra)
+> comme le fait la CI.
+
 ## Prerequis
 
 - macOS (Sonoma ou plus recent)

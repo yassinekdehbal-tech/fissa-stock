@@ -1,0 +1,150 @@
+name: Build Android & Deploy to Play Store
+
+# Trois niveaux, selon les secrets présents (voir STORES_GUIDE.md) :
+#   1. Aucun secret           → APK debug installable + AAB release non signé (artefacts).
+#   2. Secrets keystore       → APK + AAB release SIGNÉS (artefacts, prêts pour le Play Store).
+#   3. + PLAY_SERVICE_ACCOUNT → upload automatique de l'AAB sur la piste choisie.
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Piste Play Store (none = ne pas envoyer, juste produire les fichiers)'
+        type: choice
+        default: internal
+        options: [none, internal, alpha, beta, production]
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - '.github/workflows/android-playstore.yml'
+      - 'scripts/prepare-native.mjs'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      APP_VERSION: ''
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build web for Capacitor
+        run: npm run build:native
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Generate icons & splash screens
+        run: npm run assets:android
+
+      - name: Prepare native project (permissions, version, signing)
+        run: node scripts/prepare-native.mjs android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Restore release keystore
+        id: keystore
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "Keystore restauré : build release signé."
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Secret ANDROID_KEYSTORE_BASE64 absent : build release NON signé (voir STORES_GUIDE.md)."
+          fi
+
+      - name: Build release bundle (AAB) and APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease assembleRelease
+
+      - name: Build debug APK (installable sans keystore)
+        if: steps.keystore.outputs.signed == 'false'
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Collect outputs
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/bundle/release/app-release.aab out/fissa-release.aab
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk out/fissa-release.apk
+          elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk out/fissa-release-unsigned.apk
+          fi
+          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk out/fissa-debug.apk
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fissa-android-${{ github.run_number }}
+          path: out/
+          retention-days: 30
+
+      - name: Decide Play Store upload
+        id: play
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          SIGNED: ${{ steps.keystore.outputs.signed }}
+          EVENT: ${{ github.event_name }}
+          TRACK: ${{ github.event.inputs.track || 'internal' }}
+        run: |
+          upload=false
+          if [ "$EVENT" = "pull_request" ]; then
+            echo "PR : pas d'envoi sur le Play Store."
+          elif [ "$TRACK" = "none" ]; then
+            echo "Piste 'none' : fichiers produits, pas d'envoi."
+          elif [ "$SIGNED" != "true" ]; then
+            echo "::warning::AAB non signé : impossible de l'envoyer sur le Play Store (ajouter les secrets keystore)."
+          elif [ -z "$PLAY_JSON" ]; then
+            echo "::warning::Secret PLAY_SERVICE_ACCOUNT_JSON absent : déposer out/fissa-release.aab (artefact) manuellement sur Play Console."
+          else
+            upload=true
+          fi
+          echo "upload=$upload" >> "$GITHUB_OUTPUT"
+          echo "track=$TRACK" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to Google Play
+        if: steps.play.outputs.upload == 'true'
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.fissa.pieceauto
+          releaseFiles: out/fissa-release.aab
+          track: ${{ steps.play.outputs.track }}
+          status: completed

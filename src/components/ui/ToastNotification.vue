@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useToast } from '@/composables/useToast'
+import AppIcon from '@/components/ui/AppIcon.vue'
 
 const { toastMessage, toastVisible, toastError } = useToast()
 </script>
@@ -15,10 +16,12 @@ const { toastMessage, toastVisible, toastError } = useToast()
   >
     <div
       v-if="toastVisible"
-      class="fixed bottom-5 right-5 px-4 py-2.5 rounded-lg font-mono text-xs font-semibold z-[2000] max-w-[300px]"
-      :class="toastError ? 'bg-red-500 text-white' : 'bg-green-500 text-black'"
+      class="fixed bottom-5 right-5 px-4 py-3 rounded-lg text-sm font-medium z-[2000] max-w-[320px] shadow-lg flex items-center gap-2 text-white"
+      :class="toastError ? 'bg-red-600' : 'bg-gray-900'"
+      style="margin-bottom: env(safe-area-inset-bottom);"
     >
-      {{ toastMessage }}
+      <AppIcon :name="toastError ? 'alert' : 'check-circle'" class="w-4 h-4 shrink-0" :class="toastError ? '' : 'text-green-400'" />
+      <span>{{ toastMessage }}</span>
     </div>
   </Transition>
 </template>

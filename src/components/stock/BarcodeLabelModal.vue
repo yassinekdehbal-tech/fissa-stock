@@ -154,19 +154,19 @@ function downloadPng() {
 </script>
 
 <template>
-  <BaseModal :open="open" title="🏷 Étiquette code-barres" max-width="420px" @close="emit('close')">
+  <BaseModal :open="open" title="Étiquette code-barres" max-width="420px" @close="emit('close')">
     <div v-if="piece" class="space-y-3">
       <div class="bg-white rounded-lg p-3 flex justify-center">
         <svg ref="svgEl"></svg>
       </div>
       <div class="text-center">
-        <div class="font-mono font-bold text-[#e6edf3]">{{ piece.name }}</div>
-        <div class="text-xs text-[#8b949e] font-mono">{{ meta(piece) }}</div>
+        <div class="font-bold text-gray-900">{{ piece.name }}</div>
+        <div class="text-xs text-gray-500">{{ meta(piece) }}</div>
       </div>
 
       <div class="flex flex-col gap-1">
-        <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Format d'étiquette</label>
-        <select v-model="format" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-xs px-3 py-2 outline-none focus:border-[#e6a817]">
+        <label class="label">Format d'étiquette</label>
+        <select v-model="format" class="input">
           <option v-for="(f, key) in FORMATS" :key="key" :value="key">{{ f.label }}</option>
         </select>
       </div>
@@ -174,19 +174,19 @@ function downloadPng() {
       <div class="flex gap-2">
         <button
           @click="printLabel"
-          class="flex-1 bg-[#e6a817] text-black font-mono text-xs font-bold px-4 py-2.5 rounded-lg uppercase tracking-wider hover:bg-[#d49b15] transition-colors"
+          class="flex-1 btn btn-primary hover:bg-brand-dark transition-colors"
         >
-          🖨 Imprimer
+          Imprimer
         </button>
         <button
           @click="downloadPng"
-          class="flex-1 border border-[#e6a817] text-[#e6a817] font-mono text-xs font-bold px-4 py-2.5 rounded-lg uppercase tracking-wider hover:bg-[#e6a817]/10 transition-colors"
+          class="flex-1 btn btn-secondary"
         >
-          ⬇ Image
+          Image
         </button>
       </div>
-      <p class="text-[10px] text-[#8b949e] text-center">
-        🖨 Imprimer : imprimante AirPrint (Brother QL…) · ⬇ Image : PNG pour l'appli NIIMBOT / Phomemo
+      <p class="text-[10px] text-gray-500 text-center">
+        Imprimer : imprimante AirPrint (Brother QL…) · Image : PNG pour l'appli NIIMBOT / Phomemo
       </p>
     </div>
   </BaseModal>

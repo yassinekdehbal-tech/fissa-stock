@@ -56,14 +56,14 @@ async function validate() {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <div class="font-mono text-[11px] font-semibold text-[#e6a817] uppercase tracking-[2px]">
-          🛒 Panier
+        <div class="page-title text-xl">
+          Panier
         </div>
-        <div class="text-[#8b949e] text-xs mt-1">{{ cart.count }} article(s)</div>
+        <div class="text-gray-500 text-xs mt-1">{{ cart.count }} article(s)</div>
       </div>
       <button
         @click="$router.push('/scanner')"
-        class="text-xs font-mono text-[#8b949e] hover:text-[#e6edf3] px-3 py-1.5 rounded-lg border border-[#30363d] hover:border-[#484f58] transition-colors bg-transparent cursor-pointer"
+        class="btn btn-secondary btn-sm"
       >
         + Scanner une pièce
       </button>
@@ -72,95 +72,95 @@ async function validate() {
     <!-- Empty -->
     <div
       v-if="!cart.items.length"
-      class="bg-[#161b22] border border-[#30363d] rounded-xl p-10 text-center text-[#8b949e] text-sm"
+      class="card p-10 text-center text-gray-500 text-sm"
     >
       Le panier est vide. Scannez ou ouvrez une pièce du stock pour l'ajouter.
     </div>
 
     <template v-else>
       <!-- Items -->
-      <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-3 space-y-1.5">
+      <div class="card p-3 space-y-1.5">
         <div
           v-for="(item, idx) in cart.items"
           :key="item.piece._id"
-          class="bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 flex items-center gap-2"
+          class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2"
         >
-          <span class="font-mono text-[10px] text-[#e6a817] font-bold bg-[#e6a817]/10 px-1.5 py-0.5 rounded shrink-0">
+          <span class="badge-ref shrink-0">
             {{ item.piece.ref }}
           </span>
-          <span class="text-[#e6edf3] text-xs truncate flex-1">{{ item.piece.name }}</span>
+          <span class="text-gray-900 text-xs truncate flex-1">{{ item.piece.name }}</span>
           <!-- Qty -->
           <div class="flex items-center gap-1 shrink-0">
             <button
               @click="setQty(idx, item.qty - 1)"
-              class="w-5 h-5 flex items-center justify-center text-[#8b949e] hover:text-[#e6edf3] bg-[#21262d] hover:bg-[#30363d] rounded text-xs cursor-pointer border-none transition-colors"
+              class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded text-xs cursor-pointer border-none transition-colors"
             >-</button>
-            <span class="font-mono text-xs text-[#e6edf3] w-6 text-center">{{ item.qty }}</span>
+            <span class="text-xs text-gray-900 w-6 text-center">{{ item.qty }}</span>
             <button
               @click="setQty(idx, item.qty + 1)"
-              class="w-5 h-5 flex items-center justify-center text-[#8b949e] hover:text-[#e6edf3] bg-[#21262d] hover:bg-[#30363d] rounded text-xs cursor-pointer border-none transition-colors"
+              class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded text-xs cursor-pointer border-none transition-colors"
             >+</button>
           </div>
-          <span class="font-mono text-[10px] text-[#8b949e] shrink-0">{{ formatPrice(item.prixUnitaire) }}/u</span>
-          <span class="font-mono text-xs text-[#3fb950] font-semibold shrink-0 min-w-[65px] text-right">
+          <span class="text-[10px] text-gray-500 shrink-0">{{ formatPrice(item.prixUnitaire) }}/u</span>
+          <span class="text-xs text-green-600 font-semibold shrink-0 min-w-[65px] text-right">
             {{ formatPrice(item.qty * item.prixUnitaire) }}
           </span>
           <button
             @click="cart.remove(idx)"
-            class="text-[#f85149] hover:text-[#ff6e67] text-sm cursor-pointer bg-transparent border-none transition-colors ml-1"
+            class="text-red-600 hover:text-red-700 text-sm cursor-pointer bg-transparent border-none transition-colors ml-1"
             title="Retirer"
           >✕</button>
         </div>
       </div>
 
       <!-- Payment + client + discount -->
-      <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-3">
+      <div class="card p-4 space-y-3">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="text-[10px] text-[#8b949e] uppercase tracking-wider mb-1 block">Mode de paiement</label>
+            <label class="label mb-1 block">Mode de paiement</label>
             <select
               v-model="payment"
-              class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs font-mono focus:outline-none focus:border-[#e6a817] transition-colors"
+              class="input focus:outline-none focus:border-brand transition-colors"
             >
               <option v-for="opt in paymentOptions" :key="opt.v" :value="opt.v">{{ opt.l }}</option>
             </select>
           </div>
           <div>
-            <label class="text-[10px] text-[#8b949e] uppercase tracking-wider mb-1 block">Remise (%)</label>
+            <label class="label mb-1 block">Remise (%)</label>
             <input
               :value="cart.discount"
               @input="cart.setDiscount(Number(($event.target as HTMLInputElement).value))"
               type="number"
               min="0"
               max="100"
-              class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs font-mono focus:outline-none focus:border-[#e6a817] transition-colors"
+              class="input focus:outline-none focus:border-brand transition-colors"
             >
           </div>
         </div>
         <div>
-          <label class="text-[10px] text-[#8b949e] uppercase tracking-wider mb-1 block">Client (optionnel)</label>
+          <label class="label mb-1 block">Client (optionnel)</label>
           <input
             v-model="client"
             type="text"
             placeholder="Nom du client"
-            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs focus:outline-none focus:border-[#e6a817] transition-colors"
+            class="input"
           >
         </div>
       </div>
 
       <!-- Totals -->
-      <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div class="flex items-center justify-between text-xs text-[#8b949e] mb-1">
+      <div class="card p-4">
+        <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
           <span>Sous-total</span>
-          <span class="font-mono">{{ formatPrice(cart.subtotal) }}</span>
+          <span class="">{{ formatPrice(cart.subtotal) }}</span>
         </div>
-        <div v-if="cart.discount > 0" class="flex items-center justify-between text-xs text-[#8b949e] mb-1">
+        <div v-if="cart.discount > 0" class="flex items-center justify-between text-xs text-gray-500 mb-1">
           <span>Remise ({{ cart.discount }}%)</span>
-          <span class="font-mono">- {{ formatPrice(cart.subtotal - cart.total) }}</span>
+          <span class="">- {{ formatPrice(cart.subtotal - cart.total) }}</span>
         </div>
-        <div class="flex items-center justify-between pt-2 mt-2 border-t border-[#30363d]">
-          <span class="font-mono text-xs text-[#8b949e] uppercase tracking-wider">Total à payer</span>
-          <span class="font-mono text-lg font-bold text-[#3fb950]">{{ formatPrice(cart.total) }}</span>
+        <div class="flex items-center justify-between pt-2 mt-2 border-t border-gray-200">
+          <span class="text-xs text-gray-500 uppercase tracking-wider">Total à payer</span>
+          <span class="text-lg font-bold text-green-600">{{ formatPrice(cart.total) }}</span>
         </div>
       </div>
 
@@ -168,14 +168,14 @@ async function validate() {
       <div class="flex items-center justify-between gap-2">
         <button
           @click="cart.clear()"
-          class="text-xs font-mono text-[#8b949e] hover:text-[#f85149] px-4 py-2.5 rounded-lg border border-[#30363d] hover:border-[#f85149]/40 transition-colors bg-transparent cursor-pointer"
+          class="btn btn-secondary"
         >
           Vider le panier
         </button>
         <button
           @click="validate"
           :disabled="processing"
-          class="flex-1 sm:flex-none text-xs font-mono font-bold text-[#0d1117] bg-[#3fb950] hover:brightness-110 disabled:opacity-50 px-6 py-2.5 rounded-lg transition cursor-pointer uppercase tracking-wider"
+          class="btn btn-success flex-1 sm:flex-none"
         >
           {{ processing ? 'Validation...' : `Valider la vente — ${formatPrice(cart.total)}` }}
         </button>

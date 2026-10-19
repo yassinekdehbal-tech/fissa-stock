@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, computed } from 'vue'
+import { onMounted, watch, computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useStockStore } from './stores/stock'
@@ -7,8 +7,9 @@ import { useHistoryStore } from './stores/history'
 import { useUsersStore } from './stores/users'
 import { usePlanningStore } from './stores/planning'
 import { useNative } from './composables/useNative'
-import AppHeader from './components/ui/AppHeader.vue'
-import AppNav from './components/ui/AppNav.vue'
+import AppSidebar from './components/ui/AppSidebar.vue'
+import AppTopbar from './components/ui/AppTopbar.vue'
+import AppLogo from './components/ui/AppLogo.vue'
 import ToastNotification from './components/ui/ToastNotification.vue'
 
 const router = useRouter()
@@ -21,6 +22,7 @@ const planning = usePlanningStore()
 const { initNative } = useNative()
 
 const isPublic = computed(() => route.meta.public === true)
+const menuOpen = ref(false)
 
 let started = false
 function startInternal() {
@@ -45,48 +47,55 @@ watch(
     else if (!isPublic.value && route.name !== 'login') router.push('/login')
   },
 )
+
+watch(() => route.path, () => { menuOpen.value = false })
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col" style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);">
-    <!-- Surface publique : vitrine / boutique -->
-    <template v-if="isPublic">
-      <header class="bg-[#161b22] border-b border-[#30363d]">
-        <div class="max-w-[1200px] mx-auto px-5 py-3 flex items-center justify-between">
-          <router-link to="/boutique" class="font-mono text-lg font-bold text-[#e6a817] tracking-tight">
-            FISSA <span class="text-[#3fb950]">PIECE</span> AUTO
-          </router-link>
-          <router-link to="/login" class="text-[11px] font-mono text-[#8b949e] hover:text-[#e6edf3] transition-colors">
-            Espace pro →
-          </router-link>
-        </div>
-      </header>
-      <main class="flex-1 w-full">
-        <router-view />
-      </main>
-      <footer class="bg-[#161b22] border-t border-[#30363d] mt-8">
-        <div class="max-w-[1200px] mx-auto px-5 py-6 text-center text-[#8b949e] text-xs space-y-1">
-          <div class="font-mono text-[#e6a817] font-bold">FISSA PIECE AUTO</div>
-          <div>Pièces automobiles d'occasion et neuves</div>
-          <div class="text-[10px] text-[#484f58]">© FISSA PIECE AUTO — Toutes les pièces sont vérifiées.</div>
-        </div>
-      </footer>
-    </template>
-
-    <!-- Application interne (authentifiée) -->
-    <template v-else-if="auth.isLoggedIn">
-      <AppHeader />
-      <AppNav />
-      <main class="flex-1 p-5 max-w-[1200px] w-full mx-auto">
-        <router-view />
-      </main>
-    </template>
-
-    <!-- Connexion -->
-    <template v-else>
+  <!-- Surface publique : vitrine / boutique -->
+  <div v-if="isPublic" class="min-h-screen flex flex-col bg-page" style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);">
+    <header class="bg-white border-b border-gray-200">
+      <div class="max-w-[1200px] mx-auto px-5 py-3 flex items-center justify-between">
+        <router-link to="/boutique" class="flex items-center gap-3">
+          <span class="bg-sidebar rounded-lg px-2.5 py-1.5"><AppLogo compact /></span>
+          <span class="text-sm font-semibold text-gray-800 hidden sm:inline">Pièces automobiles d'occasion & neuves</span>
+        </router-link>
+        <router-link to="/login" class="btn btn-secondary btn-sm">
+          Espace pro
+        </router-link>
+      </div>
+    </header>
+    <main class="flex-1 w-full">
       <router-view />
-    </template>
+    </main>
+    <footer class="bg-white border-t border-gray-200 mt-8">
+      <div class="max-w-[1200px] mx-auto px-5 py-6 text-center text-gray-500 text-xs space-y-1">
+        <div class="font-bold text-gray-900">FISSA PIÈCE AUTO</div>
+        <div>Pièces automobiles d'occasion et neuves, contrôlées et prêtes à poser.</div>
+        <div class="text-[11px] text-gray-400">
+          © FISSA PIÈCE AUTO ·
+          <router-link to="/confidentialite" class="hover:text-gray-700 underline-offset-2 hover:underline">Politique de confidentialité</router-link>
+        </div>
+      </div>
+    </footer>
+    <ToastNotification />
+  </div>
 
+  <!-- Application interne (authentifiée) -->
+  <div v-else-if="auth.isLoggedIn" class="min-h-screen flex bg-page">
+    <AppSidebar :open="menuOpen" @close="menuOpen = false" />
+    <div class="flex-1 flex flex-col min-w-0">
+      <AppTopbar @toggle-menu="menuOpen = !menuOpen" />
+      <main class="flex-1 w-full max-w-[1280px] mx-auto p-4 md:p-6" style="padding-bottom: calc(env(safe-area-inset-bottom) + 1.5rem);">
+        <router-view />
+      </main>
+    </div>
+    <ToastNotification />
+  </div>
+
+  <!-- Connexion -->
+  <div v-else class="min-h-screen bg-page" style="padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);">
+    <router-view />
     <ToastNotification />
   </div>
 </template>

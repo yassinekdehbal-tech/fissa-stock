@@ -306,15 +306,16 @@ Une base **Supabase** unique, un **frontend Vue** unique décliné en 3 surfaces
 
 ---
 
-## 10. État des chaînes de build & déploiement (19/08/2026)
+## 10. État des chaînes de build & déploiement (19/10/2026)
 
 | Chaîne | Workflow | État | Détail |
 |--------|----------|------|--------|
-| Validation PR | `ci.yml` | 🟢 Ajouté le 19/08/2026 | `npm ci` (strict lockfile) + `vue-tsc --noEmit` + `npm run build`. Jusque-là **aucune** validation ne tournait sur les PR. |
-| Web (GitHub Pages) | `deploy.yml` | 🟢 Vert (passé à `npm ci` le 19/08/2026) | Déclenché sur push `main`. Reste à confirmer l'activation Settings → Pages → Source = GitHub Actions. |
-| iOS (TestFlight) | `ios-testflight.yml` | 🔴 **En échec** (5 échecs, dernier le 30/07/2026) | L'archive **se compile** ; c'est l'`exportArchive` qui casse. |
+| Validation PR | `ci.yml` | 🟢 | `npm ci` (strict lockfile) + `vue-tsc --noEmit` + `npm run build`. |
+| Web / PWA (GitHub Pages) | `deploy.yml` | 🟢 | Déclenché sur push `main`. C'est la version utilisée sur le terrain (installable sur l'écran d'accueil iOS/Android). |
+| iOS (TestFlight → App Store) | `ios-testflight.yml` | 🟡 **Prêt, bloqué par le compte Apple** | Workflow refait le 19/10/2026 : vérification du compte Apple avant compilation (`scripts/check-asc.mjs`, message clair en 10 s), icônes/splash générés depuis `resources/*.svg`, textes d'usage caméra/photos dans Info.plist (`scripts/prepare-native.mjs`), version + numéro de build automatiques. Reste côté Apple : clé API **Admin**, App ID, fiche app → **`STORES_GUIDE.md` §1**. |
+| Android (Play Store) | `android-playstore.yml` | 🟡 **Nouveau, prêt** | Créé le 19/10/2026. Sans secret : APK debug installable + AAB. Avec keystore : AAB/APK signés. Avec compte de service : envoi automatique sur la piste interne. Reste côté Google : keystore, compte Play Console, fiche app → **`STORES_GUIDE.md` §2**. |
 
-**Diagnostic du build iOS** — erreurs renvoyées par `xcodebuild -exportArchive` :
+**Historique du blocage iOS** (5 échecs, 25→30/07/2026) — erreurs renvoyées par `xcodebuild -exportArchive` :
 
 ```
 error: exportArchive Cloud signing permission error
@@ -322,7 +323,7 @@ error: exportArchive No profiles for 'com.fissa.pieceauto' were found
 error: exportArchive No signing certificate "iOS Distribution" found
 ```
 
-C'est un problème **de compte Apple, pas de code** : la clé App Store Connect API doit avoir un rôle suffisant (Admin ou App Manager) pour le *cloud signing*, l'App ID `com.fissa.pieceauto` doit exister sur le portail développeur, et un certificat de distribution doit être disponible. Les trois derniers commits du dépôt (26/07 et 31/07) sont des retouches successives du YAML : **inutile de continuer à modifier le workflow** tant que les droits Apple ne sont pas réglés. En attendant, la PWA servie par GitHub Pages couvre l'usage terrain.
+C'est un problème **de compte Apple, pas de code** : la clé App Store Connect API doit avoir le rôle **Admin** pour le *cloud signing*, l'App ID `com.fissa.pieceauto` doit exister sur le portail développeur, et la fiche app doit être créée dans App Store Connect. Le workflow détecte désormais chacun de ces manques avant de compiler. Procédure complète, secrets à renseigner et dépannage : `STORES_GUIDE.md`.
 
 ---
 
@@ -343,6 +344,8 @@ C'est un problème **de compte Apple, pas de code** : la clé App Store Connect 
 | 19/08/2026 | 2.9 | Session Claude Code | **Audit d'état** (code + Supabase + CI, pas seulement la doc). Constats : base de production **vide** (0 profil / 0 pièce → jamais mise en service) ; **facture non conforme** (`Date.now()`, table `invoices` inutilisée) ; **connecteurs marketplaces = stubs** ; **build iOS en échec** (cloud signing Apple) ; `PlanningView` en fait **déjà câblé** (la doc 2.4→2.8 disait le contraire). Correctifs : **lockfile resynchronisé** (`@supabase/supabase-js` absent depuis `99f1e71`, `npm ci` cassé) + **workflow `ci.yml`** (garde-fou `npm ci`/typecheck/build sur les PR). Feuille de route §6 réordonnée, §10 ajoutée. |
 | 19/08/2026 | 3.0 | Session Claude Code | **Vision SaaS actée** (§1bis) : FISSA STOCK = solution multi-exploitant, FISSA PIÈCE AUTO = premier exploitant. Hiérarchie super-admin → admin exploitant → utilisateur → sous-utilisateur. Reco : **schéma multi-tenant maintenant** (base vide, migration triviale), plomberie SaaS (billing, self-service) après validation en magasin. Champ `source` (don/démontage/lot/grossiste/web), import en masse, backlog standards (§8.3 : inventaire tournant, OR signé, garantie légale occasion, offline, multi-site). Décisions 9-11 ouvertes (§8.2). |
 | 19/08/2026 | 3.1 | Session Claude Code | **Exécution Sprint 0/A** : PR #2 mergée + déployée. **3 migrations multi-tenant écrites et versionnées** (`supabase/migrations/`) — ⚠️ à appliquer sur Supabase (permission requise). **Facture conforme implémentée** (RPC `create_invoice_for_intervention` + PlanningView : numéro séquentiel par org, HT/TVA/TTC, mentions légales, idempotence). Champ `source` (provenance) dans AddPieceView. **Firebase supprimé** (code + config + dépendance). `deploy.yml` passé à `npm ci`. Types Supabase complétés (`source`, RPC). |
+| 19/10/2026 | 3.2 | Session Claude Code | **Chaînes stores** : workflow iOS refait (pré-vérification du compte Apple via l'API App Store Connect, icônes/splash auto, permissions caméra Info.plist, version/build auto) ; **chaîne Android créée** (`android-playstore.yml` : AAB/APK, signature par secrets, envoi Play Store optionnel) ; scripts `prepare-native.mjs`, `check-asc.mjs`, `generate-android-keystore.sh` ; **`STORES_GUIDE.md`** (procédure Apple + Google pas à pas). `ios/` et `android/` ignorés par git (régénérés en CI). Diagnostic confirmé : blocage iOS = rôle de la clé API Apple, pas le code. |
+| 19/10/2026 | 3.3 | Session Claude Code | **Refonte visuelle** d'après la maquette : thème clair, barre latérale sombre + accent jaune FISSA, barre de recherche globale, système de styles partagé (`src/assets/main.css` : `.card`, `.btn`, `.input`, `.badge`…), icônes vectorielles (`AppIcon.vue`), nouvelles mises en page Dashboard / Stock / Ajout / Scanner (panier de sortie intégré), connexion, fiche pièce en consultation, toggle « visible sur la boutique » à l'ajout. **Page `/confidentialite`** (politique de confidentialité exigée par les stores). Toutes les autres pages converties au thème clair. Build + typecheck OK, vérification visuelle par captures Chromium (desktop + mobile). |
 
 ---
 

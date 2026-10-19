@@ -7,6 +7,7 @@ const router = createRouter({
     { path: '/login', name: 'login', component: () => import('./components/auth/LoginView.vue') },
     { path: '/boutique', name: 'boutique', component: () => import('./components/public/BoutiqueView.vue'), meta: { public: true } },
     { path: '/boutique/:id', name: 'boutique-piece', component: () => import('./components/public/BoutiquePieceView.vue'), meta: { public: true } },
+    { path: '/confidentialite', name: 'confidentialite', component: () => import('./components/public/PrivacyView.vue'), meta: { public: true } },
     { path: '/', name: 'dashboard', component: () => import('./components/dashboard/DashboardView.vue'), meta: { requiresAuth: true } },
     { path: '/stock', name: 'stock', component: () => import('./components/stock/StockView.vue'), meta: { requiresAuth: true } },
     { path: '/add', name: 'add', component: () => import('./components/stock/AddPieceView.vue'), meta: { requiresAuth: true } },
