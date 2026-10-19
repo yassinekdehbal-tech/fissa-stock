@@ -44,6 +44,15 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Application interne : le document lui-même ne défile jamais (seule la zone
+   <main id="app-scroll"> défile). Évite tout déplacement de la WebView native. */
+html.app-shell,
+html.app-shell body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* Barre de défilement discrète pour les menus horizontaux */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { scrollbar-width: none; }
