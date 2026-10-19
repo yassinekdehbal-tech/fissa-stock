@@ -77,13 +77,13 @@ export interface CategoryInfo {
 }
 
 export const CATEGORIES: Record<PieceCategory, CategoryInfo> = {
-  'moteur': { label: 'Moteur', icon: '🔴', color: '#f85149', bgClass: 'bg-red-500/10', textClass: 'text-red-400', borderClass: 'border-red-500/20' },
-  'carrosserie': { label: 'Carrosserie', icon: '🔵', color: '#58a6ff', bgClass: 'bg-blue-400/10', textClass: 'text-blue-400', borderClass: 'border-blue-400/20' },
-  'train-avant': { label: 'Train avant', icon: '🟢', color: '#3fb950', bgClass: 'bg-green-500/10', textClass: 'text-green-400', borderClass: 'border-green-500/20' },
-  'train-arriere': { label: 'Train arrière', icon: '🟠', color: '#f0883e', bgClass: 'bg-orange-400/10', textClass: 'text-orange-400', borderClass: 'border-orange-400/20' },
-  'electronique': { label: 'Électronique', icon: '🟣', color: '#bc8cff', bgClass: 'bg-purple-400/10', textClass: 'text-purple-400', borderClass: 'border-purple-400/20' },
-  'autre': { label: 'Autre', icon: '⚫', color: '#8b949e', bgClass: 'bg-gray-500/10', textClass: 'text-gray-400', borderClass: 'border-gray-500/20' },
-  '': { label: '—', icon: '', color: '#8b949e', bgClass: 'bg-gray-500/10', textClass: 'text-gray-400', borderClass: 'border-gray-500/20' }
+  'moteur': { label: 'Moteur', icon: '', color: '#ef4444', bgClass: 'bg-red-50', textClass: 'text-red-700', borderClass: 'border-red-200' },
+  'carrosserie': { label: 'Carrosserie', icon: '', color: '#3b82f6', bgClass: 'bg-blue-50', textClass: 'text-blue-700', borderClass: 'border-blue-200' },
+  'train-avant': { label: 'Train avant', icon: '', color: '#22c55e', bgClass: 'bg-green-50', textClass: 'text-green-700', borderClass: 'border-green-200' },
+  'train-arriere': { label: 'Train arrière', icon: '', color: '#f97316', bgClass: 'bg-orange-50', textClass: 'text-orange-700', borderClass: 'border-orange-200' },
+  'electronique': { label: 'Électronique', icon: '', color: '#8b5cf6', bgClass: 'bg-violet-50', textClass: 'text-violet-700', borderClass: 'border-violet-200' },
+  'autre': { label: 'Autre', icon: '', color: '#6b7280', bgClass: 'bg-gray-100', textClass: 'text-gray-600', borderClass: 'border-gray-200' },
+  '': { label: '—', icon: '', color: '#6b7280', bgClass: 'bg-gray-100', textClass: 'text-gray-600', borderClass: 'border-gray-200' }
 }
 
 export type InterventionStatus = 'todo' | 'in_progress' | 'done'

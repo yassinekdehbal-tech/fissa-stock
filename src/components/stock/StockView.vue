@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useStockStore } from '@/stores/stock'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 import { useToast } from '@/composables/useToast'
 import StatCard from '@/components/ui/StatCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
 import type { Piece, PieceCategory, PieceState } from '@/types'
@@ -13,6 +15,7 @@ import { CATEGORIES } from '@/types'
 import { formatPrice } from '@/utils/format'
 import { sanitize } from '@/utils/security'
 
+const route = useRoute()
 const stock = useStockStore()
 const auth = useAuthStore()
 const cart = useCartStore()
@@ -25,10 +28,19 @@ function openLabel(p: Piece) {
   showLabel.value = true
 }
 
-const search = ref('')
+const search = ref(String(route.query.q ?? ''))
+watch(() => route.query.q, (q) => { search.value = String(q ?? '') })
+
 const filterCat = ref<PieceCategory | ''>('')
 const filterEtat = ref<PieceState | ''>('')
 const filterArchive = ref<'actif' | 'archive' | 'tous'>('actif')
+
+function resetFilters() {
+  search.value = ''
+  filterCat.value = ''
+  filterEtat.value = ''
+  filterArchive.value = 'actif'
+}
 
 const filteredPieces = computed(() => {
   let list = stock.pieces
@@ -50,7 +62,15 @@ const filteredPieces = computed(() => {
   return list
 })
 
-// Edit modal
+// --- Fiche (consultation) ---------------------------------------------------
+const viewPiece = ref<Piece | null>(null)
+const viewOpen = ref(false)
+function openView(p: Piece) {
+  viewPiece.value = p
+  viewOpen.value = true
+}
+
+// --- Édition ----------------------------------------------------------------
 const editOpen = ref(false)
 const editPiece = ref<Piece | null>(null)
 const editForm = ref({ name: '', cat: '' as PieceCategory, vehicle: '', oem: '', supplier: '', donor: '', qty: 0, threshold: 0, price: 0, zone: '', etat: 'Bon état' as PieceState, compat: '', photo: '', notes: '' })
@@ -83,7 +103,7 @@ async function saveEdit() {
   toast('Pièce mise à jour')
 }
 
-// Cart modal
+// --- Panier -----------------------------------------------------------------
 const cartModalOpen = ref(false)
 const cartPiece = ref<Piece | null>(null)
 const cartQty = ref(1)
@@ -118,9 +138,16 @@ async function handleDelete(p: Piece) {
 }
 
 function qtyClass(p: Piece) {
-  if (p.qty === 0) return 'bg-gray-500/15 text-[#8b949e] border-[#30363d]'
-  if (p.qty <= (p.threshold || 1)) return 'bg-red-500/15 text-red-400 border-red-500/30'
-  return 'bg-green-500/15 text-green-400 border-green-500/30'
+  if (p.qty === 0) return 'badge-red'
+  if (p.qty <= (p.threshold || 1)) return 'badge-orange'
+  return 'badge-green'
+}
+
+function etatClass(etat: string) {
+  if (etat === 'Très bon état' || etat === 'Neuf') return 'badge-green'
+  if (etat === 'Bon état') return 'badge-blue'
+  if (etat === 'État moyen') return 'badge-amber'
+  return 'badge-gray'
 }
 
 function exportCSV() {
@@ -133,140 +160,205 @@ function exportCSV() {
   a.click()
   toast('Export CSV téléchargé')
 }
+
+const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
 </script>
 
 <template>
-  <div>
-    <!-- Stats -->
-    <div class="grid grid-cols-3 gap-2.5 mb-4">
-      <StatCard :value="stock.activePieces.length" label="Références" color="text-[#e6a817]" />
-      <StatCard :value="stock.totalQty" label="Pièces" />
-      <StatCard :value="`${stock.totalValue.toFixed(0)} €`" label="Valeur catalogue" color="text-[#3fb950]" />
+  <div class="space-y-4">
+    <!-- En-tête -->
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="page-title">Stock</h1>
+        <p class="page-subtitle">Gérez votre stock de pièces neuves et d'occasion</p>
+      </div>
+      <div class="flex gap-2">
+        <button v-if="auth.isAdmin" @click="exportCSV" class="btn btn-secondary">
+          <AppIcon name="download" class="w-4 h-4" /> Exporter CSV
+        </button>
+        <router-link v-if="canEdit" to="/add" class="btn btn-primary">
+          <AppIcon name="plus" class="w-4 h-4" /> Ajouter une pièce
+        </router-link>
+      </div>
     </div>
 
-    <!-- Toolbar -->
-    <div class="flex gap-2 mb-3 flex-wrap items-center">
-      <input
-        v-model="search"
-        type="text"
-        placeholder="🔍 Réf, désignation, véhicule, OEM, zone…"
-        class="flex-1 min-w-[140px] bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"
-      >
-      <select v-model="filterCat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-xs px-2 py-2 outline-none">
-        <option value="">Toutes catégories</option>
-        <option value="moteur">🔴 Moteur</option>
-        <option value="carrosserie">🔵 Carrosserie</option>
-        <option value="train-avant">🟢 Train avant</option>
-        <option value="train-arriere">🟠 Train arrière</option>
-        <option value="electronique">🟣 Électronique</option>
-        <option value="autre">⚫ Autre</option>
-      </select>
-      <select v-model="filterArchive" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-xs px-2 py-2 outline-none">
-        <option value="actif">Stock actif</option>
-        <option value="archive">Archivées</option>
-        <option value="tous">Tout</option>
-      </select>
-      <button v-if="auth.isAdmin" @click="exportCSV" class="bg-[#3fb950] text-black font-mono text-[11px] font-semibold px-3 py-2 rounded-lg uppercase">⬇ CSV</button>
+    <!-- Indicateurs -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <StatCard :value="stock.activePieces.length" label="Références" icon="package" tone="amber" />
+      <StatCard :value="stock.totalQty" label="Pièces en stock" icon="layers" tone="blue" />
+      <StatCard :value="`${stock.totalValue.toFixed(0)} €`" label="Valeur catalogue" icon="euro" tone="green" />
     </div>
 
-    <!-- Table -->
-    <div class="overflow-x-auto bg-[#161b22] border border-[#30363d] rounded-xl">
-      <table class="w-full text-xs border-collapse">
-        <thead>
-          <tr class="bg-[#21262d] border-b border-[#30363d]">
-            <th class="text-left px-3 py-2 font-mono text-[10px] uppercase text-[#8b949e] tracking-wider">Réf</th>
-            <th class="text-left px-3 py-2 font-mono text-[10px] uppercase text-[#8b949e] tracking-wider">Désignation</th>
-            <th class="text-left px-3 py-2 font-mono text-[10px] uppercase text-[#8b949e] tracking-wider hidden md:table-cell">Catégorie</th>
-            <th class="text-left px-3 py-2 font-mono text-[10px] uppercase text-[#8b949e] tracking-wider hidden lg:table-cell">Véhicule</th>
-            <th class="text-left px-3 py-2 font-mono text-[10px] uppercase text-[#8b949e] tracking-wider">Qté</th>
-            <th class="text-left px-3 py-2 font-mono text-[10px] uppercase text-[#8b949e] tracking-wider">Prix</th>
-            <th class="text-left px-3 py-2 font-mono text-[10px] uppercase text-[#8b949e] tracking-wider hidden md:table-cell">Zone</th>
-            <th class="text-left px-3 py-2 font-mono text-[10px] uppercase text-[#8b949e] tracking-wider">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="p in filteredPieces"
-            :key="p._id"
-            class="border-b border-[#30363d] hover:bg-[#21262d] transition-colors"
-            :class="{ 'opacity-50': p.archived }"
-          >
-            <td class="px-3 py-2">
-              <span class="font-mono text-[10px] text-[#e6a817] font-bold bg-[#e6a817]/10 px-1.5 py-0.5 rounded border border-[#e6a817]/30">{{ p.ref }}</span>
-            </td>
-            <td class="px-3 py-2">
-              <div>{{ p.name }}</div>
-              <div v-if="p.compat" class="text-[10px] text-blue-400 mt-0.5">↔ {{ p.compat }}</div>
-            </td>
-            <td class="px-3 py-2 hidden md:table-cell">
-              <span v-if="p.cat && CATEGORIES[p.cat]" class="text-[10px] px-1.5 py-0.5 rounded border" :class="[CATEGORIES[p.cat].bgClass, CATEGORIES[p.cat].textClass, CATEGORIES[p.cat].borderClass]">
-                {{ CATEGORIES[p.cat].icon }} {{ CATEGORIES[p.cat].label }}
-              </span>
-            </td>
-            <td class="px-3 py-2 text-[11px] text-[#8b949e] hidden lg:table-cell">{{ p.vehicle || '—' }}</td>
-            <td class="px-3 py-2">
-              <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded-full border" :class="qtyClass(p)">{{ p.qty }}</span>
-            </td>
-            <td class="px-3 py-2">
-              <span class="font-mono text-[11px] text-[#3fb950] font-semibold">{{ p.price ? formatPrice(p.price) : '—' }}</span>
-            </td>
-            <td class="px-3 py-2 hidden md:table-cell">
-              <span v-if="p.zone" class="text-[10px] bg-blue-400/10 text-blue-400 border border-blue-400/20 px-1.5 py-0.5 rounded">{{ p.zone }}</span>
-              <span v-else class="text-[#8b949e]">—</span>
-            </td>
-            <td class="px-3 py-2">
-              <div class="flex gap-1 flex-wrap">
-                <button @click="openLabel(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-[#e6a817] hover:text-[#e6a817] transition-colors">🏷</button>
-                <button v-if="auth.hasPerm('vendeur') && !p.archived" @click="openAddCart(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-green-400 hover:text-green-400 transition-colors">🛒</button>
-                <button v-if="(auth.isAdmin || auth.hasPerm('magasinier')) && !p.archived" @click="openEdit(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-[#e6a817] hover:text-[#e6a817] transition-colors">✏</button>
-                <button v-if="auth.isAdmin" @click="handleArchive(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-[#e6a817] hover:text-[#e6a817] transition-colors">{{ p.archived ? '↺' : '📦' }}</button>
-                <button v-if="auth.isAdmin && p.archived" @click="handleDelete(p)" class="px-1.5 py-0.5 text-[10px] rounded border border-[#30363d] text-[#8b949e] font-mono font-semibold hover:border-red-400 hover:text-red-400 transition-colors">✕</button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-if="!filteredPieces.length" class="text-center py-8 text-[#8b949e] text-sm">
+    <!-- Filtres -->
+    <div class="card p-3 space-y-2.5">
+      <div class="relative">
+        <AppIcon name="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <input v-model="search" type="text" placeholder="Réf., désignation, véhicule, OEM, zone…" class="input pl-9">
+      </div>
+      <div class="flex flex-wrap gap-2 items-center">
+        <select v-model="filterCat" class="input w-auto min-w-[160px]">
+          <option value="">Toutes catégories</option>
+          <option value="moteur">Moteur</option>
+          <option value="carrosserie">Carrosserie</option>
+          <option value="train-avant">Train avant</option>
+          <option value="train-arriere">Train arrière</option>
+          <option value="electronique">Électronique</option>
+          <option value="autre">Autre</option>
+        </select>
+        <select v-model="filterEtat" class="input w-auto min-w-[140px]">
+          <option value="">Tous états</option>
+          <option>Très bon état</option>
+          <option>Bon état</option>
+          <option>État moyen</option>
+          <option>Pour pièces</option>
+        </select>
+        <select v-model="filterArchive" class="input w-auto min-w-[130px]">
+          <option value="actif">Stock actif</option>
+          <option value="archive">Archivées</option>
+          <option value="tous">Tout</option>
+        </select>
+        <button @click="resetFilters" class="btn btn-secondary btn-sm">
+          <AppIcon name="refresh" class="w-3.5 h-3.5" /> Réinitialiser
+        </button>
+        <span class="ml-auto text-[12px] text-gray-500">{{ filteredPieces.length }} résultat(s)</span>
+      </div>
+    </div>
+
+    <!-- Tableau -->
+    <div class="card overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Référence</th>
+              <th>Désignation</th>
+              <th class="hidden md:table-cell">Catégorie</th>
+              <th class="hidden lg:table-cell">Véhicule</th>
+              <th class="text-center">Qté</th>
+              <th>Prix</th>
+              <th class="hidden md:table-cell">Zone</th>
+              <th class="hidden lg:table-cell">État</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in filteredPieces" :key="p._id" :class="{ 'opacity-50': p.archived }">
+              <td>
+                <div class="flex items-center gap-2.5">
+                  <span class="w-9 h-9 rounded-md bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shrink-0 text-gray-400">
+                    <img v-if="p.photo" :src="p.photo" class="w-full h-full object-cover" alt="" @error="($event.target as HTMLImageElement).style.display = 'none'">
+                    <AppIcon v-else name="package" class="w-4 h-4" />
+                  </span>
+                  <span class="badge-ref">{{ p.ref }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="font-medium text-gray-900">{{ p.name }}</div>
+                <div v-if="p.compat" class="text-[11px] text-gray-500 mt-0.5 truncate max-w-[260px]">{{ p.compat }}</div>
+              </td>
+              <td class="hidden md:table-cell">
+                <span v-if="p.cat && CATEGORIES[p.cat]" class="badge" :class="[CATEGORIES[p.cat].bgClass, CATEGORIES[p.cat].textClass]">{{ CATEGORIES[p.cat].label }}</span>
+              </td>
+              <td class="hidden lg:table-cell text-gray-600">{{ p.vehicle || '—' }}</td>
+              <td class="text-center"><span class="badge" :class="qtyClass(p)">{{ p.qty }}</span></td>
+              <td class="font-semibold text-gray-900 whitespace-nowrap">{{ p.price ? formatPrice(p.price) : '—' }}</td>
+              <td class="hidden md:table-cell"><span v-if="p.zone" class="badge-zone">{{ p.zone }}</span><span v-else class="text-gray-400">—</span></td>
+              <td class="hidden lg:table-cell"><span v-if="p.etat" class="badge" :class="etatClass(p.etat)">{{ p.etat }}</span></td>
+              <td>
+                <div class="flex justify-end gap-0.5">
+                  <button @click="openView(p)" class="icon-btn" title="Voir la fiche"><AppIcon name="eye" class="w-4 h-4" /></button>
+                  <button @click="openLabel(p)" class="icon-btn icon-btn-brand" title="Étiquette code-barres"><AppIcon name="tag" class="w-4 h-4" /></button>
+                  <button v-if="auth.hasPerm('vendeur') && !p.archived && p.qty > 0" @click="openAddCart(p)" class="icon-btn icon-btn-success" title="Ajouter au panier"><AppIcon name="cart" class="w-4 h-4" /></button>
+                  <button v-if="canEdit && !p.archived" @click="openEdit(p)" class="icon-btn icon-btn-brand" title="Modifier"><AppIcon name="edit" class="w-4 h-4" /></button>
+                  <button v-if="auth.isAdmin" @click="handleArchive(p)" class="icon-btn" :title="p.archived ? 'Restaurer' : 'Archiver'"><AppIcon :name="p.archived ? 'refresh' : 'box'" class="w-4 h-4" /></button>
+                  <button v-if="auth.isAdmin && p.archived" @click="handleDelete(p)" class="icon-btn icon-btn-danger" title="Supprimer définitivement"><AppIcon name="trash" class="w-4 h-4" /></button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-if="!filteredPieces.length" class="text-center py-12 text-gray-500 text-sm">
+        <AppIcon name="package" class="w-8 h-8 mx-auto mb-2 text-gray-300" />
         Aucune pièce trouvée
       </div>
     </div>
 
-    <!-- Edit Modal -->
-    <BaseModal title="✏ Modifier la pièce" :open="editOpen" @close="editOpen = false">
-      <div class="grid grid-cols-2 gap-2.5">
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Désignation</label><input v-model="editForm.name" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Catégorie</label><select v-model="editForm.cat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none"><option value="">—</option><option value="moteur">Moteur</option><option value="carrosserie">Carrosserie</option><option value="train-avant">Train avant</option><option value="train-arriere">Train arrière</option><option value="electronique">Électronique</option><option value="autre">Autre</option></select></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Véhicule</label><input v-model="editForm.vehicle" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">OEM</label><input v-model="editForm.oem" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Quantité</label><input v-model.number="editForm.qty" type="number" min="0" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Prix (€)</label><input v-model.number="editForm.price" type="number" step="0.01" min="0" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Zone</label><input v-model="editForm.zone" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">État</label><select v-model="editForm.etat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none"><option>Bon état</option><option>Très bon état</option><option>État moyen</option><option>Pour pièces</option></select></div>
-        <div class="col-span-2 flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Compatibilités</label><input v-model="editForm.compat" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="col-span-2"><PhotoUploadField v-model="editForm.photo" /></div>
-      </div>
-      <div class="flex gap-2 mt-3.5">
-        <button @click="saveEdit" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">Enregistrer</button>
-        <button @click="editOpen = false" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase hover:border-[#e6a817] hover:text-[#e6a817]">Annuler</button>
+    <!-- Fiche -->
+    <BaseModal :title="viewPiece ? viewPiece.ref : ''" :open="viewOpen" @close="viewOpen = false" max-width="520px">
+      <div v-if="viewPiece" class="space-y-3">
+        <div class="flex gap-4">
+          <span class="w-28 h-28 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shrink-0 text-gray-400">
+            <img v-if="viewPiece.photo" :src="viewPiece.photo" class="w-full h-full object-cover" alt="">
+            <AppIcon v-else name="package" class="w-8 h-8" />
+          </span>
+          <div class="min-w-0">
+            <div class="text-base font-semibold text-gray-900">{{ viewPiece.name }}</div>
+            <div class="flex flex-wrap gap-1.5 mt-1.5">
+              <span v-if="viewPiece.cat && CATEGORIES[viewPiece.cat]" class="badge" :class="[CATEGORIES[viewPiece.cat].bgClass, CATEGORIES[viewPiece.cat].textClass]">{{ CATEGORIES[viewPiece.cat].label }}</span>
+              <span v-if="viewPiece.etat" class="badge" :class="etatClass(viewPiece.etat)">{{ viewPiece.etat }}</span>
+              <span class="badge" :class="qtyClass(viewPiece)">Stock : {{ viewPiece.qty }}</span>
+            </div>
+            <div class="text-xl font-bold text-gray-900 mt-2">{{ formatPrice(viewPiece.price || 0) }}</div>
+          </div>
+        </div>
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+          <div><dt class="text-gray-500 text-[11px]">Véhicule</dt><dd class="text-gray-900">{{ viewPiece.vehicle || '—' }}</dd></div>
+          <div><dt class="text-gray-500 text-[11px]">N° OEM</dt><dd class="text-gray-900 font-mono">{{ viewPiece.oem || '—' }}</dd></div>
+          <div><dt class="text-gray-500 text-[11px]">Zone</dt><dd class="text-gray-900">{{ viewPiece.zone || '—' }}</dd></div>
+          <div><dt class="text-gray-500 text-[11px]">Fournisseur</dt><dd class="text-gray-900">{{ viewPiece.supplier || '—' }}</dd></div>
+          <div><dt class="text-gray-500 text-[11px]">Véhicule donneur</dt><dd class="text-gray-900">{{ viewPiece.donor || '—' }}</dd></div>
+          <div><dt class="text-gray-500 text-[11px]">Ajoutée le</dt><dd class="text-gray-900">{{ viewPiece.added ? new Date(viewPiece.added).toLocaleDateString('fr-FR') : '—' }}</dd></div>
+          <div class="col-span-2"><dt class="text-gray-500 text-[11px]">Compatibilités</dt><dd class="text-gray-900">{{ viewPiece.compat || '—' }}</dd></div>
+          <div v-if="viewPiece.notes" class="col-span-2"><dt class="text-gray-500 text-[11px]">Notes</dt><dd class="text-gray-700 bg-gray-50 rounded-lg p-2 mt-1">{{ viewPiece.notes }}</dd></div>
+        </dl>
+        <div class="flex gap-2 pt-1">
+          <button @click="openLabel(viewPiece)" class="btn btn-secondary"><AppIcon name="tag" class="w-4 h-4" /> Étiquette</button>
+          <button v-if="canEdit && !viewPiece.archived" @click="viewOpen = false; openEdit(viewPiece)" class="btn btn-primary"><AppIcon name="edit" class="w-4 h-4" /> Modifier</button>
+          <button @click="viewOpen = false" class="btn btn-ghost ml-auto">Fermer</button>
+        </div>
       </div>
     </BaseModal>
 
-    <!-- Add to cart modal -->
-    <BaseModal title="➕ Ajouter au panier" :open="cartModalOpen" @close="cartModalOpen = false" max-width="400px">
+    <!-- Édition -->
+    <BaseModal title="Modifier la pièce" :open="editOpen" @close="editOpen = false">
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1"><label class="label">Désignation</label><input v-model="editForm.name" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Catégorie</label><select v-model="editForm.cat" class="input"><option value="">—</option><option value="moteur">Moteur</option><option value="carrosserie">Carrosserie</option><option value="train-avant">Train avant</option><option value="train-arriere">Train arrière</option><option value="electronique">Électronique</option><option value="autre">Autre</option></select></div>
+        <div class="flex flex-col gap-1"><label class="label">Véhicule</label><input v-model="editForm.vehicle" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">OEM</label><input v-model="editForm.oem" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Quantité</label><input v-model.number="editForm.qty" type="number" min="0" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Seuil d'alerte</label><input v-model.number="editForm.threshold" type="number" min="0" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Prix (€)</label><input v-model.number="editForm.price" type="number" step="0.01" min="0" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Zone</label><input v-model="editForm.zone" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">État</label><select v-model="editForm.etat" class="input"><option>Bon état</option><option>Très bon état</option><option>État moyen</option><option>Pour pièces</option></select></div>
+        <div class="flex flex-col gap-1"><label class="label">Fournisseur</label><input v-model="editForm.supplier" class="input"></div>
+        <div class="col-span-2 flex flex-col gap-1"><label class="label">Compatibilités</label><input v-model="editForm.compat" class="input"></div>
+        <div class="col-span-2 flex flex-col gap-1"><label class="label">Notes</label><textarea v-model="editForm.notes" rows="2" class="input"></textarea></div>
+        <div class="col-span-2"><PhotoUploadField v-model="editForm.photo" /></div>
+      </div>
+      <div class="flex gap-2 mt-4 justify-end">
+        <button @click="editOpen = false" class="btn btn-secondary">Annuler</button>
+        <button @click="saveEdit" class="btn btn-primary"><AppIcon name="check" class="w-4 h-4" /> Enregistrer</button>
+      </div>
+    </BaseModal>
+
+    <!-- Ajouter au panier -->
+    <BaseModal title="Ajouter au panier" :open="cartModalOpen" @close="cartModalOpen = false" max-width="400px">
       <div v-if="cartPiece" class="mb-3">
-        <span class="font-mono text-[10px] text-[#e6a817] font-bold bg-[#e6a817]/10 px-1.5 py-0.5 rounded border border-[#e6a817]/30">{{ cartPiece.ref }}</span>
-        <strong class="ml-2">{{ cartPiece.name }}</strong>
-        <div class="text-[#8b949e] text-[11px] mt-1">Stock : <strong class="text-[#e6a817]">{{ cartPiece.qty }}</strong></div>
+        <span class="badge-ref">{{ cartPiece.ref }}</span>
+        <strong class="ml-2 text-gray-900">{{ cartPiece.name }}</strong>
+        <div class="text-gray-500 text-[12px] mt-1">Stock disponible : <strong class="text-gray-900">{{ cartPiece.qty }}</strong></div>
       </div>
-      <div class="grid grid-cols-2 gap-2.5">
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Quantité</label><input v-model.number="cartQty" type="number" min="1" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
-        <div class="flex flex-col gap-1"><label class="text-[11px] text-[#8b949e] uppercase">Prix unitaire (€)</label><input v-model.number="cartPrice" type="number" step="0.01" min="0.01" class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-sm px-3 py-2 outline-none focus:border-[#e6a817]"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1"><label class="label">Quantité</label><input v-model.number="cartQty" type="number" min="1" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Prix unitaire (€)</label><input v-model.number="cartPrice" type="number" step="0.01" min="0.01" class="input"></div>
       </div>
-      <div class="flex gap-2 mt-3.5">
-        <button @click="addToCart" class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-4 py-2 rounded-lg uppercase">Ajouter</button>
-        <button @click="cartModalOpen = false" class="border border-[#30363d] text-[#8b949e] font-mono text-xs px-4 py-2 rounded-lg uppercase hover:border-[#e6a817] hover:text-[#e6a817]">Annuler</button>
+      <div class="flex gap-2 mt-4 justify-end">
+        <button @click="cartModalOpen = false" class="btn btn-secondary">Annuler</button>
+        <button @click="addToCart" class="btn btn-primary"><AppIcon name="cart" class="w-4 h-4" /> Ajouter</button>
       </div>
     </BaseModal>
     <BarcodeLabelModal :piece="labelPiece" :open="showLabel" @close="showLabel = false" />
-</div>
+  </div>
 </template>

@@ -177,9 +177,9 @@ autoriser les sources inconnues), utile pour tester en magasin dès maintenant.
 ## 3. Points communs aux deux stores
 
 - **Politique de confidentialité** : URL publique obligatoire sur les deux stores (l'app
-  utilise la caméra et stocke des données de compte). À héberger par exemple sur
-  `https://yassinekdehbal-tech.github.io/fissa-stock/#/confidentialite` (page à créer)
-  ou sur le site FISSA LIV.
+  utilise la caméra et stocke des données de compte). Page en place :
+  **https://yassinekdehbal-tech.github.io/fissa-stock/confidentialite** (à renseigner dans
+  App Store Connect et Play Console ; texte dans `src/components/public/PrivacyView.vue`).
 - **Compte de test pour les reviewers** : créer un utilisateur `user` (pas admin) avec
   quelques pièces de démonstration ; Apple et Google refusent une app dont ils ne peuvent
   pas passer l'écran de connexion.

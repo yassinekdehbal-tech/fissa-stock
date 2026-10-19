@@ -270,24 +270,24 @@ const columns = computed(() => [
     key: 'todo',
     label: 'À faire',
     borderColor: '#e6a817',
-    badgeBg: 'bg-[#e6a817]/15',
-    badgeText: 'text-[#e6a817]',
+    badgeBg: 'bg-amber-50',
+    badgeText: 'text-amber-700',
     items: planning.todo
   },
   {
     key: 'in_progress',
     label: 'En cours',
     borderColor: '#58a6ff',
-    badgeBg: 'bg-[#58a6ff]/15',
-    badgeText: 'text-[#58a6ff]',
+    badgeBg: 'bg-blue-50',
+    badgeText: 'text-blue-700',
     items: planning.inProgress
   },
   {
     key: 'done',
     label: 'Terminé',
     borderColor: '#3fb950',
-    badgeBg: 'bg-[#3fb950]/15',
-    badgeText: 'text-[#3fb950]',
+    badgeBg: 'bg-green-50',
+    badgeText: 'text-green-700',
     items: planning.done
   }
 ])
@@ -469,16 +469,16 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
     <!-- Header -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div>
-        <div class="font-mono text-[11px] font-semibold text-[#e6a817] uppercase tracking-[2px]">
-          🔧 Planning Atelier
+        <div class="page-title text-xl">
+          Planning Atelier
         </div>
-        <div class="text-[#8b949e] text-xs mt-1">
+        <div class="text-gray-500 text-xs mt-1">
           {{ planning.todo.length + planning.inProgress.length }} intervention(s) en attente
         </div>
       </div>
       <button
         @click="openCreate"
-        class="flex items-center gap-2 bg-[#e6a817] hover:bg-[#d49b15] text-[#0d1117] font-mono text-xs font-bold px-4 py-2 rounded-lg transition-colors cursor-pointer"
+        class="flex items-center gap-2 btn btn-primary"
       >
         <span class="text-base leading-none">+</span>
         Nouvelle intervention
@@ -486,7 +486,7 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
     </div>
 
     <!-- Loading -->
-    <div v-if="planning.loading" class="text-center py-12 text-[#8b949e] text-sm">
+    <div v-if="planning.loading" class="text-center py-12 text-gray-500 text-sm">
       Chargement du planning...
     </div>
 
@@ -495,18 +495,18 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
       <div
         v-for="col in columns"
         :key="col.key"
-        class="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden flex flex-col"
+        class="card overflow-hidden flex flex-col"
       >
         <!-- Column Header -->
         <div
-          class="px-4 py-3 border-b border-[#30363d] flex items-center justify-between"
+          class="px-4 py-3 border-b border-gray-200 flex items-center justify-between"
           :style="{ borderTopWidth: '3px', borderTopStyle: 'solid', borderTopColor: col.borderColor }"
         >
-          <span class="font-mono text-xs font-bold text-[#e6edf3] uppercase tracking-wider">
+          <span class="text-xs font-bold text-gray-900 uppercase tracking-wider">
             {{ col.label }}
           </span>
           <span
-            class="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full"
+            class="text-[10px] font-bold px-2 py-0.5 rounded-full"
             :class="[col.badgeBg, col.badgeText]"
           >
             {{ col.items.length }}
@@ -515,7 +515,7 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
 
         <!-- Cards container -->
         <div class="p-3 space-y-2.5 flex-1 overflow-y-auto max-h-[calc(100vh-220px)]">
-          <div v-if="!col.items.length" class="text-center py-8 text-[#8b949e] text-xs">
+          <div v-if="!col.items.length" class="text-center py-8 text-gray-500 text-xs">
             Aucune intervention
           </div>
 
@@ -524,56 +524,56 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
             v-for="item in col.items"
             :key="item._id"
             @click="openDetail(item)"
-            class="bg-[#21262d] hover:bg-[#262c36] border border-[#30363d] hover:border-[#484f58] rounded-lg p-3 cursor-pointer transition-colors group"
+            class="bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-lg shadow-sm p-3 cursor-pointer transition-colors group"
           >
             <!-- Card Header -->
             <div class="flex items-start justify-between mb-1.5">
-              <span class="text-[#e6edf3] text-sm font-semibold truncate flex-1">
+              <span class="text-gray-900 text-sm font-semibold truncate flex-1">
                 {{ item.clientName }}
               </span>
-              <span class="font-mono text-[10px] text-[#e6a817] font-bold bg-[#e6a817]/10 px-1.5 py-0.5 rounded ml-2 shrink-0">
+              <span class="badge-ref ml-2 shrink-0">
                 {{ item.vehiclePlate }}
               </span>
             </div>
 
             <!-- Vehicle -->
-            <div class="text-[#8b949e] text-xs mb-1.5">
+            <div class="text-gray-500 text-xs mb-1.5">
               {{ item.vehicleMake }} {{ item.vehicleModel }}
             </div>
 
             <!-- Description -->
-            <div class="text-[#e6edf3] text-xs leading-relaxed mb-2">
+            <div class="text-gray-900 text-xs leading-relaxed mb-2">
               {{ truncate(item.description, 80) }}
             </div>
 
             <!-- Meta row -->
-            <div class="flex items-center justify-between text-[10px] text-[#8b949e]">
+            <div class="flex items-center justify-between text-[10px] text-gray-500">
               <div class="flex items-center gap-3">
                 <!-- Date -->
-                <span class="font-mono" :title="item.dateScheduled">
-                  📅 {{ formatScheduled(item.dateScheduled) }}
+                <span class="" :title="item.dateScheduled">
+                  {{ formatScheduled(item.dateScheduled) }}
                 </span>
                 <!-- Parts count -->
-                <span v-if="item.parts.length" class="font-mono">
-                  🔩 {{ item.parts.length }}
+                <span v-if="item.parts.length" class="">
+                  {{ item.parts.length }}
                 </span>
               </div>
               <!-- Total -->
-              <span v-if="item.estimatedTotal" class="font-mono text-[#3fb950] font-semibold">
+              <span v-if="item.estimatedTotal" class="text-green-600 font-semibold">
                 {{ formatPrice(item.estimatedTotal) }}
               </span>
             </div>
 
             <!-- Action buttons -->
             <div
-              class="flex gap-1.5 mt-2.5 pt-2 border-t border-[#30363d]"
+              class="flex gap-1.5 mt-2.5 pt-2 border-t border-gray-200"
               @click.stop
             >
               <!-- Move to In Progress (from todo) -->
               <button
                 v-if="item.status === 'todo'"
                 @click="moveToInProgress(item)"
-                class="flex-1 text-[10px] font-mono font-semibold text-[#58a6ff] bg-[#58a6ff]/10 hover:bg-[#58a6ff]/20 border border-[#58a6ff]/20 rounded px-2 py-1 transition-colors cursor-pointer"
+                class="flex-1 text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-50 border border-blue-200 rounded px-2 py-1 transition-colors cursor-pointer"
                 title="Démarrer"
               >
                 → En cours
@@ -583,7 +583,7 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
               <button
                 v-if="item.status === 'in_progress'"
                 @click="moveToTodo(item)"
-                class="flex-1 text-[10px] font-mono font-semibold text-[#e6a817] bg-[#e6a817]/10 hover:bg-[#e6a817]/20 border border-[#e6a817]/20 rounded px-2 py-1 transition-colors cursor-pointer"
+                class="flex-1 text-[10px] font-semibold text-amber-600 bg-amber-50 hover:bg-brand/20 border border-brand/20 rounded px-2 py-1 transition-colors cursor-pointer"
                 title="Remettre à faire"
               >
                 ← Retour
@@ -593,7 +593,7 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
               <button
                 v-if="item.status === 'in_progress'"
                 @click="moveToDone(item)"
-                class="flex-1 text-[10px] font-mono font-semibold text-[#3fb950] bg-[#3fb950]/10 hover:bg-[#3fb950]/20 border border-[#3fb950]/20 rounded px-2 py-1 transition-colors cursor-pointer"
+                class="flex-1 text-[10px] font-semibold text-green-600 bg-green-50 hover:bg-green-50 border border-green-200 rounded px-2 py-1 transition-colors cursor-pointer"
                 title="Terminer"
               >
                 → Terminé
@@ -603,7 +603,7 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
               <button
                 v-if="item.status === 'done'"
                 @click="moveToInProgress(item)"
-                class="flex-1 text-[10px] font-mono font-semibold text-[#58a6ff] bg-[#58a6ff]/10 hover:bg-[#58a6ff]/20 border border-[#58a6ff]/20 rounded px-2 py-1 transition-colors cursor-pointer"
+                class="flex-1 text-[10px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-50 border border-blue-200 rounded px-2 py-1 transition-colors cursor-pointer"
                 title="Remettre en cours"
               >
                 ← Retour
@@ -620,69 +620,69 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
     <BaseModal title="Nouvelle intervention" :open="showCreate" max-width="560px" @close="showCreate = false">
       <form @submit.prevent="submitCreate" class="space-y-3">
         <!-- Client -->
-        <div class="font-mono text-[10px] text-[#8b949e] uppercase tracking-widest mb-1">Client</div>
+        <div class="text-[12px] font-semibold text-gray-700 mb-1">Client</div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <input
             v-model="newIntervention.clientName"
             type="text"
             placeholder="Nom *"
-            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors"
+            class="input"
           />
           <input
             v-model="newIntervention.clientPhone"
             type="tel"
             placeholder="Téléphone *"
-            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs font-mono placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors"
+            class="input placeholder:text-gray-500 focus:outline-none focus:border-brand transition-colors"
           />
         </div>
         <input
           v-model="newIntervention.clientEmail"
           type="email"
           placeholder="Email"
-          class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors"
+          class="input"
         />
 
         <!-- Vehicle -->
-        <div class="font-mono text-[10px] text-[#8b949e] uppercase tracking-widest mb-1 mt-3">Véhicule</div>
+        <div class="text-[12px] font-semibold text-gray-700 mb-1 mt-3">Véhicule</div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <input
             v-model="newIntervention.vehicleMake"
             type="text"
             placeholder="Marque *"
-            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors"
+            class="input"
           />
           <input
             v-model="newIntervention.vehicleModel"
             type="text"
             placeholder="Modèle *"
-            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors"
+            class="input"
           />
           <input
             v-model="newIntervention.vehiclePlate"
             type="text"
             placeholder="Immatriculation *"
-            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs font-mono uppercase placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors"
+            class="input uppercase placeholder:text-gray-500 focus:outline-none focus:border-brand transition-colors"
           />
         </div>
 
         <!-- Details -->
-        <div class="font-mono text-[10px] text-[#8b949e] uppercase tracking-widest mb-1 mt-3">Détails</div>
+        <div class="text-[12px] font-semibold text-gray-700 mb-1 mt-3">Détails</div>
         <textarea
           v-model="newIntervention.description"
           rows="3"
           placeholder="Description des travaux *"
-          class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors resize-none"
+          class="input resize-none"
         />
         <textarea
           v-model="newIntervention.notes"
           rows="2"
           placeholder="Notes internes"
-          class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors resize-none"
+          class="input resize-none"
         />
         <input
           v-model="newIntervention.dateScheduled"
           type="date"
-          class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs font-mono focus:outline-none focus:border-[#e6a817] transition-colors"
+          class="input focus:outline-none focus:border-brand transition-colors"
         />
 
         <!-- Submit -->
@@ -690,14 +690,14 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
           <button
             type="button"
             @click="showCreate = false"
-            class="text-xs text-[#8b949e] hover:text-[#e6edf3] px-4 py-2 rounded-lg border border-[#30363d] hover:border-[#484f58] transition-colors cursor-pointer bg-transparent"
+            class="text-xs text-gray-500 hover:text-gray-900 px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer bg-transparent"
           >
             Annuler
           </button>
           <button
             type="submit"
             :disabled="creating"
-            class="text-xs font-mono font-bold text-[#0d1117] bg-[#e6a817] hover:bg-[#d49b15] disabled:opacity-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
+            class="text-xs font-bold text-gray-900 bg-brand hover:bg-brand-dark disabled:opacity-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
           >
             {{ creating ? 'Création...' : 'Créer' }}
           </button>
@@ -716,7 +716,7 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
     >
       <template v-if="editData">
         <!-- Tabs -->
-        <div class="flex gap-1 mb-4 border-b border-[#30363d]">
+        <div class="flex gap-1 mb-4 border-b border-gray-200">
           <button
             v-for="tab in ([
               { key: 'info', label: 'Informations' },
@@ -725,10 +725,10 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
             ] as const)"
             :key="tab.key"
             @click="activeDetailTab = tab.key"
-            class="text-xs font-mono px-3 py-2 -mb-px border-b-2 transition-colors cursor-pointer bg-transparent"
+            class="text-xs px-3 py-2 -mb-px border-b-2 transition-colors cursor-pointer bg-transparent"
             :class="activeDetailTab === tab.key
-              ? 'border-[#e6a817] text-[#e6a817]'
-              : 'border-transparent text-[#8b949e] hover:text-[#e6edf3]'"
+ ? 'border-brand text-amber-600'
+              : 'border-transparent text-gray-500 hover:text-gray-900'"
           >
             {{ tab.label }}
           </button>
@@ -738,13 +738,13 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
         <div v-if="activeDetailTab === 'info'" class="space-y-3">
           <!-- Status badge -->
           <div class="flex items-center gap-2 mb-2">
-            <span class="text-[10px] font-mono uppercase tracking-wider text-[#8b949e]">Statut :</span>
+            <span class="text-[10px] uppercase tracking-wider text-gray-500">Statut :</span>
             <span
-              class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full"
+              class="text-[10px] font-bold px-2 py-0.5 rounded-full"
               :class="{
-                'bg-[#e6a817]/15 text-[#e6a817]': editData.status === 'todo',
-                'bg-[#58a6ff]/15 text-[#58a6ff]': editData.status === 'in_progress',
-                'bg-[#3fb950]/15 text-[#3fb950]': editData.status === 'done'
+ 'bg-amber-50 text-amber-600': editData.status === 'todo',
+                'bg-blue-50 text-blue-600': editData.status === 'in_progress',
+                'bg-green-50 text-green-600': editData.status === 'done'
               }"
             >
               {{ editData.status === 'todo' ? 'À faire' : editData.status === 'in_progress' ? 'En cours' : 'Terminé' }}
@@ -752,92 +752,92 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
           </div>
 
           <!-- Client fields -->
-          <div class="font-mono text-[10px] text-[#8b949e] uppercase tracking-widest">Client</div>
+          <div class="text-[12px] font-semibold text-gray-700">Client</div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
-              <label class="text-[10px] text-[#8b949e] mb-0.5 block">Nom</label>
+              <label class="text-[10px] text-gray-500 mb-0.5 block">Nom</label>
               <input
                 v-model="editData.clientName"
                 type="text"
-                class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs focus:outline-none focus:border-[#e6a817] transition-colors"
+                class="input"
               />
             </div>
             <div>
-              <label class="text-[10px] text-[#8b949e] mb-0.5 block">Téléphone</label>
+              <label class="text-[10px] text-gray-500 mb-0.5 block">Téléphone</label>
               <input
                 v-model="editData.clientPhone"
                 type="tel"
-                class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs font-mono focus:outline-none focus:border-[#e6a817] transition-colors"
+                class="input focus:outline-none focus:border-brand transition-colors"
               />
             </div>
           </div>
           <div>
-            <label class="text-[10px] text-[#8b949e] mb-0.5 block">Email</label>
+            <label class="text-[10px] text-gray-500 mb-0.5 block">Email</label>
             <input
               v-model="editData.clientEmail"
               type="email"
-              class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs focus:outline-none focus:border-[#e6a817] transition-colors"
+              class="input"
             />
           </div>
 
           <!-- Vehicle fields -->
-          <div class="font-mono text-[10px] text-[#8b949e] uppercase tracking-widest mt-3">Véhicule</div>
+          <div class="text-[12px] font-semibold text-gray-700 mt-3">Véhicule</div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div>
-              <label class="text-[10px] text-[#8b949e] mb-0.5 block">Marque</label>
+              <label class="text-[10px] text-gray-500 mb-0.5 block">Marque</label>
               <input
                 v-model="editData.vehicleMake"
                 type="text"
-                class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs focus:outline-none focus:border-[#e6a817] transition-colors"
+                class="input"
               />
             </div>
             <div>
-              <label class="text-[10px] text-[#8b949e] mb-0.5 block">Modèle</label>
+              <label class="text-[10px] text-gray-500 mb-0.5 block">Modèle</label>
               <input
                 v-model="editData.vehicleModel"
                 type="text"
-                class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs focus:outline-none focus:border-[#e6a817] transition-colors"
+                class="input"
               />
             </div>
             <div>
-              <label class="text-[10px] text-[#8b949e] mb-0.5 block">Immatriculation</label>
+              <label class="text-[10px] text-gray-500 mb-0.5 block">Immatriculation</label>
               <input
                 v-model="editData.vehiclePlate"
                 type="text"
-                class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs font-mono uppercase focus:outline-none focus:border-[#e6a817] transition-colors"
+                class="input uppercase focus:outline-none focus:border-brand transition-colors"
               />
             </div>
           </div>
 
           <!-- Work details -->
-          <div class="font-mono text-[10px] text-[#8b949e] uppercase tracking-widest mt-3">Travaux</div>
+          <div class="text-[12px] font-semibold text-gray-700 mt-3">Travaux</div>
           <div>
-            <label class="text-[10px] text-[#8b949e] mb-0.5 block">Description</label>
+            <label class="text-[10px] text-gray-500 mb-0.5 block">Description</label>
             <textarea
               v-model="editData.description"
               rows="3"
-              class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs focus:outline-none focus:border-[#e6a817] transition-colors resize-none"
+              class="input resize-none"
             />
           </div>
           <div>
-            <label class="text-[10px] text-[#8b949e] mb-0.5 block">Notes internes</label>
+            <label class="text-[10px] text-gray-500 mb-0.5 block">Notes internes</label>
             <textarea
               v-model="editData.notes"
               rows="2"
-              class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs focus:outline-none focus:border-[#e6a817] transition-colors resize-none"
+              class="input resize-none"
             />
           </div>
           <div>
-            <label class="text-[10px] text-[#8b949e] mb-0.5 block">Date prévue</label>
+            <label class="text-[10px] text-gray-500 mb-0.5 block">Date prévue</label>
             <input
               v-model="editData.dateScheduled"
               type="date"
-              class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs font-mono focus:outline-none focus:border-[#e6a817] transition-colors"
+              class="input focus:outline-none focus:border-brand transition-colors"
             />
           </div>
 
           <!-- Timestamps -->
-          <div class="flex flex-wrap gap-4 text-[10px] text-[#8b949e] font-mono pt-2 border-t border-[#30363d]">
+          <div class="flex flex-wrap gap-4 text-[10px] text-gray-500 pt-2 border-t border-gray-200">
             <span>Créée : {{ editData.dateCreated ? new Date(editData.dateCreated).toLocaleString('fr-FR') : '—' }}</span>
             <span>Modifiée : {{ editData.dateUpdated ? new Date(editData.dateUpdated).toLocaleString('fr-FR') : '—' }}</span>
             <span v-if="editData.dateDone">Terminée : {{ new Date(editData.dateDone).toLocaleString('fr-FR') }}</span>
@@ -852,41 +852,41 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
               v-model="partSearch"
               type="text"
               placeholder="Rechercher une pièce (réf, nom, véhicule)..."
-              class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-[#e6edf3] text-xs placeholder:text-[#484f58] focus:outline-none focus:border-[#e6a817] transition-colors"
+              class="input"
             />
             <!-- Search results dropdown -->
             <div
               v-if="filteredParts.length"
-              class="absolute left-0 right-0 top-full mt-1 bg-[#161b22] border border-[#30363d] rounded-lg shadow-xl z-10 max-h-52 overflow-y-auto"
+              class="absolute left-0 right-0 top-full mt-1 card rounded-lg shadow-xl z-10 max-h-52 overflow-y-auto"
             >
               <button
                 v-for="piece in filteredParts"
                 :key="piece._id"
                 @click="addPart(piece)"
-                class="w-full text-left px-3 py-2 hover:bg-[#21262d] transition-colors flex items-center gap-2 cursor-pointer bg-transparent border-none border-b border-[#30363d] last:border-b-0"
+                class="w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors flex items-center gap-2 cursor-pointer bg-transparent border-none border-b border-gray-200 last:border-b-0"
               >
-                <span class="font-mono text-[10px] text-[#e6a817] font-bold bg-[#e6a817]/10 px-1.5 py-0.5 rounded shrink-0">
+                <span class="badge-ref shrink-0">
                   {{ piece.ref }}
                 </span>
-                <span class="text-[#e6edf3] text-xs truncate flex-1">{{ piece.name }}</span>
-                <span class="font-mono text-[10px] text-[#8b949e] shrink-0">
+                <span class="text-gray-900 text-xs truncate flex-1">{{ piece.name }}</span>
+                <span class="text-[10px] text-gray-500 shrink-0">
                   Stock: {{ piece.qty }}
                 </span>
-                <span class="font-mono text-[10px] text-[#3fb950] font-semibold shrink-0">
+                <span class="text-[10px] text-green-600 font-semibold shrink-0">
                   {{ formatPrice(piece.price) }}
                 </span>
               </button>
             </div>
             <div
               v-if="partSearch.length >= 1 && !filteredParts.length"
-              class="absolute left-0 right-0 top-full mt-1 bg-[#161b22] border border-[#30363d] rounded-lg p-3 text-[#8b949e] text-xs text-center z-10"
+              class="absolute left-0 right-0 top-full mt-1 card rounded-lg p-3 text-gray-500 text-xs text-center z-10"
             >
               Aucune pièce trouvée
             </div>
           </div>
 
           <!-- Parts list -->
-          <div v-if="!editData.parts.length" class="text-center py-6 text-[#8b949e] text-xs">
+          <div v-if="!editData.parts.length" class="text-center py-6 text-gray-500 text-xs">
             Aucune pièce ajoutée. Utilisez la recherche ci-dessus.
           </div>
 
@@ -894,40 +894,40 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
             <div
               v-for="(part, idx) in editData.parts"
               :key="idx"
-              class="bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 flex items-center gap-2"
+              class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2"
             >
-              <span class="font-mono text-[10px] text-[#e6a817] font-bold bg-[#e6a817]/10 px-1.5 py-0.5 rounded shrink-0">
+              <span class="badge-ref shrink-0">
                 {{ part.ref }}
               </span>
-              <span class="text-[#e6edf3] text-xs truncate flex-1">{{ part.name }}</span>
+              <span class="text-gray-900 text-xs truncate flex-1">{{ part.name }}</span>
               <!-- Qty controls -->
               <div class="flex items-center gap-1 shrink-0">
                 <button
                   @click="updatePartQty(idx, part.qty - 1)"
-                  class="w-5 h-5 flex items-center justify-center text-[#8b949e] hover:text-[#e6edf3] bg-[#21262d] hover:bg-[#30363d] rounded text-xs cursor-pointer border-none transition-colors"
+                  class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded text-xs cursor-pointer border-none transition-colors"
                 >
                   -
                 </button>
-                <span class="font-mono text-xs text-[#e6edf3] w-6 text-center">{{ part.qty }}</span>
+                <span class="text-xs text-gray-900 w-6 text-center">{{ part.qty }}</span>
                 <button
                   @click="updatePartQty(idx, part.qty + 1)"
-                  class="w-5 h-5 flex items-center justify-center text-[#8b949e] hover:text-[#e6edf3] bg-[#21262d] hover:bg-[#30363d] rounded text-xs cursor-pointer border-none transition-colors"
+                  class="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded text-xs cursor-pointer border-none transition-colors"
                 >
                   +
                 </button>
               </div>
               <!-- Unit price -->
-              <span class="font-mono text-[10px] text-[#8b949e] shrink-0">
+              <span class="text-[10px] text-gray-500 shrink-0">
                 {{ formatPrice(part.prixUnitaire) }}/u
               </span>
               <!-- Subtotal -->
-              <span class="font-mono text-xs text-[#3fb950] font-semibold shrink-0 min-w-[65px] text-right">
+              <span class="text-xs text-green-600 font-semibold shrink-0 min-w-[65px] text-right">
                 {{ formatPrice(part.qty * part.prixUnitaire) }}
               </span>
               <!-- Remove -->
               <button
                 @click="removePart(idx)"
-                class="text-[#f85149] hover:text-[#ff6e67] text-sm cursor-pointer bg-transparent border-none transition-colors ml-1"
+                class="text-red-600 hover:text-red-700 text-sm cursor-pointer bg-transparent border-none transition-colors ml-1"
                 title="Retirer"
               >
                 ✕
@@ -936,35 +936,35 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
           </div>
 
           <!-- Total -->
-          <div v-if="editData.parts.length" class="flex items-center justify-end gap-2 pt-2 border-t border-[#30363d]">
-            <span class="font-mono text-xs text-[#8b949e]">Total estimé :</span>
-            <span class="font-mono text-sm font-bold text-[#3fb950]">{{ formatPrice(partsTotal) }}</span>
+          <div v-if="editData.parts.length" class="flex items-center justify-end gap-2 pt-2 border-t border-gray-200">
+            <span class="text-xs text-gray-500">Total estimé :</span>
+            <span class="text-sm font-bold text-green-600">{{ formatPrice(partsTotal) }}</span>
           </div>
         </div>
 
         <!-- Tab: Client History -->
         <div v-if="activeDetailTab === 'history'" class="space-y-2">
-          <div v-if="!editData.clientPhone" class="text-center py-6 text-[#8b949e] text-xs">
+          <div v-if="!editData.clientPhone" class="text-center py-6 text-gray-500 text-xs">
             Renseignez un numéro de téléphone pour voir l'historique.
           </div>
-          <div v-else-if="!clientHistory.length" class="text-center py-6 text-[#8b949e] text-xs">
+          <div v-else-if="!clientHistory.length" class="text-center py-6 text-gray-500 text-xs">
             Aucun historique pour ce client.
           </div>
           <div
             v-for="hist in clientHistory"
             :key="hist._id"
-            class="bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2.5"
+            class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5"
           >
             <div class="flex items-start justify-between mb-1">
-              <span class="text-[#e6edf3] text-xs font-semibold">
+              <span class="text-gray-900 text-xs font-semibold">
                 {{ hist.vehicleMake }} {{ hist.vehicleModel }}
               </span>
-              <span class="font-mono text-[10px] text-[#3fb950] font-bold bg-[#3fb950]/10 px-1.5 py-0.5 rounded">
+              <span class="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">
                 Terminé
               </span>
             </div>
-            <div class="text-[#8b949e] text-xs mb-1">{{ truncate(hist.description, 100) }}</div>
-            <div class="flex items-center justify-between text-[10px] text-[#8b949e] font-mono">
+            <div class="text-gray-500 text-xs mb-1">{{ truncate(hist.description, 100) }}</div>
+            <div class="flex items-center justify-between text-[10px] text-gray-500">
               <span>{{ hist.dateDone ? new Date(hist.dateDone).toLocaleDateString('fr-FR') : '—' }}</span>
               <span>{{ hist.parts.length }} pièce(s) — {{ formatPrice(hist.estimatedTotal) }}</span>
             </div>
@@ -972,27 +972,27 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
         </div>
 
         <!-- Modal Footer Actions -->
-        <div class="flex items-center justify-between pt-4 mt-4 border-t border-[#30363d]">
+        <div class="flex items-center justify-between pt-4 mt-4 border-t border-gray-200">
           <!-- Delete -->
           <div>
             <button
               v-if="!confirmDelete"
               @click="confirmDelete = true"
-              class="text-[10px] font-mono text-[#f85149] hover:text-[#ff6e67] bg-transparent border border-[#f85149]/20 hover:border-[#f85149]/40 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
+              class="text-[10px] text-red-600 hover:text-red-700 bg-transparent border border-red-200 hover:border-red-200 px-3 py-1.5 rounded-lg cursor-pointer transition-colors"
             >
               Supprimer
             </button>
             <div v-else class="flex items-center gap-2">
-              <span class="text-[10px] text-[#f85149]">Confirmer ?</span>
+              <span class="text-[10px] text-red-600">Confirmer ?</span>
               <button
                 @click="deleteDetail"
-                class="text-[10px] font-mono font-bold text-white bg-[#f85149] hover:bg-[#da3633] px-3 py-1 rounded cursor-pointer border-none transition-colors"
+                class="text-[10px] font-bold text-white bg-red-500 hover:bg-red-600 px-3 py-1 rounded cursor-pointer border-none transition-colors"
               >
                 Oui
               </button>
               <button
                 @click="confirmDelete = false"
-                class="text-[10px] font-mono text-[#8b949e] hover:text-[#e6edf3] px-2 py-1 cursor-pointer bg-transparent border-none transition-colors"
+                class="text-[10px] text-gray-500 hover:text-gray-900 px-2 py-1 cursor-pointer bg-transparent border-none transition-colors"
               >
                 Non
               </button>
@@ -1004,20 +1004,20 @@ ${intervention.notes ? `<div class="desc-box"><div class="desc-title">Notes</div
             <button
               v-if="editData"
               @click="generateInvoice(editData)"
-              class="text-xs font-mono font-bold text-[#0d1117] bg-[#bc8cff] hover:bg-[#a371e3] px-4 py-2 rounded-lg transition-colors cursor-pointer"
+              class="text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 px-4 py-2 rounded-lg transition-colors cursor-pointer"
             >
               🧾 Facture
             </button>
             <button
               @click="showDetail = false"
-              class="text-xs text-[#8b949e] hover:text-[#e6edf3] px-4 py-2 rounded-lg border border-[#30363d] hover:border-[#484f58] transition-colors cursor-pointer bg-transparent"
+              class="text-xs text-gray-500 hover:text-gray-900 px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer bg-transparent"
             >
               Fermer
             </button>
             <button
               @click="saveDetail"
               :disabled="saving"
-              class="text-xs font-mono font-bold text-[#0d1117] bg-[#e6a817] hover:bg-[#d49b15] disabled:opacity-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
+              class="text-xs font-bold text-gray-900 bg-brand hover:bg-brand-dark disabled:opacity-50 px-4 py-2 rounded-lg transition-colors cursor-pointer"
             >
               {{ saving ? 'Sauvegarde...' : 'Sauvegarder' }}
             </button>

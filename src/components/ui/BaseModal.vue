@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/ui/AppIcon.vue'
+
 defineProps<{
   title: string
   open: boolean
@@ -22,19 +24,20 @@ const emit = defineEmits<{
     >
       <div
         v-if="open"
-        class="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center p-4"
+        class="fixed inset-0 bg-gray-900/50 backdrop-blur-[2px] z-[1000] flex items-center justify-center p-4"
         @click.self="emit('close')"
       >
         <div
-          class="bg-[#161b22] border border-[#30363d] rounded-xl p-5 w-full relative max-h-[92vh] overflow-y-auto"
+          class="bg-white border border-gray-200 rounded-xl shadow-xl p-5 w-full relative max-h-[92vh] overflow-y-auto"
           :style="{ maxWidth: maxWidth || '520px' }"
         >
-          <div class="font-mono text-sm font-bold text-[#e6a817] mb-3.5">{{ title }}</div>
+          <div class="text-base font-semibold text-gray-900 mb-4 pr-8">{{ title }}</div>
           <button
             @click="emit('close')"
-            class="absolute top-3.5 right-3.5 bg-transparent border-none text-[#8b949e] text-lg cursor-pointer hover:text-white"
+            class="icon-btn absolute top-3.5 right-3.5"
+            aria-label="Fermer"
           >
-            ✕
+            <AppIcon name="x" class="w-4 h-4" />
           </button>
           <slot />
         </div>

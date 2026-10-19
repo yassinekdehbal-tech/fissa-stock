@@ -3,10 +3,11 @@ import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import AppIcon from '@/components/ui/AppIcon.vue'
 
-// Champ photo : prise/choix depuis l'appareil, compression cote client
+// Champ photo : prise/choix depuis l'appareil, compression côté client
 // (max 1600 px, JPEG), upload dans le bucket public `piece-photos` sous le
-// dossier de l'organisation (impose par les policies storage), et v-model
+// dossier de l'organisation (imposé par les policies storage), et v-model
 // sur l'URL publique. Un champ URL manuel reste disponible en repli.
 const props = defineProps<{ modelValue: string }>()
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
@@ -15,6 +16,7 @@ const auth = useAuthStore()
 const { toast } = useToast()
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
+const showUrl = ref(false)
 
 async function compress(file: File, maxDim = 1600, quality = 0.82): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
@@ -55,37 +57,49 @@ async function onPick(e: Event) {
 
 <template>
   <div class="flex flex-col gap-1.5">
-    <label class="text-[11px] text-[#8b949e] uppercase tracking-wider">Photo</label>
-    <div class="flex items-center gap-2">
+    <label class="label">Photo</label>
+    <div class="grid grid-cols-2 gap-3">
       <button
         type="button"
         :disabled="uploading"
         @click="fileInput?.click()"
-        class="bg-[#e6a817] text-black font-mono text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50"
+        class="rounded-xl border-2 border-dashed border-gray-300 hover:border-brand hover:bg-amber-50/40 transition-colors flex flex-col items-center justify-center gap-1.5 p-4 min-h-[120px] text-gray-500 disabled:opacity-50"
       >
-        {{ uploading ? '⏳ Envoi…' : '📷 Photo' }}
+        <span class="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+          <AppIcon :name="uploading ? 'upload' : 'camera'" class="w-4 h-4" />
+        </span>
+        <span class="text-[13px] font-semibold text-blue-600">{{ uploading ? 'Envoi…' : 'Ajouter une photo' }}</span>
+        <span class="text-[11px] text-gray-400">JPG, PNG (max 5 Mo)</span>
       </button>
-      <img
-        v-if="modelValue"
-        :src="modelValue"
-        class="w-10 h-10 object-cover rounded-md border border-[#30363d]"
-        @error="($event.target as HTMLImageElement).style.display = 'none'"
-      >
-      <button
-        v-if="modelValue"
-        type="button"
-        @click="emit('update:modelValue', '')"
-        class="text-[#8b949e] hover:text-red-400 text-xs font-mono"
-        title="Retirer la photo"
-      >✕</button>
+      <div class="rounded-xl border border-gray-200 bg-gray-50 min-h-[120px] relative overflow-hidden flex items-center justify-center text-gray-300">
+        <img
+          v-if="modelValue"
+          :src="modelValue"
+          class="w-full h-full object-cover absolute inset-0"
+          alt=""
+          @error="($event.target as HTMLImageElement).style.display = 'none'"
+        >
+        <AppIcon v-else name="image" class="w-8 h-8" />
+        <button
+          v-if="modelValue"
+          type="button"
+          @click="emit('update:modelValue', '')"
+          class="absolute top-2 right-2 w-7 h-7 rounded-md bg-white/90 text-red-600 hover:bg-red-50 flex items-center justify-center shadow"
+          title="Retirer la photo"
+        ><AppIcon name="trash" class="w-3.5 h-3.5" /></button>
+      </div>
     </div>
     <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onPick">
+    <button type="button" class="text-[11px] text-gray-400 hover:text-gray-700 text-left" @click="showUrl = !showUrl">
+      {{ showUrl ? 'Masquer' : 'ou coller une URL d\'image' }}
+    </button>
     <input
+      v-if="showUrl"
       :value="modelValue"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       type="url"
-      placeholder="ou collez une URL https://…"
-      class="bg-[#0d1117] border border-[#30363d] rounded-lg text-[#e6edf3] font-mono text-[11px] px-3 py-1.5 outline-none focus:border-[#e6a817]"
+      placeholder="https://…"
+      class="input text-[12px]"
     >
   </div>
 </template>

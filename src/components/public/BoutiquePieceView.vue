@@ -45,20 +45,20 @@ const mailtoHref = computed(() => {
 
 <template>
   <div class="max-w-[1000px] mx-auto px-5 py-6">
-    <router-link to="/boutique" class="text-[#8b949e] hover:text-[#e6a817] text-xs font-mono transition-colors">
+    <router-link to="/boutique" class="text-gray-500 hover:text-amber-700 text-xs transition-colors">
       ← Retour au catalogue
     </router-link>
 
-    <div v-if="loading" class="text-center py-16 text-[#8b949e] text-sm">Chargement…</div>
+    <div v-if="loading" class="text-center py-16 text-gray-500 text-sm">Chargement…</div>
 
     <div v-else-if="!piece" class="text-center py-16">
-      <div class="text-[#e6edf3] text-sm mb-2">Cette pièce n'est plus disponible.</div>
-      <router-link to="/boutique" class="text-[#e6a817] text-xs font-mono">Voir les autres pièces →</router-link>
+      <div class="text-gray-900 text-sm mb-2">Cette pièce n'est plus disponible.</div>
+      <router-link to="/boutique" class="text-amber-600 text-xs">Voir les autres pièces →</router-link>
     </div>
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
       <!-- Photo -->
-      <div class="bg-[#0d1117] border border-[#30363d] rounded-xl overflow-hidden aspect-square flex items-center justify-center">
+      <div class="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden aspect-square flex items-center justify-center">
         <img
           v-if="piece.photo"
           :src="(piece.photo as string)"
@@ -66,30 +66,30 @@ const mailtoHref = computed(() => {
           class="w-full h-full object-cover"
           @error="($event.target as HTMLImageElement).style.display = 'none'"
         >
-        <span v-else class="text-6xl opacity-30">🔧</span>
+        <span v-else class="text-6xl opacity-30"></span>
       </div>
 
       <!-- Details -->
       <div>
         <div class="flex items-center gap-2 mb-2">
-          <span class="font-mono text-xs text-[#e6a817] font-bold bg-[#e6a817]/10 px-2 py-0.5 rounded">{{ piece.ref }}</span>
+          <span class="badge-ref">{{ piece.ref }}</span>
           <span v-if="catInfo && piece.cat" class="text-[11px]" :class="catInfo.textClass">{{ catInfo.icon }} {{ catInfo.label }}</span>
         </div>
-        <h1 class="text-[#e6edf3] text-xl font-semibold leading-snug">{{ piece.name }}</h1>
-        <div class="text-[#3fb950] font-mono text-2xl font-bold mt-2">{{ formatPrice(Number(piece.price)) }}</div>
+        <h1 class="text-gray-900 text-xl font-semibold leading-snug">{{ piece.name }}</h1>
+        <div class="text-green-600 text-2xl font-bold mt-2">{{ formatPrice(Number(piece.price)) }}</div>
 
         <dl class="mt-4 space-y-1.5 text-xs">
           <div v-if="piece.vehicle" class="flex gap-2">
-            <dt class="text-[#8b949e] w-28 shrink-0">Véhicule</dt><dd class="text-[#e6edf3]">🚗 {{ piece.vehicle }}</dd>
+            <dt class="text-gray-500 w-28 shrink-0">Véhicule</dt><dd class="text-gray-900">{{ piece.vehicle }}</dd>
           </div>
           <div v-if="piece.etat" class="flex gap-2">
-            <dt class="text-[#8b949e] w-28 shrink-0">État</dt><dd class="text-[#e6edf3]">{{ piece.etat }}</dd>
+            <dt class="text-gray-500 w-28 shrink-0">État</dt><dd class="text-gray-900">{{ piece.etat }}</dd>
           </div>
           <div v-if="piece.oem" class="flex gap-2">
-            <dt class="text-[#8b949e] w-28 shrink-0">Réf. constructeur</dt><dd class="text-[#e6edf3] font-mono">{{ piece.oem }}</dd>
+            <dt class="text-gray-500 w-28 shrink-0">Réf. constructeur</dt><dd class="text-gray-900">{{ piece.oem }}</dd>
           </div>
           <div v-if="piece.compat" class="flex gap-2">
-            <dt class="text-[#8b949e] w-28 shrink-0">Compatibilités</dt><dd class="text-[#e6edf3]">{{ piece.compat }}</dd>
+            <dt class="text-gray-500 w-28 shrink-0">Compatibilités</dt><dd class="text-gray-900">{{ piece.compat }}</dd>
           </div>
         </dl>
 
@@ -97,15 +97,15 @@ const mailtoHref = computed(() => {
         <div class="mt-6 flex flex-wrap gap-2">
           <a
             :href="mailtoHref"
-            class="text-xs font-mono font-bold text-[#0d1117] bg-[#e6a817] hover:brightness-110 px-5 py-2.5 rounded-lg transition cursor-pointer"
-          >✉ Demander cette pièce</a>
+            class="btn btn-primary"
+          >Demander cette pièce</a>
           <a
             v-if="CONTACT_TEL"
             :href="`tel:${CONTACT_TEL}`"
-            class="text-xs font-mono font-bold text-[#3fb950] border border-[#3fb950]/40 hover:bg-[#3fb950]/10 px-5 py-2.5 rounded-lg transition cursor-pointer"
-          >📞 Appeler</a>
+            class="btn btn-secondary"
+          >Appeler</a>
         </div>
-        <p class="text-[10px] text-[#484f58] mt-2">Réservation sous réserve de disponibilité. Retrait en magasin ou expédition.</p>
+        <p class="text-[10px] text-gray-500 mt-2">Réservation sous réserve de disponibilité. Retrait en magasin ou expédition.</p>
       </div>
     </div>
   </div>
