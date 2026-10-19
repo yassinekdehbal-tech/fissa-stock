@@ -52,7 +52,7 @@ function goAlerts() {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-gray-200" style="padding-top: env(safe-area-inset-top);">
+  <header class="relative z-30 bg-white border-b border-gray-200" style="padding-top: env(safe-area-inset-top);">
     <div class="flex items-center gap-3 px-4 md:px-6 h-16">
       <!-- Menu mobile -->
       <button class="icon-btn lg:hidden -ml-1" @click="emit('toggle-menu')" aria-label="Ouvrir le menu">
