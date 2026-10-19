@@ -59,7 +59,7 @@ function isActive(to: string) {
   ></div>
 
   <aside
-    class="fixed inset-y-0 left-0 z-50 w-60 bg-sidebar text-gray-200 flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto"
+    class="fixed inset-y-0 left-0 z-50 w-60 bg-sidebar text-gray-200 flex flex-col transition-transform duration-200 lg:translate-x-0 lg:static lg:z-auto lg:h-full lg:shrink-0"
     :class="open ? 'translate-x-0' : '-translate-x-full'"
     style="padding-top: env(safe-area-inset-top);"
   >

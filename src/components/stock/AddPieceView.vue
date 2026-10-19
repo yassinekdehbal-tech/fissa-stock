@@ -47,6 +47,12 @@ const refError = computed(() => {
   return stock.pieces.find(p => p.ref === r) ? 'Cette référence existe déjà' : ''
 })
 
+function scrollTop() {
+  const el = document.getElementById('app-scroll')
+  if (el) el.scrollTo({ top: 0, behavior: 'smooth' })
+  else window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 function next() {
   if (step.value === 1) {
     const r = form.value.ref.trim().toUpperCase()
@@ -61,11 +67,11 @@ function next() {
     if (!form.value.zone.trim()) { toast("La zone d'emplacement est requise", true); return }
   }
   step.value = Math.min(3, step.value + 1)
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  scrollTop()
 }
 function prev() {
   step.value = Math.max(1, step.value - 1)
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  scrollTop()
 }
 
 async function submit() {

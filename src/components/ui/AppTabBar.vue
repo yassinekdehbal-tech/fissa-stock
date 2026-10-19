@@ -20,7 +20,7 @@ function active(path: string) {
 </script>
 
 <template>
-  <nav class="lg:hidden fixed bottom-0 inset-x-0 z-30 px-3" style="padding-bottom: calc(env(safe-area-inset-bottom) + 8px);">
+  <nav class="lg:hidden relative z-30 px-3 pt-2 bg-page" style="padding-bottom: calc(env(safe-area-inset-bottom) + 8px);">
     <div class="bg-sidebar text-gray-300 rounded-2xl shadow-[0_-4px_24px_rgba(0,0,0,0.25)] h-[64px] grid grid-cols-5 items-center">
       <router-link to="/" class="flex flex-col items-center gap-0.5 text-[10px] font-medium" :class="active('/') ? 'text-brand' : 'hover:text-white'">
         <AppIcon name="home" class="w-5 h-5" /> Accueil

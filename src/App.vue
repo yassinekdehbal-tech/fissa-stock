@@ -25,6 +25,7 @@ const { initNative } = useNative()
 
 const isPublic = computed(() => route.meta.public === true)
 const menuOpen = ref(false)
+const scrollEl = ref<HTMLElement | null>(null)
 
 let started = false
 function startInternal() {
@@ -57,7 +58,11 @@ watch(
   (v) => { if (v) void router.push({ path: '/profil', query: { reset: '1' } }) },
 )
 
-watch(() => route.path, () => { menuOpen.value = false })
+watch(() => route.path, () => {
+  menuOpen.value = false
+  // Nouvelle page : on repart du haut de la zone de contenu
+  scrollEl.value?.scrollTo({ top: 0 })
+})
 </script>
 
 <template>
@@ -90,18 +95,23 @@ watch(() => route.path, () => { menuOpen.value = false })
     <ToastNotification />
   </div>
 
-  <!-- Application interne (authentifiée) -->
-  <div v-else-if="auth.isLoggedIn" class="min-h-screen flex bg-page">
+  <!-- Application interne (authentifiée).
+       La coque occupe exactement la hauteur de l'écran et seule la zone <main>
+       défile : l'en-tête et la barre d'onglets restent fixes, y compris dans
+       la WebView iOS/Android (où les éléments « fixed » bougent au rebond). -->
+  <div v-else-if="auth.isLoggedIn" class="h-screen h-[100dvh] flex bg-page overflow-hidden">
     <!-- Barre latérale (desktop) / menu secondaire « Plus » (mobile) -->
     <AppSidebar :open="menuOpen" @close="menuOpen = false" />
-    <div class="flex-1 flex flex-col min-w-0">
-      <AppTopbar class="hidden lg:block" />
-      <AppMobileHeader />
-      <main class="flex-1 w-full max-w-[1280px] mx-auto p-4 md:p-6 pb-28 lg:pb-6" style="padding-bottom: calc(env(safe-area-inset-bottom) + 7rem);">
-        <router-view />
+    <div class="flex-1 flex flex-col min-w-0 min-h-0">
+      <AppTopbar class="hidden lg:block shrink-0" />
+      <AppMobileHeader class="shrink-0" />
+      <main id="app-scroll" ref="scrollEl" class="flex-1 min-h-0 overflow-y-auto overscroll-contain" style="-webkit-overflow-scrolling: touch;">
+        <div class="w-full max-w-[1280px] mx-auto p-4 md:p-6 pb-6">
+          <router-view />
+        </div>
       </main>
+      <AppTabBar class="shrink-0" @more="menuOpen = true" />
     </div>
-    <AppTabBar @more="menuOpen = true" />
     <ToastNotification />
   </div>
 

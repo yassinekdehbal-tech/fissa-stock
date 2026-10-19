@@ -33,7 +33,7 @@ function goBack() {
 </script>
 
 <template>
-  <header class="lg:hidden sticky top-0 z-30 bg-sidebar text-white" style="padding-top: env(safe-area-inset-top);">
+  <header class="lg:hidden relative z-30 bg-sidebar text-white" style="padding-top: env(safe-area-inset-top);">
     <div class="h-14 px-4 flex items-center gap-3">
       <template v-if="isHome">
         <AppLogo compact />
