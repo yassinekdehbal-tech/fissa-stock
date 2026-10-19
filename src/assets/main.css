@@ -176,4 +176,33 @@ body {
   .nav-item.active {
     @apply bg-brand text-gray-900 hover:bg-brand hover:text-gray-900;
   }
+
+  /* --- Mobile : tuiles d'action, lignes de liste, stepper ----------------- */
+  .tile {
+    @apply rounded-2xl p-4 flex flex-col gap-2 border transition-colors;
+  }
+  .list-row {
+    @apply bg-white border border-gray-200 rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-3 flex items-center gap-3;
+  }
+  .thumb {
+    @apply rounded-lg bg-gray-100 border border-gray-200 overflow-hidden flex items-center justify-center shrink-0 text-gray-400;
+  }
+  .stepper {
+    @apply flex items-center justify-between gap-2 px-2;
+  }
+  .step-dot {
+    @apply w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold border-2;
+  }
+  .qty-stepper {
+    @apply inline-flex items-center rounded-lg border border-gray-200 overflow-hidden bg-white;
+  }
+  .qty-stepper button {
+    @apply w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-40;
+  }
+  .qty-stepper span {
+    @apply w-10 text-center text-sm font-semibold text-gray-900;
+  }
+  .menu-row {
+    @apply bg-white border border-gray-200 rounded-xl shadow-[0_1px_2px_rgba(16,24,40,0.04)] px-4 py-3.5 flex items-center gap-3 text-[14px] font-medium text-gray-800 hover:bg-gray-50;
+  }
 }

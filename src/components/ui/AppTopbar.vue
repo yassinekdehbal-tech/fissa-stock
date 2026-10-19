@@ -114,6 +114,9 @@ function goAlerts() {
               <button class="btn btn-sm flex-1" :class="modeStore.mode === 'mecanique' ? 'btn-primary' : 'btn-secondary'" @click="switchMode('mecanique'); menuOpen = false">Mécanique</button>
             </div>
             <div class="border-t border-gray-100 my-1"></div>
+            <router-link to="/profil" class="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100" @click="menuOpen = false">
+              <AppIcon name="user" class="w-4 h-4" /> Mon profil
+            </router-link>
             <button class="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-red-600 hover:bg-red-50" @click="auth.logout()">
               <AppIcon name="logout" class="w-4 h-4" /> Se déconnecter
             </button>

@@ -38,6 +38,7 @@ const navItems = computed<NavItem[]>(() => [
   { to: '/caisse', label: 'Caisse', icon: 'cash', show: auth.isAdmin, mode: 'both' },
   { to: '/multidiffusion', label: 'Multidiffusion', icon: 'broadcast', show: auth.isAdmin || auth.hasPerm('vendeur'), mode: 'piece' },
   { to: '/users', label: 'Utilisateurs', icon: 'users', show: auth.isAdmin, mode: 'both' },
+  { to: '/profil', label: 'Paramètres', icon: 'settings', show: true, mode: 'both' },
 ])
 
 const visibleItems = computed(() =>

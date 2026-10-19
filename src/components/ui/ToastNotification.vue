@@ -16,7 +16,7 @@ const { toastMessage, toastVisible, toastError } = useToast()
   >
     <div
       v-if="toastVisible"
-      class="fixed bottom-5 right-5 px-4 py-3 rounded-lg text-sm font-medium z-[2000] max-w-[320px] shadow-lg flex items-center gap-2 text-white"
+      class="fixed bottom-24 lg:bottom-5 right-4 left-4 sm:left-auto px-4 py-3 rounded-lg text-sm font-medium z-[2000] max-w-[320px] shadow-lg flex items-center gap-2 text-white"
       :class="toastError ? 'bg-red-600' : 'bg-gray-900'"
       style="margin-bottom: env(safe-area-inset-bottom);"
     >

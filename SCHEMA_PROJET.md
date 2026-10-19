@@ -50,6 +50,9 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 | `/reporting` | reporting | `reporting/ReportingView.vue` | Rapports CA / top pièces | 5 |
 | `/caisse` | caisse | `caisse/CaisseView.vue` | Caisse journalière | 5 |
 | `/users` | users | `users/UsersView.vue` | Gestion des comptes (admin) | 5 |
+| `/piece/:id` | piece | `stock/PieceView.vue` | Fiche produit (sortie de stock, modification, étiquette) | 3 |
+| `/profil` | profil | `profile/ProfileView.vue` | Profil : nom, mot de passe, notifications, espace de travail | 5 |
+| `/confidentialite` | confidentialite | `public/PrivacyView.vue` | Politique de confidentialité (public) | 1 |
 
 ### Pages cibles à ajouter
 
