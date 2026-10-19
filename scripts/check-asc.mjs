@@ -72,6 +72,22 @@ if (auth.status === 401) {
   console.error('  la clé a peut-être été révoquée : en générer une nouvelle avec le rôle Admin.')
   process.exit(1)
 }
+const authCode = auth.body?.errors?.[0]?.code || ''
+if (auth.status === 403 && authCode.includes('REQUIRED_AGREEMENTS')) {
+  console.error('❌ Apple refuse toute opération : un contrat requis n\'est pas signé ou a expiré')
+  console.error(`   (${authCode}).`)
+  console.error('→ Se connecter avec le compte TITULAIRE (Account Holder) sur')
+  console.error('  https://appstoreconnect.apple.com/business  (Business → Accords, taxes et services bancaires)')
+  console.error('  et accepter le contrat "Apple Developer Program License Agreement" / "Free Apps" ;')
+  console.error('  le bandeau jaune « Le contrat de licence … a été mis à jour » disparaît ensuite de la page Apps.')
+  console.error('  Si aucun bouton n\'apparaît, vérifier aussi https://developer.apple.com/account (encadré en haut de page).')
+  process.exit(1)
+}
+if (auth.status === 403) {
+  console.error(`❌ Accès refusé par Apple (403, ${authCode || 'sans code'}) : la clé API n'a pas le rôle requis.`)
+  console.error('→ Générer une nouvelle clé API avec le rôle Admin et mettre à jour ASC_KEY_ID / ASC_KEY_CONTENT.')
+  process.exit(1)
+}
 if (auth.status !== 200) {
   console.error(`❌ Réponse inattendue de l'API Apple (${auth.status}) : ${JSON.stringify(auth.body).slice(0, 300)}`)
   process.exit(1)

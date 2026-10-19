@@ -54,9 +54,12 @@ enregistré**. Ce n'est pas un problème de code.
 ### Checklist (≈ 30 min, compte Apple Developer payant requis : 99 €/an)
 
 1. **Adhésion Apple Developer Program active** sur https://developer.apple.com/account
-   et **tous les contrats acceptés** (App Store Connect → *Agreements, Tax, and Banking* :
-   le *Paid Apps Agreement* n'est pas nécessaire, mais le contrat gratuit doit être à jour.
-   Un contrat non accepté donne aussi « Cloud signing permission error »).
+   et **contrat de licence accepté** : https://appstoreconnect.apple.com/business
+   (*Business → Accords, taxes et services bancaires*), avec le compte **titulaire**
+   (Account Holder). Le *Paid Apps Agreement* n'est pas nécessaire, mais le contrat
+   « Free Apps » / License Agreement doit être « Active ». Tant qu'il ne l'est pas, l'API
+   Apple répond `REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED` et le cloud signing échoue
+   (c'est ce que le workflow a détecté le 19/10/2026).
 
 2. **Enregistrer l'App ID** : https://developer.apple.com/account/resources/identifiers/list
    → **+** → *App IDs* → *App* → Description `FISSA PIECE AUTO`, Bundle ID **Explicit**
@@ -195,7 +198,8 @@ autoriser les sources inconnues), utile pour tester en magasin dès maintenant.
 | `rôle insuffisant (403)` | clé créée en *Developer* / *App Manager* | Nouvelle clé en **Admin** |
 | `App ID … absent` | étape 1.2 non faite | Enregistrer l'App ID |
 | `Aucune fiche app` | étape 1.3 non faite | Créer l'app dans App Store Connect |
-| `Cloud signing permission error` malgré une clé Admin | contrat Apple non accepté | *Agreements, Tax, and Banking* → accepter |
+| `un contrat requis n'est pas signé ou a expiré` (`REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED`) | contrat Apple Developer Program non accepté par le titulaire | https://appstoreconnect.apple.com/business → accepter le contrat « Free Apps » / License Agreement (compte Account Holder) |
+| `Cloud signing permission error` malgré une clé Admin | contrat Apple non accepté | idem ci-dessus |
 | `AAB non signé` (warning Android) | secrets keystore absents | Étapes 2.1–2.2 |
 | Play : `The caller does not have permission` | compte de service pas invité sur l'app | Étape 2.7, 2e point |
 | Play : `APK/AAB must be uploaded manually first` | aucun envoi manuel initial | Étape 2.5 |

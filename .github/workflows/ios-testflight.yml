@@ -126,12 +126,18 @@ jobs:
             -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }}
 
+      - name: Collect export logs on failure
+        if: failure()
+        run: |
+          mkdir -p "$RUNNER_TEMP/ios-logs"
+          cp -R "$TMPDIR"/*.xcdistributionlogs "$RUNNER_TEMP/ios-logs/" 2>/dev/null || true
+          cp -R "$RUNNER_TEMP/export" "$RUNNER_TEMP/ios-logs/" 2>/dev/null || true
+          ls -R "$RUNNER_TEMP/ios-logs" | head -50
+
       - name: Keep export logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: ios-export-logs-${{ github.run_number }}
-          path: |
-            /var/folders/**/T/*.xcdistributionlogs/**
-            ${{ runner.temp }}/export/**
+          path: ${{ runner.temp }}/ios-logs/
           if-no-files-found: ignore
