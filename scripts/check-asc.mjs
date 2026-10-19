@@ -61,7 +61,16 @@ async function get(path) {
     process.exit(1)
   }
   const body = await res.json().catch(() => ({}))
-  return { status: res.status, body }
+  const err = body?.errors?.[0]
+  const code = err ? `${err.code}${err.detail ? ' — ' + err.detail : ''}` : ''
+  return { status: res.status, body, code }
+}
+
+function explain403(what, r) {
+  if ((r.code || '').includes('REQUIRED_AGREEMENTS')) {
+    return `${what} : Apple répond "contrat requis manquant ou expiré" (${r.code}). Le contrat accepté sur developer.apple.com n'est pas encore propagé à App Store Connect → attendre, puis relancer.`
+  }
+  return `${what} : accès refusé (403, ${r.code || 'sans code'}) → la clé API n'a pas le rôle Admin. Générer une clé Admin et mettre à jour ASC_KEY_ID / ASC_KEY_CONTENT.`
 }
 
 // 1. Authentification
@@ -97,9 +106,7 @@ console.log('✅ Clé API App Store Connect valide.')
 // 2. App ID (bundle identifier) enregistré sur le portail développeur
 const bundles = await get(`/v1/bundleIds?filter[identifier]=${encodeURIComponent(bundleId)}&filter[platform]=IOS`)
 if (bundles.status === 403) {
-  fail(
-    "La clé n'a pas le droit de lire les App IDs (403) → son rôle est insuffisant. Générer une clé avec le rôle **Admin** (requis aussi pour le cloud signing).",
-  )
+  fail(explain403('Lecture des App IDs', bundles))
 } else if (!(bundles.body.data || []).length) {
   fail(
     `App ID "${bundleId}" absent du portail développeur → Certificates, Identifiers & Profiles → Identifiers → + → App IDs → App → Bundle ID explicite "${bundleId}".`,
@@ -110,9 +117,16 @@ if (bundles.status === 403) {
 
 // 3. Fiche app créée dans App Store Connect (indispensable pour l'upload TestFlight)
 const apps = await get(`/v1/apps?filter[bundleId]=${encodeURIComponent(bundleId)}`)
-if (!(apps.body.data || []).length) {
+if (apps.status === 403) {
+  fail(explain403('Lecture des fiches app', apps))
+} else if (!(apps.body.data || []).length) {
+  const all = await get('/v1/apps?limit=50&fields[apps]=name,bundleId,sku')
+  const list = (all.body.data || []).map((a) => `"${a.attributes.name}" → ${a.attributes.bundleId} (SKU ${a.attributes.sku})`)
   fail(
-    `Aucune fiche app avec le bundle "${bundleId}" dans App Store Connect → Mes apps → + → Nouvelle app (plateforme iOS, nom "FISSA PIECE AUTO", bundle ID ${bundleId}, SKU libre).`,
+    `Aucune fiche app avec le bundle "${bundleId}" dans App Store Connect.` +
+      (list.length
+        ? ` Fiches trouvées sur le compte :\n      ${list.join('\n      ')}\n    → si "FISSA PIÈCE AUTO" est liée à un autre bundle ID, soit changer le bundle ID de la fiche (impossible après un 1er build), soit créer une nouvelle fiche avec ${bundleId}.`
+        : ` → Mes apps → + → Nouvelle app (plateforme iOS, nom "FISSA PIECE AUTO", bundle ID ${bundleId}, SKU libre).`),
   )
 } else {
   const a = apps.body.data[0].attributes
@@ -122,9 +136,7 @@ if (!(apps.body.data || []).length) {
 // 4. Certificat de distribution (le cloud signing en crée un si la clé est Admin)
 const certs = await get('/v1/certificates?filter[certificateType]=DISTRIBUTION,IOS_DISTRIBUTION&limit=10')
 if (certs.status === 403) {
-  fail(
-    "La clé n'a pas le droit de lire les certificats (403) → rôle insuffisant pour le cloud signing. Générer une clé avec le rôle **Admin**.",
-  )
+  fail(explain403('Lecture des certificats', certs))
 } else if (!(certs.body.data || []).length) {
   console.log(
     'ℹ️  Aucun certificat de distribution existant : Xcode en créera un automatiquement (cloud signing) si la clé est Admin.',
