@@ -1,15 +1,26 @@
 name: Build iOS & Deploy to TestFlight
 
+# Prérequis côté compte Apple (voir STORES_GUIDE.md) — vérifiés par l'étape
+# "Check Apple account" avant toute compilation :
+#   - clé API App Store Connect avec le rôle ADMIN (cloud signing)
+#   - App ID com.fissa.pieceauto enregistré
+#   - fiche app créée dans App Store Connect
+# Secrets GitHub : ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_CONTENT, APPLE_TEAM_ID
+
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    tags: ['v*']
+
+permissions:
+  contents: read
 
 jobs:
   build-ios:
     runs-on: macos-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -19,16 +30,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Build web for Capacitor
-        run: npm run build:ios
-
-      - name: Add iOS platform
-        run: npx cap add ios
-
-      - name: Sync Capacitor
-        run: npx cap sync ios
+        run: npm ci --no-audit --no-fund
 
       - name: Write API Key file
         env:
@@ -49,14 +51,31 @@ jobs:
           echo "Cle ecrite, nombre de lignes:"
           wc -l < ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
 
-      - name: Set up code signing
+      - name: Check Apple account (fail fast with a clear message)
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
-          cd ios/App
-          # Use automatic signing
-          sed -i '' 's/DEVELOPMENT_TEAM = "";/DEVELOPMENT_TEAM = "'"$APPLE_TEAM_ID"'";/g' App.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = Manual;/CODE_SIGN_STYLE = Automatic;/g' App.xcodeproj/project.pbxproj
+          export ASC_KEY_PATH=~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          node scripts/check-asc.mjs
+
+      - name: Build web for Capacitor
+        run: npm run build:native
+
+      - name: Add iOS platform
+        run: npx cap add ios
+
+      - name: Generate icons & splash screens
+        run: npm run assets:ios
+
+      - name: Prepare native project (usage descriptions)
+        run: node scripts/prepare-native.mjs ios
+
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      - name: Read app version
+        run: echo "APP_VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
 
       - name: Build archive
         run: |
@@ -73,6 +92,8 @@ jobs:
             -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }} \
             CODE_SIGN_STYLE=Automatic \
             DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+            MARKETING_VERSION=$APP_VERSION \
+            CURRENT_PROJECT_VERSION=$BUILD_NUMBER \
             -quiet
 
       - name: Create export options
@@ -104,3 +125,13 @@ jobs:
             -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.ASC_KEY_ID }}.p8 \
             -authenticationKeyID ${{ secrets.ASC_KEY_ID }} \
             -authenticationKeyIssuerID ${{ secrets.ASC_ISSUER_ID }}
+
+      - name: Keep export logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-export-logs-${{ github.run_number }}
+          path: |
+            /var/folders/**/T/*.xcdistributionlogs/**
+            ${{ runner.temp }}/export/**
+          if-no-files-found: ignore

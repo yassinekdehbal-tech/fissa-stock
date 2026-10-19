@@ -1,15 +1,21 @@
 {
   "name": "fissa-stock",
   "version": "1.0.0",
-  "description": "",
+  "description": "Gestion de stock pièces automobiles d'occasion — FISSA PIECE AUTO",
   "main": "sw.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build && cp dist/index.html dist/404.html",
-    "build:ios": "BUILD_TARGET=capacitor vite build",
+    "build:native": "BUILD_TARGET=capacitor vite build",
+    "build:ios": "npm run build:native",
+    "assets:ios": "capacitor-assets generate --ios --iconBackgroundColor '#0d1117' --iconBackgroundColorDark '#0d1117' --splashBackgroundColor '#0d1117' --splashBackgroundColorDark '#0d1117'",
+    "assets:android": "capacitor-assets generate --android --iconBackgroundColor '#0d1117' --iconBackgroundColorDark '#0d1117' --splashBackgroundColor '#0d1117' --splashBackgroundColorDark '#0d1117'",
     "cap:init": "npx cap add ios",
-    "cap:sync": "npm run build:ios && npx cap sync ios",
+    "cap:init:android": "npx cap add android",
+    "cap:sync": "npm run build:native && npx cap sync ios",
+    "cap:sync:android": "npm run build:native && npx cap sync android",
     "cap:open": "npx cap open ios",
+    "cap:open:android": "npx cap open android",
     "preview": "vite preview"
   },
   "repository": {
@@ -20,6 +26,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.3",
     "@capacitor/camera": "^8.2.0",
@@ -38,6 +45,7 @@
     "vue-router": "^5.0.7"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@tailwindcss/vite": "^4.3.0",
     "@types/jsbarcode": "^3.11.4",
     "@vitejs/plugin-vue": "^6.0.7",
