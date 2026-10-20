@@ -44,7 +44,7 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 | `/` | dashboard | `dashboard/DashboardView.vue` | Tableau de bord (stats, CA, alertes) | 5 |
 | `/stock` | stock | `stock/StockView.vue` | Liste + recherche + filtres du stock | 3 |
 | `/add` | add | `stock/AddPieceView.vue` | Formulaire d'ajout de pièce + étiquette | 3 |
-| `/scanner` | scanner | `scanner/ScannerView.vue` | Scan code-barres + panier + vente | 3 |
+| `/scanner` | scanner | `scanner/ScannerView.vue` | Scan code-barres, lecture d'une **référence écrite** (photo + OCR `composables/useOcr.ts`), saisie/douchette ; pièces proches proposées si la lecture est incertaine (`utils/refMatch.ts`) ; panier | 3 |
 | `/planning` | planning | `planning/PlanningView.vue` | Chantiers atelier (Kanban todo/in progress/done) | 4 |
 | `/history` | history | `history/HistoryView.vue` | Historique des mouvements | 3/5 |
 | `/reporting` | reporting | `reporting/ReportingView.vue` | Rapports CA / top pièces | 5 |
@@ -202,7 +202,7 @@ Impression étiquette 62×29mm ──► collée sur la pièce physique
 ### 5.2 Sortie de stock à la vente (module 3)
 
 ```
-Scanner (caméra / douchette)  ──►  findByRef(ref)  ──►  Panier (cart)
+Scanner (caméra / réf. écrite OCR / douchette)  ──►  findByRef(ref) ou findExact ──►  sinon suggestPieces (sélection manuelle)  ──►  Panier (cart)
    │
    ▼
 Validation vente + paiement (TPE en magasin)
