@@ -9,6 +9,7 @@ import { sanitize } from '@/utils/security'
 import type { Piece, PieceCategory, PieceSource, PieceState } from '@/types'
 import { CATEGORIES } from '@/types'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
+import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import BarcodeScanModal from '@/components/ui/BarcodeScanModal.vue'
 import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -27,6 +28,16 @@ const STEPS = [
 const step = ref(1)
 const scanOpen = ref(false)
 const saving = ref(false)
+
+/**
+ * Marquage de la pièce après enregistrement : étiquette code-barres à
+ * imprimer, ou référence écrite à la main (pièce sale, grasse, sans surface
+ * plane…). Le choix est mémorisé sur l'appareil.
+ */
+type Marking = 'barcode' | 'manual'
+const MARKING_KEY = 'fissa-marking'
+const marking = ref<Marking>(localStorage.getItem(MARKING_KEY) === 'manual' ? 'manual' : 'barcode')
+function setMarking(m: Marking) { marking.value = m; localStorage.setItem(MARKING_KEY, m) }
 
 const form = ref({
   ref: '', name: '', cat: '' as PieceCategory, vehicle: '', oem: '', supplier: '', donor: '',
@@ -101,17 +112,28 @@ async function submit() {
   }
   saving.value = false
   toast('✓ ' + r + ' enregistré !')
-  // Étiquette de la pièce créée (flux préparateur : référencer → imprimer → coller)
+  // Marquage de la pièce créée : étiquette à imprimer et coller,
+  // ou référence à recopier au marqueur.
   labelPiece.value = { ...(piece as unknown as Piece) }
-  showLabel.value = true
+  if (marking.value === 'manual') showHandwritten.value = true
+  else showLabel.value = true
   clearForm()
 }
 
 const labelPiece = ref<Piece | null>(null)
 const showLabel = ref(false)
+const showHandwritten = ref(false)
 function closeLabel() {
   showLabel.value = false
   void router.push('/stock')
+}
+function closeHandwritten() {
+  showHandwritten.value = false
+  void router.push('/stock')
+}
+function printFromHandwritten() {
+  showHandwritten.value = false
+  showLabel.value = true
 }
 </script>
 
@@ -241,7 +263,28 @@ function closeLabel() {
     <form v-else @submit.prevent="submit" class="space-y-4">
       <div class="card p-4 lg:p-5 space-y-3">
         <PhotoUploadField v-model="form.photo" />
-        <div class="flex flex-col gap-1">
+
+        <!-- Marquage : étiquette code-barres OU référence écrite à la main -->
+        <div class="flex flex-col gap-1.5">
+          <label class="label">Marquage de la pièce</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="rounded-xl border-2 p-3 text-left transition-colors" :class="marking === 'barcode' ? 'border-brand bg-amber-50' : 'border-gray-200 bg-white hover:border-gray-300'" @click="setMarking('barcode')" :aria-pressed="marking === 'barcode'">
+              <span class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" :class="marking === 'barcode' ? 'bg-brand text-gray-900' : 'bg-gray-100 text-gray-600'"><AppIcon name="printer" class="w-5 h-5" /></span>
+              <span class="block text-[13px] font-semibold text-gray-900">Étiquette code-barres</span>
+              <span class="block text-[11px] text-gray-500 leading-snug mt-0.5">À imprimer et coller sur la pièce</span>
+            </button>
+            <button type="button" class="rounded-xl border-2 p-3 text-left transition-colors" :class="marking === 'manual' ? 'border-brand bg-amber-50' : 'border-gray-200 bg-white hover:border-gray-300'" @click="setMarking('manual')" :aria-pressed="marking === 'manual'">
+              <span class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" :class="marking === 'manual' ? 'bg-brand text-gray-900' : 'bg-gray-100 text-gray-600'"><AppIcon name="edit" class="w-5 h-5" /></span>
+              <span class="block text-[13px] font-semibold text-gray-900">Référence écrite à la main</span>
+              <span class="block text-[11px] text-gray-500 leading-snug mt-0.5">Au marqueur, quand l'étiquette ne tient pas</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-gray-500 leading-snug">
+            <template v-if="marking === 'barcode'">Après l'enregistrement, l'étiquette s'affiche pour impression. Le scanner lit le code-barres.</template>
+            <template v-else>Après l'enregistrement, la référence s'affiche en grand pour la recopier. Le scanner la lit en mode « Réf. écrite » et propose les pièces proches en cas de doute.</template>
+          </p>
+        </div>
+        <div v-if="marking === 'barcode'" class="flex flex-col gap-1">
           <label class="label">Format du code-barres</label>
           <select v-model="form.fmt" class="input"><option value="CODE128">CODE128 (recommandé)</option><option value="CODE39">CODE39</option></select>
         </div>
@@ -278,5 +321,6 @@ function closeLabel() {
 
     <BarcodeScanModal :open="scanOpen" title="Scanner la référence" @close="scanOpen = false" @scanned="(c) => { form.ref = c }" />
     <BarcodeLabelModal :piece="labelPiece" :open="showLabel" @close="closeLabel" />
+    <HandwrittenRefModal :piece="labelPiece" :open="showHandwritten" @close="closeHandwritten" @print="printFromHandwritten" />
   </div>
 </template>

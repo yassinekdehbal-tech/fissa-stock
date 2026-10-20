@@ -8,6 +8,7 @@ import { useToast } from '@/composables/useToast'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
+import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import PieceEditModal from '@/components/stock/PieceEditModal.vue'
 import { CATEGORIES } from '@/types'
 import { formatPrice } from '@/utils/format'
@@ -28,6 +29,7 @@ const SOURCES: Record<string, string> = { demontage: 'Démontage', don: 'Don', '
 
 const editOpen = ref(false)
 const labelOpen = ref(false)
+const handwrittenOpen = ref(false)
 
 // Sortie de stock : quantité puis panier
 const outOpen = ref(false)
@@ -70,6 +72,7 @@ function etatClass(etat: string) {
           <p class="page-subtitle">Fiche produit</p>
         </div>
         <button v-if="canEdit" class="btn btn-secondary" @click="labelOpen = true"><AppIcon name="tag" class="w-4 h-4" /> Étiquette</button>
+        <button v-if="canEdit" class="btn btn-secondary" @click="handwrittenOpen = true" title="Référence à écrire à la main"><AppIcon name="edit" class="w-4 h-4" /> Réf. à écrire</button>
         <button v-if="canEdit" class="btn btn-primary" @click="editOpen = true"><AppIcon name="edit" class="w-4 h-4" /> Modifier</button>
       </div>
 
@@ -116,10 +119,16 @@ function etatClass(etat: string) {
         <router-link v-else to="/stock" class="btn btn-secondary py-3">Retour au stock</router-link>
         <button v-if="canEdit && !piece.archived" class="btn btn-primary py-3" @click="editOpen = true"><AppIcon name="edit" class="w-4 h-4" /> Modifier</button>
         <button v-else class="btn btn-secondary py-3" @click="labelOpen = true"><AppIcon name="tag" class="w-4 h-4" /> Étiquette</button>
+        <!-- Marquage (mobile) : les deux options, étiquette ou référence écrite -->
+        <template v-if="canEdit && !piece.archived">
+          <button class="btn btn-secondary py-3 lg:hidden" @click="labelOpen = true"><AppIcon name="tag" class="w-4 h-4" /> Étiquette</button>
+          <button class="btn btn-secondary py-3 lg:hidden" @click="handwrittenOpen = true"><AppIcon name="edit" class="w-4 h-4" /> Réf. à écrire</button>
+        </template>
       </div>
 
       <PieceEditModal :piece="piece" :open="editOpen" @close="editOpen = false" />
       <BarcodeLabelModal :piece="piece" :open="labelOpen" @close="labelOpen = false" />
+      <HandwrittenRefModal :piece="piece" :open="handwrittenOpen" @close="handwrittenOpen = false" @print="handwrittenOpen = false; labelOpen = true" />
 
       <BaseModal title="Sortir du stock" :open="outOpen" @close="outOpen = false" max-width="380px">
         <div class="flex items-center gap-3 mb-4">
