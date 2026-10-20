@@ -6,6 +6,7 @@ import { useStockStore } from './stores/stock'
 import { useHistoryStore } from './stores/history'
 import { useUsersStore } from './stores/users'
 import { usePlanningStore } from './stores/planning'
+import { useCategoriesStore } from './stores/categories'
 import { useNative } from './composables/useNative'
 import AppSidebar from './components/ui/AppSidebar.vue'
 import AppTopbar from './components/ui/AppTopbar.vue'
@@ -21,6 +22,7 @@ const stock = useStockStore()
 const history = useHistoryStore()
 const users = useUsersStore()
 const planning = usePlanningStore()
+const categories = useCategoriesStore()
 const { initNative } = useNative()
 
 const isPublic = computed(() => route.meta.public === true)
@@ -38,6 +40,7 @@ function startInternal() {
   if (started) return
   started = true
   void auth.ensureAdmin()
+  categories.listen()
   stock.listen()
   history.listen()
   users.listen()

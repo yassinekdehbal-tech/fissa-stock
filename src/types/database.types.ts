@@ -201,11 +201,47 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          archived: boolean
+          code: string
+          color: string
+          created_at: string
+          id: string
+          key: string
+          label: string
+          org_id: string
+          sort: number
+        }
+        Insert: {
+          archived?: boolean
+          code: string
+          color?: string
+          created_at?: string
+          id?: string
+          key: string
+          label: string
+          org_id?: string
+          sort?: number
+        }
+        Update: {
+          archived?: boolean
+          code?: string
+          color?: string
+          created_at?: string
+          id?: string
+          key?: string
+          label?: string
+          org_id?: string
+          sort?: number
+        }
+        Relationships: []
+      }
       pieces: {
         Row: {
           added: string
           archived: boolean
-          cat: Database['public']['Enums']['piece_category'] | null
+          cat: string | null
           compat: string | null
           cost_price: number | null
           created_by: string | null
@@ -231,7 +267,7 @@ export type Database = {
         Insert: {
           added?: string
           archived?: boolean
-          cat?: Database['public']['Enums']['piece_category'] | null
+          cat?: string | null
           compat?: string | null
           cost_price?: number | null
           created_by?: string | null
@@ -257,7 +293,7 @@ export type Database = {
         Update: {
           added?: string
           archived?: boolean
-          cat?: Database['public']['Enums']['piece_category'] | null
+          cat?: string | null
           compat?: string | null
           cost_price?: number | null
           created_by?: string | null
@@ -525,6 +561,7 @@ export type Database = {
         Returns: Json
       }
       current_org_id: { Args: Record<never, never>; Returns: string }
+      peek_piece_ref: { Args: { p_cat: string }; Returns: string | null }
       has_perm: { Args: { p: string }; Returns: boolean }
       is_admin: { Args: Record<never, never>; Returns: boolean }
       mark_piece_sold: {
@@ -553,13 +590,6 @@ export type Database = {
         | 'ajustement'
         | 'archivage'
       payment_method: 'especes' | 'carte' | 'virement' | 'cheque'
-      piece_category:
-        | 'moteur'
-        | 'carrosserie'
-        | 'train-avant'
-        | 'train-arriere'
-        | 'electronique'
-        | 'autre'
       piece_state: 'Bon état' | 'Très bon état' | 'État moyen' | 'Pour pièces'
       publication_status: 'draft' | 'published' | 'sold' | 'error' | 'delisted'
       user_role: 'admin' | 'user'

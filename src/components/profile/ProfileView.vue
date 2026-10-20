@@ -110,6 +110,7 @@ async function logout() {
     <div class="space-y-2">
       <button class="menu-row w-full text-left" @click="openInfo"><AppIcon name="edit" class="w-5 h-5 text-gray-500" /> <span class="flex-1">Modifier les informations</span><AppIcon name="chevron-right" class="w-4 h-4 text-gray-400" /></button>
       <button class="menu-row w-full text-left" @click="pwdOpen = true"><AppIcon name="lock" class="w-5 h-5 text-gray-500" /> <span class="flex-1">Changer le mot de passe</span><AppIcon name="chevron-right" class="w-4 h-4 text-gray-400" /></button>
+      <router-link v-if="auth.isAdmin" to="/categories" class="menu-row w-full text-left"><AppIcon name="tag" class="w-5 h-5 text-gray-500" /> <span class="flex-1">Catégories de pièces <span class="block text-[11px] font-normal text-gray-500">Libellés, codes des références, couleurs</span></span><AppIcon name="chevron-right" class="w-4 h-4 text-gray-400" /></router-link>
       <button class="menu-row w-full text-left" @click="toggleNotif"><AppIcon name="bell" class="w-5 h-5 text-gray-500" /> <span class="flex-1">Notifications <span class="block text-[11px] font-normal text-gray-500">Alertes de stock dans l'application</span></span><span class="toggle" :data-on="notifAlerts"><span></span></span></button>
     </div>
 

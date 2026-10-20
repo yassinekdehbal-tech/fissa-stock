@@ -78,9 +78,9 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 | Champ | Type | Description |
 |-------|------|-------------|
 | `_id` / `id` | string/uuid | Identifiant |
-| `ref` | string | Référence interne unique = **valeur du code-barres** |
+| `ref` | string | Référence interne unique = **valeur du code-barres** / inscription manuscrite. **Générée** si vide à l'insertion (trigger `pieces_assign_ref`) : code catégorie (2 lettres) + numéro sur 4 positions, ex. `MT0142` ; jamais recyclée |
 | `name` | string | Désignation |
-| `cat` | enum | moteur · carrosserie · train-avant · train-arriere · electronique · autre |
+| `cat` | string | Clé d'une **catégorie paramétrée par l'administrateur** (table `categories` : `key`, `label`, `code` 2 lettres sans I/O/Q, `color`, `sort`, `archived`). Six catégories par défaut : moteur MT · carrosserie CA · train-avant TA · train-arriere TR · electronique EL · autre AU |
 | `vehicle` | string | Véhicule compatible |
 | `oem` | string | N° OEM constructeur |
 | `supplier` | string | Fournisseur |
@@ -157,7 +157,10 @@ Source : `src/router.ts`. Toutes les routes hors `/login` exigent une authentifi
 ## 4. Fonctions par module (stores Pinia existants)
 
 ### 4.1 `stores/stock.ts` (module 3) 🟢
-`listen()` · `addPiece()` · `updatePiece()` · `deletePiece()` · `toggleArchive()` · `findByRef()` · getters : `activePieces`, `archivedPieces`, `totalValue`, `totalQty`, `lowStockPieces`.
+`listen()` · `addPiece()` (renvoie la pièce créée, référence attribuée par la base si vide) · `updatePiece()` · `deletePiece()` · `toggleArchive()` · `findByRef()` · getters : `activePieces`, `archivedPieces`, `totalValue`, `totalQty`, `lowStockPieces`.
+
+### 4.1 bis `stores/categories.ts` (module 3) 🟢
+`listen()` · `fetchAll()` (aussi en anonyme pour la boutique) · `add()` · `update()` · `remove()` · `peekRef(key)` (RPC `peek_piece_ref` : aperçu de la prochaine référence) · `info(key)` / `label(key)` (libellé + couleurs) · helpers `proposeCode()`, `slugify()`. Écran `/categories` (admin).
 
 ### 4.2 `stores/planning.ts` (module 4) 🟡
 `listen()` · `addIntervention()` · `updateIntervention()` · `moveStatus()` · `deleteIntervention()` · `getClientHistory()` · getters : `todo`, `inProgress`, `done`.
@@ -188,15 +191,16 @@ Traçabilité et gestion des comptes.
 
 ```
 Préparateur
-   │  remplit formulaire (AddPieceView)
+   │  choisit la catégorie (AddPieceView) → aperçu « MT 0142 » (peek_piece_ref)
+   │  ou saisit / scanne une référence libre
    ▼
-addPiece()  ──►  stock/{id} (BDD)
-   │
+addPiece()  ──►  pieces (BDD) ── trigger pieces_assign_ref : ref vide → next_piece_ref_for()
+   │                               (compteur ref_counters par catégorie, saute les refs déjà prises)
    ▼
-Génération code-barres (JsBarcode, à partir de `ref`)
-   │
+Marquage (choix mémorisé) ─┬─► Étiquette code-barres (JsBarcode) ──► imprimée, collée
+                           └─► Référence écrite à la main (écran « MT 0142 » + conseils)
    ▼
-Impression étiquette 62×29mm ──► collée sur la pièce physique
+Scanner : code-barres / Réf. écrite (OCR) / saisie ──► pièce, ou pièces proches à choisir
 ```
 
 ### 5.2 Sortie de stock à la vente (module 3)
@@ -286,6 +290,7 @@ Client (vitrine/boutique FISSA, SEO)  ──►  fiche pièce  ──►  contac
 | 22/07/2026 | 1.0 | Création : cartographie des routes existantes, modèle de données (Piece, Intervention, HistoryEntry, User), fonctions des stores, flux métier des 5 modules, entités et pages cibles |
 | 22/07/2026 | 1.1 | Décisions actées : logique pièce↔chantier (décompte à l'ajout via `addPart`, retour au stock via `removePart` en cas de désistement) ; ajout des mouvements `sortie-chantier` / `retour-chantier`. MAJ §4.2, §5.3, §3.4 |
 | 22/07/2026 | 1.2 | Multidiffusion : entités `SalesChannel` + `Publication` (§3.6), flux multidiffusion & anti-survente (§5.4), vente directe secondaire (§5.5), fonctions couche canaux (§4.6), page `/multidiffusion` |
+| 20/10/2026 | 1.x | Catégories paramétrables (table `categories`, écran `/categories`), `pieces.cat` texte rattaché, génération des références (`ref_counters`, `format_piece_ref`, `next_piece_ref_for`, `peek_piece_ref`, trigger `pieces_assign_ref`). MAJ §3.1, §4.1, §5.1 |
 
 ---
 

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { formatPrice } from '@/utils/format'
-import { CATEGORIES } from '@/types'
+import { useCategoriesStore } from '@/stores/categories'
 import type { PieceCategory } from '@/types'
 
 interface PublicPiece {
@@ -16,6 +16,7 @@ interface PublicPiece {
   etat: string
 }
 
+const cats = useCategoriesStore()
 const pieces = ref<PublicPiece[]>([])
 const loading = ref(true)
 const search = ref('')
@@ -43,7 +44,7 @@ async function load() {
   loading.value = false
 }
 
-onMounted(load)
+onMounted(() => { void load(); if (!cats.loaded) void cats.fetchAll() })
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase().trim()
@@ -54,7 +55,8 @@ const filtered = computed(() => {
     )
 })
 
-const categoryList = Object.entries(CATEGORIES).filter(([k]) => k) as [PieceCategory, (typeof CATEGORIES)[PieceCategory]][]
+// Seules les catégories réellement présentes dans le catalogue sont proposées
+const categoryList = computed(() => cats.categories.filter((c) => pieces.value.some((p) => p.cat === c.key)).map((c) => [c.key, { label: c.label, icon: '' }] as const))
 </script>
 
 <template>

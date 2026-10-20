@@ -89,16 +89,21 @@ export const useStockStore = defineStore('stock', () => {
       .subscribe()
   }
 
-  async function addPiece(piece: Omit<Piece, '_id'>): Promise<string> {
+  /**
+   * Crée une pièce et renvoie la ligne enregistrée : si `ref` est vide, la
+   * base attribue la référence (code catégorie + numéro, trigger
+   * `pieces_assign_ref`), d'où l'importance de relire le résultat.
+   */
+  async function addPiece(piece: Omit<Piece, '_id'>): Promise<Piece> {
     const { data, error } = await supabase
       .from('pieces')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(pieceToRow(piece) as any)
-      .select('id')
+      .select('*')
       .single()
     if (error) throw error
     await fetchAll()
-    return (data as { id: string } | null)?.id ?? ''
+    return rowToPiece(data as PieceRow)
   }
 
   async function updatePiece(id: string, patch: Partial<Piece>) {

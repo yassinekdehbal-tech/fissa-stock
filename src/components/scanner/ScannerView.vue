@@ -7,13 +7,14 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import type { Piece } from '@/types'
-import { CATEGORIES } from '@/types'
+import { useCategoriesStore } from '@/stores/categories'
 import { formatPrice } from '@/utils/format'
 import { useOcr } from '@/composables/useOcr'
 import { findExact, suggestPieces, ocrCandidates, scoreLabel, type RefSuggestion } from '@/utils/refMatch'
 
 const route = useRoute()
 const stock = useStockStore()
+const cats = useCategoriesStore()
 const cart = useCartStore()
 const auth = useAuthStore()
 const { toast } = useToast()
@@ -304,7 +305,7 @@ onUnmounted(() => { stopCam(); if (ocrPreview.value) URL.revokeObjectURL(ocrPrev
       <div class="flex items-center gap-3">
         <span class="w-14 h-14 thumb"><img v-if="detected.photo" :src="detected.photo" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-5 h-5" /></span>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2"><span class="badge-ref">{{ detected.ref }}</span><span v-if="detected.cat && CATEGORIES[detected.cat]" class="badge hidden sm:inline-flex" :class="[CATEGORIES[detected.cat].bgClass, CATEGORIES[detected.cat].textClass]">{{ CATEGORIES[detected.cat].label }}</span></div>
+          <div class="flex items-center gap-2"><span class="badge-ref">{{ detected.ref }}</span><span v-if="detected.cat" class="badge hidden sm:inline-flex" :class="[cats.info(detected.cat).bgClass, cats.info(detected.cat).textClass]">{{ cats.info(detected.cat).label }}</span></div>
           <div class="text-[14px] font-semibold text-gray-900 truncate">{{ detected.name }}</div>
           <div class="text-[12px] text-gray-500">En stock : <strong :class="maxQty > 0 ? 'text-green-600' : 'text-red-600'">{{ maxQty }}</strong><span v-if="inCart"> (+{{ inCart.qty }} au panier)</span> · <strong class="text-gray-900">{{ formatPrice(detected.price || 0) }}</strong></div>
         </div>

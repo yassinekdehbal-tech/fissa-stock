@@ -24,7 +24,8 @@ export interface Piece {
   publishable?: boolean
 }
 
-export type PieceCategory = 'moteur' | 'carrosserie' | 'train-avant' | 'train-arriere' | 'electronique' | 'autre' | ''
+/** Clé d'une catégorie (paramétrée par l'administrateur, table `categories`). */
+export type PieceCategory = string
 
 export type PieceState = 'Bon état' | 'Très bon état' | 'État moyen' | 'Pour pièces'
 
@@ -76,15 +77,35 @@ export interface CategoryInfo {
   borderClass: string
 }
 
-export const CATEGORIES: Record<PieceCategory, CategoryInfo> = {
-  'moteur': { label: 'Moteur', icon: '', color: '#ef4444', bgClass: 'bg-red-50', textClass: 'text-red-700', borderClass: 'border-red-200' },
-  'carrosserie': { label: 'Carrosserie', icon: '', color: '#3b82f6', bgClass: 'bg-blue-50', textClass: 'text-blue-700', borderClass: 'border-blue-200' },
-  'train-avant': { label: 'Train avant', icon: '', color: '#22c55e', bgClass: 'bg-green-50', textClass: 'text-green-700', borderClass: 'border-green-200' },
-  'train-arriere': { label: 'Train arrière', icon: '', color: '#f97316', bgClass: 'bg-orange-50', textClass: 'text-orange-700', borderClass: 'border-orange-200' },
-  'electronique': { label: 'Électronique', icon: '', color: '#8b5cf6', bgClass: 'bg-violet-50', textClass: 'text-violet-700', borderClass: 'border-violet-200' },
-  'autre': { label: 'Autre', icon: '', color: '#6b7280', bgClass: 'bg-gray-100', textClass: 'text-gray-600', borderClass: 'border-gray-200' },
-  '': { label: '—', icon: '', color: '#6b7280', bgClass: 'bg-gray-100', textClass: 'text-gray-600', borderClass: 'border-gray-200' }
+/** Catégorie de pièce telle que gérée par l'administrateur. */
+export interface Category {
+  id: string
+  key: string
+  label: string
+  /** 2 lettres majuscules sûres (sans I, O, Q) : préfixe des références générées. */
+  code: string
+  color: CategoryColor
+  sort: number
+  archived: boolean
 }
+
+export type CategoryColor = 'red' | 'blue' | 'green' | 'orange' | 'violet' | 'amber' | 'teal' | 'pink' | 'gray'
+
+/** Palette des catégories (classes écrites en toutes lettres pour Tailwind). */
+export const CATEGORY_COLORS: Record<CategoryColor, Omit<CategoryInfo, 'label' | 'icon'>> = {
+  red:    { color: '#ef4444', bgClass: 'bg-red-50',    textClass: 'text-red-700',    borderClass: 'border-red-200' },
+  blue:   { color: '#3b82f6', bgClass: 'bg-blue-50',   textClass: 'text-blue-700',   borderClass: 'border-blue-200' },
+  green:  { color: '#22c55e', bgClass: 'bg-green-50',  textClass: 'text-green-700',  borderClass: 'border-green-200' },
+  orange: { color: '#f97316', bgClass: 'bg-orange-50', textClass: 'text-orange-700', borderClass: 'border-orange-200' },
+  violet: { color: '#8b5cf6', bgClass: 'bg-violet-50', textClass: 'text-violet-700', borderClass: 'border-violet-200' },
+  amber:  { color: '#f59e0b', bgClass: 'bg-amber-50',  textClass: 'text-amber-700',  borderClass: 'border-amber-200' },
+  teal:   { color: '#14b8a6', bgClass: 'bg-teal-50',   textClass: 'text-teal-700',   borderClass: 'border-teal-200' },
+  pink:   { color: '#ec4899', bgClass: 'bg-pink-50',   textClass: 'text-pink-700',   borderClass: 'border-pink-200' },
+  gray:   { color: '#6b7280', bgClass: 'bg-gray-100',  textClass: 'text-gray-600',   borderClass: 'border-gray-200' },
+}
+
+/** Apparence d'une catégorie inconnue ou absente. */
+export const UNKNOWN_CATEGORY: CategoryInfo = { label: '—', icon: '', ...CATEGORY_COLORS.gray }
 
 export type InterventionStatus = 'todo' | 'in_progress' | 'done'
 
