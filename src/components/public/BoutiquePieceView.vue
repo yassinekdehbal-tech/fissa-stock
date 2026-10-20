@@ -3,14 +3,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { formatPrice } from '@/utils/format'
-import { CATEGORIES } from '@/types'
-import type { PieceCategory } from '@/types'
+import { useCategoriesStore } from '@/stores/categories'
 
 // À personnaliser avec vos coordonnées réelles :
 const CONTACT_EMAIL = 'contact@fissapieceauto.fr'
 const CONTACT_TEL = '' // ex: '+33600000000' (laisser vide pour masquer le bouton Appeler)
 
 const route = useRoute()
+const cats = useCategoriesStore()
 const loading = ref(true)
 const piece = ref<Record<string, unknown> | null>(null)
 
@@ -26,11 +26,11 @@ async function load() {
   piece.value = (data as Record<string, unknown>) ?? null
   loading.value = false
 }
-onMounted(load)
+onMounted(() => { void load(); if (!cats.loaded) void cats.fetchAll() })
 
 const catInfo = computed(() => {
-  const c = (piece.value?.cat ?? '') as PieceCategory
-  return CATEGORIES[c]
+  const c = (piece.value?.cat as string | null) ?? ''
+  return c ? cats.info(c) : null
 })
 
 const mailtoHref = computed(() => {

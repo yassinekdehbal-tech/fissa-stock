@@ -4,6 +4,7 @@ import JsBarcode from 'jsbarcode'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { useToast } from '@/composables/useToast'
 import type { Piece } from '@/types'
+import { formatRef } from '@/utils/format'
 
 const props = defineProps<{
   piece: Piece | null
@@ -45,6 +46,7 @@ watch(
         width: 2,
         height: 45,
         displayValue: true,
+        text: formatRef(props.piece.ref),
         fontSize: 10,
         margin: 6,
         background: '#ffffff',
@@ -107,6 +109,7 @@ function downloadPng() {
       width: 3,
       height: Math.round(H * 0.42),
       displayValue: true,
+      text: formatRef(p.ref),
       fontSize: Math.round(H * 0.11),
       margin: 0,
       background: '#ffffff',

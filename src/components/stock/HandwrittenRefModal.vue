@@ -2,6 +2,7 @@
 import BaseModal from '@/components/ui/BaseModal.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import type { Piece } from '@/types'
+import { formatRef } from '@/utils/format'
 
 /**
  * Marquage manuel : la référence à recopier au marqueur sur la pièce,
@@ -17,7 +18,7 @@ const emit = defineEmits<{ close: []; print: [] }>()
     <div v-if="piece" class="space-y-4">
       <div class="rounded-xl bg-sidebar text-white p-4 text-center">
         <div class="text-[11px] uppercase tracking-wider text-gray-400">Écrire au marqueur, en majuscules</div>
-        <div class="font-mono font-bold text-3xl sm:text-4xl tracking-[0.18em] text-brand mt-2 break-all select-all">{{ piece.ref }}</div>
+        <div class="font-mono font-bold text-3xl sm:text-4xl tracking-[0.18em] text-brand mt-2 break-all select-all">{{ formatRef(piece.ref) }}</div>
         <div class="text-[13px] text-gray-300 mt-2 truncate">{{ piece.name }}</div>
         <div v-if="piece.zone" class="text-[12px] text-gray-400 mt-0.5">Zone : {{ piece.zone }}</div>
       </div>

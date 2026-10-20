@@ -21,6 +21,7 @@ const PATHS: Record<string, string> = {
   bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
   'chevron-down': 'm6 9 6 6 6-6',
+  'chevron-up': 'm18 15-6-6-6 6',
   'chevron-right': 'm9 18 6-6-6-6',
   'arrow-left': 'M19 12H5M12 19l-7-7 7-7',
   'arrow-right': 'M5 12h14M12 5l7 7-7 7',

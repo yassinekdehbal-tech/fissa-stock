@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStockStore } from '@/stores/stock'
 import { useHistoryStore } from '@/stores/history'
 import { useAuthStore } from '@/stores/auth'
+import { useCategoriesStore } from '@/stores/categories'
 import { useToast } from '@/composables/useToast'
 import { sanitize } from '@/utils/security'
 import type { Piece, PieceCategory, PieceSource, PieceState } from '@/types'
-import { CATEGORIES } from '@/types'
+import { formatRef } from '@/utils/format'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import BarcodeScanModal from '@/components/ui/BarcodeScanModal.vue'
@@ -18,6 +19,7 @@ const router = useRouter()
 const stock = useStockStore()
 const history = useHistoryStore()
 const auth = useAuthStore()
+const cats = useCategoriesStore()
 const { toast } = useToast()
 
 const STEPS = [
@@ -53,10 +55,31 @@ function clearForm() {
 const SOURCES: Record<string, string> = { demontage: 'Démontage', don: 'Don', 'lot-occasion': "Lot d'occasion", 'grossiste-neuf': 'Grossiste neuf', web: 'Web', autre: 'Autre' }
 
 const refError = computed(() => {
+  if (autoRef.value) return ''
   const r = form.value.ref.trim().toUpperCase()
   if (!r) return ''
   return stock.pieces.find(p => p.ref === r) ? 'Cette référence existe déjà' : ''
 })
+
+/**
+ * Référence automatique : code de la catégorie + numéro (MT0142), attribuée
+ * par la base à l'enregistrement. On affiche un aperçu de la prochaine ; le
+ * choix auto/manuel est mémorisé sur l'appareil.
+ */
+const AUTO_REF_KEY = 'fissa-ref-auto'
+const autoRef = ref(localStorage.getItem(AUTO_REF_KEY) !== 'manual')
+function setAutoRef(v: boolean) { autoRef.value = v; localStorage.setItem(AUTO_REF_KEY, v ? 'auto' : 'manual') }
+const previewRef = ref('')
+let previewSeq = 0
+watch([() => form.value.cat, autoRef], async ([cat, auto]) => {
+  const seq = ++previewSeq
+  if (!auto || !cat) { previewRef.value = ''; return }
+  try {
+    const r = await cats.peekRef(cat as string)
+    if (seq === previewSeq) previewRef.value = r
+  } catch { if (seq === previewSeq) previewRef.value = '' }
+}, { immediate: true })
+const refDisplay = computed(() => autoRef.value ? (previewRef.value ? formatRef(previewRef.value) : 'Automatique') : (form.value.ref.toUpperCase() || '—'))
 
 function scrollTop() {
   const el = document.getElementById('app-scroll')
@@ -67,7 +90,7 @@ function scrollTop() {
 function next() {
   if (step.value === 1) {
     const r = form.value.ref.trim().toUpperCase()
-    if (!r) { toast('La référence est requise', true); return }
+    if (!autoRef.value && !r) { toast('La référence est requise', true); return }
     if (refError.value) { toast(refError.value, true); return }
     if (!form.value.name.trim()) { toast('La désignation est requise', true); return }
     if (!form.value.cat) { toast('Choisissez une catégorie', true); return }
@@ -86,10 +109,11 @@ function prev() {
 }
 
 async function submit() {
-  const r = form.value.ref.trim().toUpperCase()
+  const r = autoRef.value ? '' : form.value.ref.trim().toUpperCase()
   const name = form.value.name.trim()
-  if (!r || !name) { step.value = 1; toast('Référence et désignation requises', true); return }
-  if (stock.pieces.find(p => p.ref === r)) { step.value = 1; toast('Référence déjà existante', true); return }
+  if ((!autoRef.value && !r) || !name) { step.value = 1; toast('Référence et désignation requises', true); return }
+  if (!form.value.cat) { step.value = 1; toast('Choisissez une catégorie', true); return }
+  if (r && stock.pieces.find(p => p.ref === r)) { step.value = 1; toast('Référence déjà existante', true); return }
 
   const piece = {
     ref: sanitize(r), name: sanitize(name), cat: form.value.cat,
@@ -102,19 +126,21 @@ async function submit() {
   }
 
   saving.value = true
+  let saved: Piece
   try {
-    await stock.addPiece(piece as any)
-    await history.addEntry({ type: 'ajout', ref: r, name, qty: form.value.qty, user: auth.currentUser?.name || '', ts: Date.now(), date: new Date().toLocaleString('fr-FR') })
+    // La base attribue la référence quand elle est vide (trigger pieces_assign_ref)
+    saved = await stock.addPiece(piece as any)
+    await history.addEntry({ type: 'ajout', ref: saved.ref, name, qty: form.value.qty, user: auth.currentUser?.name || '', ts: Date.now(), date: new Date().toLocaleString('fr-FR') })
   } catch (e) {
     toast('Erreur : ' + (e instanceof Error ? e.message : String(e)), true)
     saving.value = false
     return
   }
   saving.value = false
-  toast('✓ ' + r + ' enregistré !')
+  toast('✓ ' + formatRef(saved.ref) + ' enregistré !')
   // Marquage de la pièce créée : étiquette à imprimer et coller,
   // ou référence à recopier au marqueur.
-  labelPiece.value = { ...(piece as unknown as Piece) }
+  labelPiece.value = saved
   if (marking.value === 'manual') showHandwritten.value = true
   else showLabel.value = true
   clearForm()
@@ -167,26 +193,36 @@ function printFromHandwritten() {
     <form v-if="step === 1" @submit.prevent="next" class="card p-4 lg:p-5 space-y-3">
       <div class="card-title">Informations principales</div>
       <div class="flex flex-col gap-1">
-        <label class="label">Référence <span class="text-red-500">*</span></label>
-        <div class="relative">
-          <input v-model="form.ref" placeholder="ALT-PFU-001" class="input font-mono uppercase placeholder:normal-case pr-11" autocapitalize="characters">
-          <button type="button" class="absolute right-1.5 top-1/2 -translate-y-1/2 icon-btn border border-gray-200" @click="scanOpen = true" title="Scanner le code-barres" aria-label="Scanner le code-barres"><AppIcon name="scan" class="w-4 h-4" /></button>
-        </div>
-        <span v-if="refError" class="text-[12px] text-red-600">{{ refError }}</span>
-      </div>
-      <div class="flex flex-col gap-1">
-        <label class="label">Désignation <span class="text-red-500">*</span></label>
-        <input v-model="form.name" placeholder="Alternateur Peugeot 308" class="input">
-      </div>
-      <div class="flex flex-col gap-1">
         <label class="label">Catégorie <span class="text-red-500">*</span></label>
         <div class="relative">
           <AppIcon name="zap" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-amber-500 pointer-events-none" />
           <select v-model="form.cat" class="input pl-9">
             <option value="">Choisir…</option>
-            <option v-for="(c, k) in CATEGORIES" :key="k" :value="k" v-show="k">{{ k === 'electronique' ? 'Électricité' : c.label }}</option>
+            <option v-for="c in cats.active" :key="c.key" :value="c.key">{{ c.label }} ({{ c.code }})</option>
           </select>
         </div>
+      </div>
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center justify-between">
+          <label class="label">Référence <span class="text-red-500">*</span></label>
+          <button type="button" class="text-[12px] font-semibold text-blue-600 hover:underline" @click="setAutoRef(!autoRef)">{{ autoRef ? 'Saisir moi-même' : 'Générer automatiquement' }}</button>
+        </div>
+        <div v-if="autoRef" class="input flex items-center gap-2 bg-gray-50 min-h-11">
+          <AppIcon name="zap" class="w-4 h-4 text-amber-500 shrink-0" />
+          <span v-if="previewRef" class="font-mono font-bold text-[16px] text-gray-900 tracking-wider">{{ formatRef(previewRef) }}</span>
+          <span v-else class="text-[13px] text-gray-500">{{ form.cat ? 'Calcul de la prochaine référence…' : 'Choisissez une catégorie : la référence sera générée' }}</span>
+        </div>
+        <div v-else class="relative">
+          <input v-model="form.ref" placeholder="ALT-PFU-001" class="input font-mono uppercase placeholder:normal-case pr-11" autocapitalize="characters">
+          <button type="button" class="absolute right-1.5 top-1/2 -translate-y-1/2 icon-btn border border-gray-200" @click="scanOpen = true" title="Scanner le code-barres" aria-label="Scanner le code-barres"><AppIcon name="scan" class="w-4 h-4" /></button>
+        </div>
+        <span v-if="refError" class="text-[12px] text-red-600">{{ refError }}</span>
+        <span v-else-if="autoRef && previewRef" class="text-[11px] text-gray-500">Prochaine référence de la catégorie {{ cats.label(form.cat) }} : attribuée définitivement à l'enregistrement.</span>
+        <span v-else-if="!autoRef" class="text-[11px] text-gray-500">Référence libre (code-barres fournisseur, ancienne numérotation…).</span>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="label">Désignation <span class="text-red-500">*</span></label>
+        <input v-model="form.name" placeholder="Alternateur Peugeot 308" class="input">
       </div>
       <div class="flex flex-col gap-1">
         <label class="label">Véhicule compatible</label>
@@ -304,9 +340,9 @@ function printFromHandwritten() {
         <div class="flex gap-3">
           <span class="w-16 h-16 thumb bg-white"><img v-if="form.photo" :src="form.photo" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-5 h-5" /></span>
           <div class="min-w-0 text-[12px] text-gray-600 space-y-0.5">
-            <div class="badge-ref">{{ form.ref.toUpperCase() || '—' }}</div>
+            <div class="badge-ref">{{ refDisplay }}</div>
             <div class="text-[13px] font-semibold text-gray-900 truncate">{{ form.name || '—' }}</div>
-            <div v-if="form.cat">{{ form.cat === 'electronique' ? 'Électricité' : CATEGORIES[form.cat].label }} · {{ form.etat }}</div>
+            <div v-if="form.cat">{{ cats.label(form.cat) }} · {{ form.etat }}</div>
             <div>Stock : <strong class="text-gray-900">{{ form.qty }}</strong> · Prix : <strong class="text-gray-900">{{ (form.price || 0).toFixed(2) }} €</strong> · Zone : <strong class="text-gray-900">{{ form.zone || '—' }}</strong></div>
             <div v-if="form.vehicle" class="truncate">{{ form.vehicle }}</div>
           </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useStockStore } from '@/stores/stock'
+import { useCategoriesStore } from '@/stores/categories'
 import { useToast } from '@/composables/useToast'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -13,6 +14,7 @@ const props = defineProps<{ piece: Piece | null; open: boolean }>()
 const emit = defineEmits<{ close: []; saved: [] }>()
 
 const stock = useStockStore()
+const cats = useCategoriesStore()
 const { toast } = useToast()
 const saving = ref(false)
 
@@ -69,7 +71,7 @@ async function save() {
   <BaseModal :title="piece ? 'Modifier ' + piece.ref : 'Modifier la pièce'" :open="open" @close="emit('close')" max-width="560px">
     <div class="grid grid-cols-2 gap-3">
       <div class="flex flex-col gap-1 col-span-2"><label class="label">Désignation</label><input v-model="form.name" class="input"></div>
-      <div class="flex flex-col gap-1"><label class="label">Catégorie</label><select v-model="form.cat" class="input"><option value="">—</option><option value="moteur">Moteur</option><option value="carrosserie">Carrosserie</option><option value="train-avant">Train avant</option><option value="train-arriere">Train arrière</option><option value="electronique">Électricité</option><option value="autre">Autre</option></select></div>
+      <div class="flex flex-col gap-1"><label class="label">Catégorie</label><select v-model="form.cat" class="input"><option value="">—</option><option v-for="c in cats.categories.filter((c) => !c.archived || c.key === form.cat)" :key="c.key" :value="c.key">{{ c.label }}{{ c.archived ? ' (archivée)' : '' }}</option></select></div>
       <div class="flex flex-col gap-1"><label class="label">État</label><select v-model="form.etat" class="input"><option>Très bon état</option><option>Bon état</option><option>État moyen</option><option>Pour pièces</option></select></div>
       <div class="flex flex-col gap-1"><label class="label">Véhicule</label><input v-model="form.vehicle" class="input"></div>
       <div class="flex flex-col gap-1"><label class="label">N° OEM</label><input v-model="form.oem" class="input font-mono"></div>

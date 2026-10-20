@@ -11,7 +11,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import PieceEditModal from '@/components/stock/PieceEditModal.vue'
 import type { Piece, PieceCategory, PieceState } from '@/types'
-import { CATEGORIES } from '@/types'
+import { useCategoriesStore } from '@/stores/categories'
 import { formatPrice } from '@/utils/format'
 
 const route = useRoute()
@@ -20,15 +20,14 @@ const auth = useAuthStore()
 const cart = useCartStore()
 const { toast } = useToast()
 
-const CATS: { key: PieceCategory | ''; label: string }[] = [
+const cats = useCategoriesStore()
+// Catégories de l'exploitant (Paramètres → Catégories) + les archivées encore utilisées
+const CATS = computed<{ key: PieceCategory | ''; label: string }[]>(() => [
   { key: '', label: 'Toutes' },
-  { key: 'moteur', label: 'Moteur' },
-  { key: 'electronique', label: 'Électricité' },
-  { key: 'carrosserie', label: 'Carrosserie' },
-  { key: 'train-avant', label: 'Train avant' },
-  { key: 'train-arriere', label: 'Train arrière' },
-  { key: 'autre', label: 'Autre' },
-]
+  ...cats.categories
+    .filter((c) => !c.archived || stock.pieces.some((p) => p.cat === c.key))
+    .map((c) => ({ key: c.key, label: c.label })),
+])
 
 const search = ref(String(route.query.q ?? ''))
 const filterCat = ref<PieceCategory | ''>('')
@@ -123,7 +122,7 @@ function etatClass(etat: string) {
   return 'badge-gray'
 }
 function catLabel(p: Piece) {
-  return p.cat === 'electronique' ? 'Électricité' : (CATEGORIES[p.cat]?.label || '')
+  return cats.label(p.cat)
 }
 
 function exportCSV() {
@@ -202,7 +201,7 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
           <div class="text-[12px] font-medium" :class="p.qty === 0 ? 'text-red-600' : p.qty <= (p.threshold || 1) ? 'text-orange-600' : 'text-green-600'">{{ qtyText(p) }}</div>
         </div>
         <div class="flex flex-col items-end gap-1 shrink-0">
-          <span v-if="p.cat && CATEGORIES[p.cat]" class="badge" :class="[CATEGORIES[p.cat].bgClass, CATEGORIES[p.cat].textClass]">{{ catLabel(p) }}</span>
+          <span v-if="p.cat" class="badge" :class="[cats.info(p.cat).bgClass, cats.info(p.cat).textClass]">{{ catLabel(p) }}</span>
           <span class="text-[13px] font-bold text-gray-900">{{ p.price ? formatPrice(p.price) : '—' }}</span>
           <span v-if="p.zone" class="badge-zone"><AppIcon name="map-pin" class="w-3 h-3" /> {{ p.zone }}</span>
         </div>
@@ -231,7 +230,7 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
                 <router-link :to="`/piece/${p._id}`" class="font-medium text-gray-900 hover:underline">{{ p.name }}</router-link>
                 <div v-if="p.compat" class="text-[11px] text-gray-500 mt-0.5 truncate max-w-[260px]">{{ p.compat }}</div>
               </td>
-              <td><span v-if="p.cat && CATEGORIES[p.cat]" class="badge" :class="[CATEGORIES[p.cat].bgClass, CATEGORIES[p.cat].textClass]">{{ catLabel(p) }}</span></td>
+              <td><span v-if="p.cat" class="badge" :class="[cats.info(p.cat).bgClass, cats.info(p.cat).textClass]">{{ catLabel(p) }}</span></td>
               <td class="text-gray-600">{{ p.vehicle || '—' }}</td>
               <td class="text-center"><span class="badge" :class="qtyClass(p)">{{ p.qty }}</span></td>
               <td class="font-semibold text-gray-900 whitespace-nowrap">{{ p.price ? formatPrice(p.price) : '—' }}</td>

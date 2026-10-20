@@ -8,10 +8,11 @@ import { useCartStore } from '@/stores/cart'
 import StatCard from '@/components/ui/StatCard.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
-import { CATEGORIES } from '@/types'
+import { useCategoriesStore } from '@/stores/categories'
 
 const router = useRouter()
 const stock = useStockStore()
+const cats = useCategoriesStore()
 const history = useHistoryStore()
 const auth = useAuthStore()
 const cart = useCartStore()
@@ -166,7 +167,7 @@ const canSell = computed(() => auth.isAdmin || auth.hasPerm('vendeur'))
         <router-link v-for="p in recentPieces" :key="p._id" :to="`/piece/${p._id}`" class="flex items-center gap-3 py-2.5">
           <span class="w-11 h-11 thumb"><img v-if="p.photo" :src="p.photo" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-4 h-4" /></span>
           <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2"><span class="badge-ref">{{ p.ref }}</span><span v-if="p.cat && CATEGORIES[p.cat]" class="badge hidden sm:inline-flex" :class="[CATEGORIES[p.cat].bgClass, CATEGORIES[p.cat].textClass]">{{ CATEGORIES[p.cat].label }}</span></div>
+            <div class="flex items-center gap-2"><span class="badge-ref">{{ p.ref }}</span><span v-if="p.cat" class="badge hidden sm:inline-flex" :class="[cats.info(p.cat).bgClass, cats.info(p.cat).textClass]">{{ cats.info(p.cat).label }}</span></div>
             <div class="text-[13px] font-semibold text-gray-900 truncate mt-0.5">{{ p.name }}</div>
             <div class="text-[11px] text-gray-500">{{ p.qty }} en stock · {{ fmtDay(p.added) }}</div>
           </div>

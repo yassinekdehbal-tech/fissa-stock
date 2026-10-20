@@ -10,13 +10,14 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import PieceEditModal from '@/components/stock/PieceEditModal.vue'
-import { CATEGORIES } from '@/types'
+import { useCategoriesStore } from '@/stores/categories'
 import { formatPrice } from '@/utils/format'
 
 /** Fiche produit : photo, identifiants, stock, prix, actions (sortir / modifier / étiquette). */
 const route = useRoute()
 const router = useRouter()
 const stock = useStockStore()
+const cats = useCategoriesStore()
 const auth = useAuthStore()
 const cart = useCartStore()
 const { toast } = useToast()
@@ -90,7 +91,7 @@ function etatClass(etat: string) {
       <div class="card p-4">
         <h2 class="text-lg font-bold text-gray-900 leading-snug">{{ piece.name }}</h2>
         <div class="flex flex-wrap items-center gap-2 mt-2">
-          <span v-if="piece.cat && CATEGORIES[piece.cat]" class="badge" :class="[CATEGORIES[piece.cat].bgClass, CATEGORIES[piece.cat].textClass]"><AppIcon name="zap" class="w-3 h-3" /> {{ piece.cat === 'electronique' ? 'Électricité' : CATEGORIES[piece.cat].label }}</span>
+          <span v-if="piece.cat" class="badge" :class="[cats.info(piece.cat).bgClass, cats.info(piece.cat).textClass]"><AppIcon name="zap" class="w-3 h-3" /> {{ cats.info(piece.cat).label }}</span>
           <span class="badge" :class="piece.qty === 0 ? 'badge-red' : piece.qty <= (piece.threshold || 1) ? 'badge-orange' : 'badge-green'">{{ piece.qty === 0 ? 'Rupture' : `En stock : ${piece.qty}` }}</span>
           <span v-if="piece.archived" class="badge badge-gray">Archivée</span>
           <span v-if="piece.publishable" class="badge badge-blue">Boutique</span>
