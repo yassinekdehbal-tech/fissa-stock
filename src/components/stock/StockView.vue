@@ -49,7 +49,7 @@ const filteredPieces = computed(() => {
     case 'actif': list = list.filter(p => !p.archived); break
     case 'dispo': list = list.filter(p => !p.archived && p.qty > 0); break
     case 'rupture': list = list.filter(p => !p.archived && p.qty === 0); break
-    case 'alerte': list = list.filter(p => !p.archived && p.qty <= (p.threshold || 1)); break
+    case 'alerte': list = list.filter(p => !p.archived && p.qty <= (p.threshold ?? 0)); break
     case 'archive': list = list.filter(p => p.archived); break
   }
   if (filterCat.value) list = list.filter(p => p.cat === filterCat.value)
@@ -109,7 +109,7 @@ async function handleDelete(p: Piece) {
 
 function qtyClass(p: Piece) {
   if (p.qty === 0) return 'badge-red'
-  if (p.qty <= (p.threshold || 1)) return 'badge-orange'
+  if (p.qty <= (p.threshold ?? 0)) return 'badge-orange'
   return 'badge-green'
 }
 function qtyText(p: Piece) {
@@ -198,7 +198,7 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
         <div class="min-w-0 flex-1">
           <span class="badge-ref">{{ p.ref }}</span>
           <div class="text-[13px] font-semibold text-gray-900 truncate mt-0.5">{{ p.name }}</div>
-          <div class="text-[12px] font-medium" :class="p.qty === 0 ? 'text-red-600' : p.qty <= (p.threshold || 1) ? 'text-orange-600' : 'text-green-600'">{{ qtyText(p) }}</div>
+          <div class="text-[12px] font-medium" :class="p.qty === 0 ? 'text-red-600' : p.qty <= (p.threshold ?? 0) ? 'text-orange-600' : 'text-green-600'">{{ qtyText(p) }}</div>
         </div>
         <div class="flex flex-col items-end gap-1 shrink-0">
           <span v-if="p.cat" class="badge" :class="[cats.info(p.cat).bgClass, cats.info(p.cat).textClass]">{{ catLabel(p) }}</span>

@@ -88,11 +88,11 @@ async function handleDelete(u: any) {
       <div class="flex flex-col gap-3">
         <div class="flex flex-col gap-1">
           <label class="label">Identifiant</label>
-          <input v-model="newUser.id" placeholder="jean.dupont ou jean@exemple.fr" autocapitalize="none" autocorrect="off" spellcheck="false" class="input">
+          <input v-model="newUser.id" name="new-user-login" autocomplete="off" placeholder="jean.dupont ou jean@exemple.fr" autocapitalize="none" autocorrect="off" spellcheck="false" class="input">
           <div class="text-[11px] text-gray-500">Nom court (lettres, chiffres, point, tiret) ou adresse e-mail. C'est ce que la personne saisira pour se connecter.</div>
         </div>
-        <div class="flex flex-col gap-1"><label class="label">Prénom / Nom</label><input v-model="newUser.name" placeholder="Jean Dupont" class="input"></div>
-        <div class="flex flex-col gap-1"><label class="label">Mot de passe</label><input v-model="newUser.pwd" type="password" placeholder="6 caractères min." class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Prénom / Nom</label><input v-model="newUser.name" name="new-user-name" autocomplete="off" placeholder="Jean Dupont" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Mot de passe</label><input v-model="newUser.pwd" type="password" name="new-user-password" autocomplete="new-password" placeholder="6 caractères min." class="input"></div>
         <div class="text-[12px] font-semibold text-gray-700 mt-2">Permissions</div>
         <label class="flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg border border-gray-200 cursor-pointer"><input type="checkbox" v-model="newUser.magasinier" class="accent-amber-500"><div><strong class="text-xs">Magasinier</strong><div class="text-[11px] text-gray-500">Ajouter et modifier des pièces</div></div></label>
         <label class="flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg border border-gray-200 cursor-pointer"><input type="checkbox" v-model="newUser.vendeur" class="accent-amber-500"><div><strong class="text-xs">Vendeur</strong><div class="text-[11px] text-gray-500">Scanner et enregistrer des ventes</div></div></label>
@@ -108,7 +108,7 @@ async function handleDelete(u: any) {
     <BaseModal title="✏ Modifier le compte" :open="editOpen" @close="editOpen = false">
       <div class="text-sm font-bold mb-3">{{ editName }}</div>
       <div class="flex flex-col gap-3">
-        <div class="flex flex-col gap-1"><label class="label">Nouveau mot de passe (optionnel)</label><input v-model="editPwd" type="password" placeholder="Laisser vide = inchangé" class="input"></div>
+        <div class="flex flex-col gap-1"><label class="label">Nouveau mot de passe (optionnel)</label><input v-model="editPwd" type="password" name="edit-user-password" autocomplete="new-password" placeholder="Laisser vide = inchangé" class="input"></div>
         <div class="text-[12px] font-semibold text-gray-700 mt-1">Permissions</div>
         <label class="flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg border border-gray-200 cursor-pointer"><input type="checkbox" v-model="editPerms.magasinier" class="accent-amber-500"><div><strong class="text-xs">Magasinier</strong></div></label>
         <label class="flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg border border-gray-200 cursor-pointer"><input type="checkbox" v-model="editPerms.vendeur" class="accent-amber-500"><div><strong class="text-xs">Vendeur</strong></div></label>

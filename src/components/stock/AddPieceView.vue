@@ -120,7 +120,7 @@ async function submit() {
     vehicle: sanitize(form.value.vehicle.trim()), oem: sanitize(form.value.oem.trim()),
     supplier: sanitize(form.value.supplier.trim()), donor: sanitize(form.value.donor.trim()),
     source: form.value.source, qty: form.value.qty, price: form.value.price,
-    threshold: form.value.threshold || undefined, zone: sanitize(form.value.zone.trim()), etat: form.value.etat,
+    threshold: form.value.threshold || 0, zone: sanitize(form.value.zone.trim()), etat: form.value.etat,
     compat: sanitize(form.value.compat.trim()), photo: form.value.photo.trim(), notes: sanitize(form.value.notes.trim()),
     fmt: form.value.fmt, added: new Date().toISOString(), archived: false, publishable: form.value.publishable,
   }

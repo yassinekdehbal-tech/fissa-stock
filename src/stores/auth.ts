@@ -56,8 +56,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function doInit() {
     const { data } = await supabase.auth.getSession()
-    userId.value = data.session?.user.id ?? null
-    email.value = data.session?.user.email ?? null
+    let session = data.session
+    if (session) {
+      // Une session révoquée côté serveur (déconnexion depuis un autre appareil,
+      // compte supprimé) garde un jeton valable localement : on la vérifie.
+      const { error: e } = await supabase.auth.getUser()
+      if (e && (e.status === 401 || e.status === 403)) {
+        await supabase.auth.signOut({ scope: 'local' })
+        session = null
+      }
+    }
+    userId.value = session?.user.id ?? null
+    email.value = session?.user.email ?? null
     if (userId.value) await loadProfile()
     supabase.auth.onAuthStateChange((event, session) => {
       userId.value = session?.user.id ?? null
@@ -133,8 +143,9 @@ export const useAuthStore = defineStore('auth', () => {
     return true
   }
 
+  /** Déconnecte cet appareil seulement (les autres sessions du compte restent valides). */
   async function logout() {
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: 'local' })
     userId.value = null
     email.value = null
     profile.value = null
@@ -167,6 +178,15 @@ export const useAuthStore = defineStore('auth', () => {
     if (e) throw new Error(traduire(e.message))
   }
 
+  /** Session refusée par le serveur (401) : on repart proprement sur l'écran de connexion. */
+  async function sessionExpired() {
+    await supabase.auth.signOut({ scope: 'local' })
+    userId.value = null
+    email.value = null
+    profile.value = null
+    window.location.href = `${import.meta.env.BASE_URL}login`
+  }
+
   /** Vrai le temps qu'un lien de récupération de mot de passe est actif. */
   const passwordRecovery = ref(false)
 
@@ -194,6 +214,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     signUp,
     logout,
+    sessionExpired,
     ensureAdmin,
     updateName,
     updatePassword,

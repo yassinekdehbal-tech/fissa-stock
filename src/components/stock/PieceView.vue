@@ -92,7 +92,7 @@ function etatClass(etat: string) {
         <h2 class="text-lg font-bold text-gray-900 leading-snug">{{ piece.name }}</h2>
         <div class="flex flex-wrap items-center gap-2 mt-2">
           <span v-if="piece.cat" class="badge" :class="[cats.info(piece.cat).bgClass, cats.info(piece.cat).textClass]"><AppIcon name="zap" class="w-3 h-3" /> {{ cats.info(piece.cat).label }}</span>
-          <span class="badge" :class="piece.qty === 0 ? 'badge-red' : piece.qty <= (piece.threshold || 1) ? 'badge-orange' : 'badge-green'">{{ piece.qty === 0 ? 'Rupture' : `En stock : ${piece.qty}` }}</span>
+          <span class="badge" :class="piece.qty === 0 ? 'badge-red' : piece.qty <= (piece.threshold ?? 0) ? 'badge-orange' : 'badge-green'">{{ piece.qty === 0 ? 'Rupture' : `En stock : ${piece.qty}` }}</span>
           <span v-if="piece.archived" class="badge badge-gray">Archivée</span>
           <span v-if="piece.publishable" class="badge badge-blue">Boutique</span>
         </div>
@@ -108,7 +108,7 @@ function etatClass(etat: string) {
           <dt class="text-gray-500">État</dt><dd><span class="badge" :class="etatClass(piece.etat)">{{ piece.etat || '—' }}</span></dd>
           <dt class="text-gray-500">Provenance</dt><dd class="text-gray-900">{{ SOURCES[piece.source] || piece.source || '—' }}</dd>
           <dt class="text-gray-500">Donneur</dt><dd class="text-gray-900">{{ piece.donor || '—' }}</dd>
-          <dt class="text-gray-500">Seuil d'alerte</dt><dd class="text-gray-900">{{ piece.threshold || 1 }}</dd>
+          <dt class="text-gray-500">Seuil d'alerte</dt><dd class="text-gray-900">{{ piece.threshold ?? 0 }}</dd>
           <dt class="text-gray-500">Ajoutée le</dt><dd class="text-gray-900">{{ piece.added ? new Date(piece.added).toLocaleDateString('fr-FR') : '—' }}</dd>
         </dl>
         <div v-if="piece.notes" class="mt-3 text-[13px] text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">{{ piece.notes }}</div>

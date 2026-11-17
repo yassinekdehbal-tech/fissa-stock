@@ -17,7 +17,7 @@ function rowToPiece(r: PieceRow): Piece {
     source: (r.source ?? 'autre') as Piece['source'],
     qty: r.qty,
     price: Number(r.price),
-    threshold: r.threshold ?? 1,
+    threshold: r.threshold ?? 0,
     zone: r.zone ?? '',
     etat: (r.etat ?? 'Bon état') as Piece['etat'],
     compat: r.compat ?? '',
@@ -66,7 +66,7 @@ export const useStockStore = defineStore('stock', () => {
   )
   const totalQty = computed(() => activePieces.value.reduce((acc, p) => acc + (p.qty || 0), 0))
   const lowStockPieces = computed(() =>
-    activePieces.value.filter((p) => p.qty <= (p.threshold || 1)),
+    activePieces.value.filter((p) => p.qty <= (p.threshold ?? 0)),
   )
 
   async function fetchAll() {

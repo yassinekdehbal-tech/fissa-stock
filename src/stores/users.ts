@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import type { ProfileRow } from '@/lib/supabase'
+import { useAuthStore } from '@/stores/auth'
 import type { User, UserPermissions } from '@/types'
 
 /**
@@ -57,6 +58,11 @@ export const useUsersStore = defineStore('users', () => {
     if (error) {
       // Réponse non-2xx : le corps JSON de la fonction contient `error`.
       const ctx = (error as { context?: Response }).context
+      if (ctx?.status === 401) {
+        // Session révoquée côté serveur : retour à l'écran de connexion.
+        await useAuthStore().sessionExpired()
+        return 'Session expirée, reconnectez-vous'
+      }
       if (ctx && typeof ctx.json === 'function') {
         try {
           const payload = (await ctx.clone().json()) as { error?: string }

@@ -47,7 +47,7 @@ async function save() {
       donor: sanitize(form.value.donor.trim()),
       source: form.value.source,
       qty: form.value.qty,
-      threshold: form.value.threshold || undefined,
+      threshold: form.value.threshold || 0,
       price: form.value.price,
       zone: sanitize(form.value.zone.trim()),
       etat: form.value.etat,
