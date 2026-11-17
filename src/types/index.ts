@@ -5,6 +5,8 @@ export interface Piece {
   ref: string
   name: string
   cat: PieceCategory
+  /** Sous-catégorie (libellé libre, proposé depuis la table `subcategories`). */
+  subcat: string
   vehicle: string
   oem: string
   supplier: string
@@ -85,6 +87,15 @@ export interface Category {
   /** 2 lettres majuscules sûres (sans I, O, Q) : préfixe des références générées. */
   code: string
   color: CategoryColor
+  sort: number
+  archived: boolean
+}
+
+/** Sous-catégorie d'une catégorie (table `subcategories`). */
+export interface Subcategory {
+  id: string
+  cat: string
+  label: string
   sort: number
   archived: boolean
 }

@@ -10,6 +10,7 @@ function rowToPiece(r: PieceRow): Piece {
     ref: r.ref,
     name: r.name,
     cat: (r.cat ?? '') as Piece['cat'],
+    subcat: r.subcat ?? '',
     vehicle: r.vehicle ?? '',
     oem: r.oem ?? '',
     supplier: r.supplier ?? '',
@@ -35,6 +36,7 @@ function pieceToRow(p: Partial<Piece>): Record<string, unknown> {
   if (p.ref !== undefined) row.ref = p.ref
   if (p.name !== undefined) row.name = p.name
   if (p.cat !== undefined) row.cat = p.cat ? p.cat : null
+  if (p.subcat !== undefined) row.subcat = p.subcat
   if (p.vehicle !== undefined) row.vehicle = p.vehicle
   if (p.oem !== undefined) row.oem = p.oem
   if (p.supplier !== undefined) row.supplier = p.supplier

@@ -13,6 +13,7 @@ import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import BarcodeScanModal from '@/components/ui/BarcodeScanModal.vue'
 import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
+import SubcategoryPicker from '@/components/stock/SubcategoryPicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 
 const router = useRouter()
@@ -42,15 +43,36 @@ const marking = ref<Marking>(localStorage.getItem(MARKING_KEY) === 'manual' ? 'm
 function setMarking(m: Marking) { marking.value = m; localStorage.setItem(MARKING_KEY, m) }
 
 const form = ref({
-  ref: '', name: '', cat: '' as PieceCategory, vehicle: '', oem: '', supplier: '', donor: '',
+  ref: '', name: '', cat: '' as PieceCategory, subcat: '', vehicle: '', oem: '', supplier: '', donor: '',
   source: 'autre' as PieceSource, qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état' as PieceState,
   compat: '', photo: '', notes: '', fmt: 'CODE128' as 'CODE128' | 'CODE39', publishable: false,
 })
 
 function clearForm() {
-  form.value = { ref: '', name: '', cat: '', vehicle: '', oem: '', supplier: '', donor: '', source: 'autre', qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état', compat: '', photo: '', notes: '', fmt: 'CODE128', publishable: false }
+  form.value = { ref: '', name: '', cat: '', subcat: '', vehicle: '', oem: '', supplier: '', donor: '', source: 'autre', qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état', compat: '', photo: '', notes: '', fmt: 'CODE128', publishable: false }
   step.value = 1
 }
+
+/**
+ * Sous-catégorie choisie → désignation pré-remplie si elle est vide ou si
+ * elle vaut encore la sous-catégorie précédente (le préparateur complète
+ * ensuite : « Alternateur » → « Alternateur Valeo 150A »).
+ */
+let lastPicked = ''
+function onSubcatPicked(label: string) {
+  const n = form.value.name.trim()
+  if (!n || n === lastPicked) form.value.name = label
+  lastPicked = label
+}
+// Changement de catégorie : la sous-catégorie ne s'applique plus
+watch(() => form.value.cat, () => { form.value.subcat = ''; lastPicked = '' })
+
+/** Champ d'origine affiché selon la provenance : véhicule donneur ou fournisseur. */
+const originField = computed<'donor' | 'supplier' | null>(() => {
+  if (form.value.source === 'demontage') return 'donor'
+  if (form.value.source === 'grossiste-neuf' || form.value.source === 'lot-occasion' || form.value.source === 'web') return 'supplier'
+  return null
+})
 
 const SOURCES: Record<string, string> = { demontage: 'Démontage', don: 'Don', 'lot-occasion': "Lot d'occasion", 'grossiste-neuf': 'Grossiste neuf', web: 'Web', autre: 'Autre' }
 
@@ -116,12 +138,13 @@ async function submit() {
   if (r && stock.pieces.find(p => p.ref === r)) { step.value = 1; toast('Référence déjà existante', true); return }
 
   const piece = {
-    ref: sanitize(r), name: sanitize(name), cat: form.value.cat,
+    ref: sanitize(r), name: sanitize(name), cat: form.value.cat, subcat: sanitize(form.value.subcat.trim()),
     vehicle: sanitize(form.value.vehicle.trim()), oem: sanitize(form.value.oem.trim()),
-    supplier: sanitize(form.value.supplier.trim()), donor: sanitize(form.value.donor.trim()),
+    supplier: originField.value === 'supplier' ? sanitize(form.value.supplier.trim()) : '',
+    donor: originField.value === 'donor' ? sanitize(form.value.donor.trim()) : '',
     source: form.value.source, qty: form.value.qty, price: form.value.price,
     threshold: form.value.threshold || 0, zone: sanitize(form.value.zone.trim()), etat: form.value.etat,
-    compat: sanitize(form.value.compat.trim()), photo: form.value.photo.trim(), notes: sanitize(form.value.notes.trim()),
+    compat: '', photo: form.value.photo.trim(), notes: sanitize(form.value.notes.trim()),
     fmt: form.value.fmt, added: new Date().toISOString(), archived: false, publishable: form.value.publishable,
   }
 
@@ -202,6 +225,10 @@ function printFromHandwritten() {
           </select>
         </div>
       </div>
+      <div v-if="form.cat" class="flex flex-col gap-1">
+        <label class="label">Sous-catégorie</label>
+        <SubcategoryPicker v-model="form.subcat" :cat="form.cat" :can-add="auth.hasPerm('magasinier')" @picked="onSubcatPicked" />
+      </div>
       <div class="flex flex-col gap-1">
         <div class="flex items-center justify-between">
           <label class="label">Référence <span class="text-red-500">*</span></label>
@@ -222,23 +249,16 @@ function printFromHandwritten() {
       </div>
       <div class="flex flex-col gap-1">
         <label class="label">Désignation <span class="text-red-500">*</span></label>
-        <input v-model="form.name" placeholder="Alternateur Peugeot 308" class="input">
+        <input v-model="form.name" :placeholder="form.subcat ? form.subcat + ' Valeo 150A' : 'Alternateur Valeo 150A'" class="input">
+        <span class="text-[11px] text-gray-500">Pré-remplie avec la sous-catégorie : ajoutez la marque, la puissance, le côté…</span>
       </div>
       <div class="flex flex-col gap-1">
-        <label class="label">Véhicule compatible</label>
-        <input v-model="form.vehicle" placeholder="Peugeot 308 1.6 HDi" class="input">
+        <label class="label">Véhicule(s) compatible(s)</label>
+        <input v-model="form.vehicle" placeholder="Peugeot 308 1.6 HDi, 3008, Citroën C4…" class="input">
       </div>
       <div class="flex flex-col gap-1">
         <label class="label">N° OEM</label>
         <input v-model="form.oem" placeholder="5702.E2" class="input font-mono">
-      </div>
-      <div class="flex flex-col gap-1">
-        <label class="label">Fournisseur</label>
-        <input v-model="form.supplier" placeholder="Démontage, grossiste…" class="input">
-      </div>
-      <div class="flex flex-col gap-1">
-        <label class="label">Véhicule donneur</label>
-        <input v-model="form.donor" placeholder="Immatriculation ou VIN" class="input">
       </div>
       <button type="submit" class="btn btn-primary w-full py-3 mt-2">Continuer <AppIcon name="arrow-right" class="w-4 h-4" /></button>
     </form>
@@ -247,7 +267,7 @@ function printFromHandwritten() {
     <form v-else-if="step === 2" @submit.prevent="next" class="card p-4 lg:p-5 space-y-3">
       <div class="card-title">Stock et tarif</div>
       <div class="grid grid-cols-2 gap-3">
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col gap-1 col-span-2">
           <label class="label">Quantité <span class="text-red-500">*</span></label>
           <div class="flex items-stretch gap-1">
             <input v-model.number="form.qty" type="number" min="0" inputmode="numeric" class="input text-center">
@@ -256,10 +276,6 @@ function printFromHandwritten() {
               <button type="button" @click="form.qty = (form.qty || 0) + 1" aria-label="Plus"><AppIcon name="plus" class="w-4 h-4" /></button>
             </div>
           </div>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="label">Seuil d'alerte</label>
-          <input v-model.number="form.threshold" type="number" min="0" inputmode="numeric" placeholder="0" class="input">
         </div>
       </div>
       <div class="flex flex-col gap-1">
@@ -285,9 +301,13 @@ function printFromHandwritten() {
           <option v-for="(l, k) in SOURCES" :key="k" :value="k">{{ l }}</option>
         </select>
       </div>
-      <div class="flex flex-col gap-1">
-        <label class="label">Compatibilités</label>
-        <textarea v-model="form.compat" rows="2" placeholder="ex : Peugeot 208, 308, Citroën C3…" class="input min-h-[64px]"></textarea>
+      <div v-if="originField === 'donor'" class="flex flex-col gap-1">
+        <label class="label">Véhicule donneur</label>
+        <input v-model="form.donor" placeholder="Immatriculation ou VIN" class="input" autocapitalize="characters">
+      </div>
+      <div v-else-if="originField === 'supplier'" class="flex flex-col gap-1">
+        <label class="label">Fournisseur</label>
+        <input v-model="form.supplier" placeholder="Nom du grossiste, du vendeur…" class="input">
       </div>
       <div class="flex gap-2 pt-1">
         <button type="button" class="btn btn-secondary flex-1 py-3" @click="prev"><AppIcon name="arrow-left" class="w-4 h-4" /> Retour</button>
@@ -342,7 +362,7 @@ function printFromHandwritten() {
           <div class="min-w-0 text-[12px] text-gray-600 space-y-0.5">
             <div class="badge-ref">{{ refDisplay }}</div>
             <div class="text-[13px] font-semibold text-gray-900 truncate">{{ form.name || '—' }}</div>
-            <div v-if="form.cat">{{ cats.label(form.cat) }} · {{ form.etat }}</div>
+            <div v-if="form.cat">{{ cats.label(form.cat) }}<template v-if="form.subcat"> › {{ form.subcat }}</template> · {{ form.etat }}</div>
             <div>Stock : <strong class="text-gray-900">{{ form.qty }}</strong> · Prix : <strong class="text-gray-900">{{ (form.price || 0).toFixed(2) }} €</strong> · Zone : <strong class="text-gray-900">{{ form.zone || '—' }}</strong></div>
             <div v-if="form.vehicle" class="truncate">{{ form.vehicle }}</div>
           </div>

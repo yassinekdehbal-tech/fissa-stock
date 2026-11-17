@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useStockStore } from '@/stores/stock'
 import { useCategoriesStore, proposeCode, CODE_RE, RISKY_LETTERS } from '@/stores/categories'
+import { useSubcategoriesStore } from '@/stores/subcategories'
 import { useToast } from '@/composables/useToast'
 import { CATEGORY_COLORS, type Category, type CategoryColor } from '@/types'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -17,7 +18,34 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 const auth = useAuthStore()
 const stock = useStockStore()
 const cats = useCategoriesStore()
+const subs = useSubcategoriesStore()
 const { toast } = useToast()
+
+// ---- Sous-catégories d'une catégorie
+const subOpen = ref(false)
+const subCat = ref<Category | null>(null)
+const subLabel = ref('')
+const subSaving = ref(false)
+const subList = computed(() => (subCat.value ? subs.all(subCat.value.key) : []))
+const subSuggestions = computed(() => (subCat.value ? subs.suggestions(subCat.value.key, 12) : []))
+function openSubs(c: Category) { subCat.value = c; subLabel.value = ''; subOpen.value = true }
+async function addSub(label?: string) {
+  const l = (label ?? subLabel.value).trim()
+  if (!subCat.value || !l) return
+  subSaving.value = true
+  try { await subs.add(subCat.value.key, l); subLabel.value = ''; toast(`« ${l} » ajoutée`) }
+  catch (e) { toast(e instanceof Error ? e.message : String(e), true) }
+  finally { subSaving.value = false }
+}
+async function toggleSubArchive(id: string, archived: boolean) {
+  try { await subs.update(id, { archived: !archived }) }
+  catch (e) { toast(e instanceof Error ? e.message : String(e), true) }
+}
+async function removeSub(id: string, label: string) {
+  if (subCat.value && subs.usage(subCat.value.key, label)) { toast('Des pièces utilisent cette sous-catégorie : archivez-la plutôt', true); return }
+  try { await subs.remove(id); toast('Sous-catégorie supprimée') }
+  catch (e) { toast(e instanceof Error ? e.message : String(e), true) }
+}
 
 const COLORS = Object.keys(CATEGORY_COLORS) as CategoryColor[]
 
@@ -143,7 +171,7 @@ async function move(c: Category, dir: -1 | 1) {
           <span class="w-9 h-9 rounded-lg flex items-center justify-center font-mono font-bold text-[13px] shrink-0" :class="[CATEGORY_COLORS[c.color].bgClass, CATEGORY_COLORS[c.color].textClass]">{{ c.code }}</span>
           <div class="min-w-0 flex-1">
             <div class="text-[14px] font-semibold text-gray-900 truncate">{{ c.label }} <span v-if="c.archived" class="badge badge-gray ml-1">Archivée</span></div>
-            <div class="text-[12px] text-gray-500">{{ count(c.key) }} pièce{{ count(c.key) > 1 ? 's' : '' }}</div>
+            <div class="text-[12px] text-gray-500">{{ count(c.key) }} pièce{{ count(c.key) > 1 ? 's' : '' }} · <button class="text-blue-600 hover:underline font-medium" @click="openSubs(c)">{{ subs.forCat(c.key).length }} sous-catégorie{{ subs.forCat(c.key).length > 1 ? 's' : '' }}</button></div>
           </div>
           <div class="flex items-center gap-0.5 shrink-0">
             <button class="icon-btn" :disabled="i === 0" @click="move(c, -1)" aria-label="Monter" title="Monter"><AppIcon name="chevron-up" class="w-4 h-4" /></button>
@@ -158,6 +186,31 @@ async function move(c: Category, dir: -1 | 1) {
 
       <button class="btn btn-primary w-full py-3 lg:hidden" @click="openCreate"><AppIcon name="plus" class="w-4 h-4" /> Ajouter une catégorie</button>
     </template>
+
+    <BaseModal :title="subCat ? 'Sous-catégories · ' + subCat.label : 'Sous-catégories'" :open="subOpen" @close="subOpen = false" max-width="520px">
+      <div class="space-y-3">
+        <p class="text-[12px] text-gray-600 leading-snug">Familles de pièces proposées en puces dans le formulaire d'ajout. Une sous-catégorie utilisée par des pièces ne peut être qu'archivée.</p>
+        <div class="flex gap-1.5">
+          <input v-model="subLabel" class="input flex-1" placeholder="ex : Alternateur" maxlength="60" @keydown.enter.prevent="addSub()">
+          <button class="btn btn-primary whitespace-nowrap" :disabled="subSaving || !subLabel.trim()" @click="addSub()"><AppIcon name="plus" class="w-4 h-4" /> Ajouter</button>
+        </div>
+        <div v-if="subSuggestions.length" class="space-y-1">
+          <div class="text-[11px] text-gray-500">Désignations déjà saisies, pas encore dans la liste (cliquer pour ajouter)</div>
+          <div class="flex flex-wrap gap-1.5">
+            <button v-for="s in subSuggestions" :key="s.label" class="chip chip-dashed" :disabled="subSaving" @click="addSub(s.label)">{{ s.label }} <span class="text-gray-400 font-normal">×{{ s.count }}</span></button>
+          </div>
+        </div>
+        <div class="card divide-y divide-gray-100 max-h-[50vh] overflow-y-auto">
+          <div v-for="s in subList" :key="s.id" class="flex items-center gap-2 px-3 py-2" :class="s.archived ? 'opacity-60' : ''">
+            <div class="min-w-0 flex-1 text-[13px] text-gray-900 truncate">{{ s.label }} <span v-if="s.archived" class="badge badge-gray ml-1">Archivée</span></div>
+            <span class="text-[11px] text-gray-500 shrink-0">{{ subCat ? subs.usage(subCat.key, s.label) : 0 }} pièce{{ subCat && subs.usage(subCat.key, s.label) > 1 ? 's' : '' }}</span>
+            <button class="icon-btn" @click="toggleSubArchive(s.id, s.archived)" :title="s.archived ? 'Réactiver' : 'Archiver'" :aria-label="s.archived ? 'Réactiver' : 'Archiver'"><AppIcon :name="s.archived ? 'refresh' : 'lock'" class="w-4 h-4" /></button>
+            <button v-if="subCat && !subs.usage(subCat.key, s.label)" class="icon-btn text-red-600" @click="removeSub(s.id, s.label)" title="Supprimer" aria-label="Supprimer"><AppIcon name="trash" class="w-4 h-4" /></button>
+          </div>
+          <div v-if="!subList.length" class="px-3 py-6 text-center text-[13px] text-gray-500">Aucune sous-catégorie</div>
+        </div>
+      </div>
+    </BaseModal>
 
     <BaseModal :title="editing ? 'Modifier la catégorie' : 'Nouvelle catégorie'" :open="open" @close="open = false" max-width="440px">
       <div class="space-y-3">

@@ -31,6 +31,15 @@ const CATS = computed<{ key: PieceCategory | ''; label: string }[]>(() => [
 
 const search = ref(String(route.query.q ?? ''))
 const filterCat = ref<PieceCategory | ''>('')
+const filterSubcat = ref('')
+watch(filterCat, () => { filterSubcat.value = '' })
+/** Sous-catégories présentes dans la catégorie filtrée (d'après les pièces). */
+const SUBCATS = computed(() => {
+  if (!filterCat.value) return []
+  const m = new Map<string, number>()
+  for (const p of stock.pieces) if (p.cat === filterCat.value && p.subcat) m.set(p.subcat, (m.get(p.subcat) || 0) + 1)
+  return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([label, n]) => ({ label, n }))
+})
 const filterEtat = ref<PieceState | ''>('')
 const filterStock = ref<'actif' | 'dispo' | 'rupture' | 'alerte' | 'archive' | 'tous'>(route.query.stock === 'alerte' ? 'alerte' : 'actif')
 const sort = ref<'recent' | 'ref' | 'name' | 'price-asc' | 'price-desc' | 'qty'>('recent')
@@ -40,7 +49,7 @@ watch(() => route.query.q, (q) => { search.value = String(q ?? '') })
 watch(() => route.query.stock, (s) => { if (s === 'alerte') filterStock.value = 'alerte' })
 
 function resetFilters() {
-  search.value = ''; filterCat.value = ''; filterEtat.value = ''; filterStock.value = 'actif'; sort.value = 'recent'
+  search.value = ''; filterCat.value = ''; filterSubcat.value = ''; filterEtat.value = ''; filterStock.value = 'actif'; sort.value = 'recent'
 }
 
 const filteredPieces = computed(() => {
@@ -53,11 +62,12 @@ const filteredPieces = computed(() => {
     case 'archive': list = list.filter(p => p.archived); break
   }
   if (filterCat.value) list = list.filter(p => p.cat === filterCat.value)
+  if (filterSubcat.value) list = list.filter(p => p.subcat === filterSubcat.value)
   if (filterEtat.value) list = list.filter(p => p.etat === filterEtat.value)
   if (search.value) {
     const q = search.value.toLowerCase()
     list = list.filter(p =>
-      p.ref.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) ||
+      p.ref.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || (p.subcat || '').toLowerCase().includes(q) ||
       (p.vehicle || '').toLowerCase().includes(q) || (p.oem || '').toLowerCase().includes(q) ||
       (p.zone || '').toLowerCase().includes(q) || (p.compat || '').toLowerCase().includes(q))
   }
@@ -126,8 +136,8 @@ function catLabel(p: Piece) {
 }
 
 function exportCSV() {
-  const header = ['Référence', 'Désignation', 'Catégorie', 'Véhicule', 'OEM', 'Quantité', 'Prix', 'Zone', 'État']
-  const rows = stock.pieces.map(p => [p.ref, p.name, p.cat, p.vehicle, p.oem, p.qty, p.price, p.zone, p.etat])
+  const header = ['Référence', 'Désignation', 'Catégorie', 'Sous-catégorie', 'Véhicule', 'OEM', 'Quantité', 'Prix', 'Zone', 'État']
+  const rows = stock.pieces.map(p => [p.ref, p.name, p.cat, p.subcat, p.vehicle, p.oem, p.qty, p.price, p.zone, p.etat])
   const csv = '﻿' + [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n')
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
@@ -166,12 +176,16 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
       <div class="flex gap-2">
         <div class="relative flex-1">
           <AppIcon name="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input v-model="search" type="search" placeholder="Réf., désignation, véhicule, OEM…" class="input pl-9 h-11 bg-white">
+          <input v-model="search" type="search" placeholder="Réf., désignation, sous-catégorie, véhicule, OEM…" class="input pl-9 h-11 bg-white">
         </div>
         <button class="w-11 h-11 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-700 lg:hidden" :class="showFilters ? 'border-brand text-amber-700' : ''" @click="showFilters = !showFilters" aria-label="Filtres"><AppIcon name="filter" class="w-4 h-4" /></button>
       </div>
       <div class="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap">
         <button v-for="c in CATS" :key="c.key" class="shrink-0 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-colors" :class="filterCat === c.key ? 'bg-brand border-brand text-gray-900' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'" @click="filterCat = c.key">{{ c.label }}</button>
+      </div>
+      <div v-if="SUBCATS.length" class="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0 lg:flex-wrap">
+        <button class="chip shrink-0 py-1" :class="!filterSubcat ? 'chip-on' : ''" @click="filterSubcat = ''">Toutes</button>
+        <button v-for="s in SUBCATS" :key="s.label" class="chip shrink-0 py-1" :class="filterSubcat === s.label ? 'chip-on' : ''" @click="filterSubcat = s.label">{{ s.label }} <span class="text-gray-400 font-normal">{{ s.n }}</span></button>
       </div>
       <div class="flex flex-wrap gap-2 items-center" :class="showFilters ? '' : 'hidden lg:flex'">
         <select v-model="filterEtat" class="input w-auto min-w-[140px] h-10">
@@ -198,6 +212,7 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
         <div class="min-w-0 flex-1">
           <span class="badge-ref">{{ p.ref }}</span>
           <div class="text-[13px] font-semibold text-gray-900 truncate mt-0.5">{{ p.name }}</div>
+          <div v-if="p.subcat" class="text-[11px] text-gray-500 truncate">{{ p.subcat }}</div>
           <div class="text-[12px] font-medium" :class="p.qty === 0 ? 'text-red-600' : p.qty <= (p.threshold ?? 0) ? 'text-orange-600' : 'text-green-600'">{{ qtyText(p) }}</div>
         </div>
         <div class="flex flex-col items-end gap-1 shrink-0">
@@ -228,7 +243,7 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
               </td>
               <td>
                 <router-link :to="`/piece/${p._id}`" class="font-medium text-gray-900 hover:underline">{{ p.name }}</router-link>
-                <div v-if="p.compat" class="text-[11px] text-gray-500 mt-0.5 truncate max-w-[260px]">{{ p.compat }}</div>
+                <div v-if="p.subcat || p.compat" class="text-[11px] text-gray-500 mt-0.5 truncate max-w-[260px]">{{ p.subcat || p.compat }}</div>
               </td>
               <td><span v-if="p.cat" class="badge" :class="[cats.info(p.cat).bgClass, cats.info(p.cat).textClass]">{{ catLabel(p) }}</span></td>
               <td class="text-gray-600">{{ p.vehicle || '—' }}</td>

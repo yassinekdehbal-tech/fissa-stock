@@ -6,6 +6,8 @@ import { useToast } from '@/composables/useToast'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
+import SubcategoryPicker from '@/components/stock/SubcategoryPicker.vue'
+import { useAuthStore } from '@/stores/auth'
 import type { Piece, PieceCategory, PieceSource, PieceState } from '@/types'
 import { sanitize } from '@/utils/security'
 
@@ -15,11 +17,12 @@ const emit = defineEmits<{ close: []; saved: [] }>()
 
 const stock = useStockStore()
 const cats = useCategoriesStore()
+const auth = useAuthStore()
 const { toast } = useToast()
 const saving = ref(false)
 
 const form = ref({
-  name: '', cat: '' as PieceCategory, vehicle: '', oem: '', supplier: '', donor: '', source: 'autre' as PieceSource,
+  name: '', cat: '' as PieceCategory, subcat: '', vehicle: '', oem: '', supplier: '', donor: '', source: 'autre' as PieceSource,
   qty: 0, threshold: 0, price: 0, zone: '', etat: 'Bon état' as PieceState, compat: '', photo: '', notes: '', publishable: false,
 })
 
@@ -27,7 +30,7 @@ watch(() => [props.open, props.piece?._id], () => {
   const p = props.piece
   if (!props.open || !p) return
   form.value = {
-    name: p.name, cat: p.cat, vehicle: p.vehicle, oem: p.oem, supplier: p.supplier, donor: p.donor, source: p.source || 'autre',
+    name: p.name, cat: p.cat, subcat: p.subcat || '', vehicle: p.vehicle, oem: p.oem, supplier: p.supplier, donor: p.donor, source: p.source || 'autre',
     qty: p.qty, threshold: p.threshold || 0, price: p.price, zone: p.zone, etat: p.etat, compat: p.compat, photo: p.photo, notes: p.notes,
     publishable: !!p.publishable,
   }
@@ -41,6 +44,7 @@ async function save() {
     await stock.updatePiece(props.piece._id, {
       name: sanitize(form.value.name.trim()),
       cat: form.value.cat,
+      subcat: sanitize(form.value.subcat.trim()),
       vehicle: sanitize(form.value.vehicle.trim()),
       oem: sanitize(form.value.oem.trim()),
       supplier: sanitize(form.value.supplier.trim()),
@@ -72,17 +76,18 @@ async function save() {
     <div class="grid grid-cols-2 gap-3">
       <div class="flex flex-col gap-1 col-span-2"><label class="label">Désignation</label><input v-model="form.name" class="input"></div>
       <div class="flex flex-col gap-1"><label class="label">Catégorie</label><select v-model="form.cat" class="input"><option value="">—</option><option v-for="c in cats.categories.filter((c) => !c.archived || c.key === form.cat)" :key="c.key" :value="c.key">{{ c.label }}{{ c.archived ? ' (archivée)' : '' }}</option></select></div>
+      <div v-if="form.cat" class="flex flex-col gap-1 col-span-2"><label class="label">Sous-catégorie</label><SubcategoryPicker v-model="form.subcat" :cat="form.cat" :can-add="auth.hasPerm('magasinier')" /></div>
       <div class="flex flex-col gap-1"><label class="label">État</label><select v-model="form.etat" class="input"><option>Très bon état</option><option>Bon état</option><option>État moyen</option><option>Pour pièces</option></select></div>
-      <div class="flex flex-col gap-1"><label class="label">Véhicule</label><input v-model="form.vehicle" class="input"></div>
+      <div class="flex flex-col gap-1"><label class="label">Véhicule(s) compatible(s)</label><input v-model="form.vehicle" class="input"></div>
       <div class="flex flex-col gap-1"><label class="label">N° OEM</label><input v-model="form.oem" class="input font-mono"></div>
       <div class="flex flex-col gap-1"><label class="label">Quantité</label><input v-model.number="form.qty" type="number" min="0" class="input"></div>
       <div class="flex flex-col gap-1"><label class="label">Seuil d'alerte</label><input v-model.number="form.threshold" type="number" min="0" class="input"></div>
       <div class="flex flex-col gap-1"><label class="label">Prix de vente (€)</label><input v-model.number="form.price" type="number" step="0.01" min="0" class="input"></div>
       <div class="flex flex-col gap-1"><label class="label">Zone</label><input v-model="form.zone" class="input"></div>
-      <div class="flex flex-col gap-1"><label class="label">Fournisseur</label><input v-model="form.supplier" class="input"></div>
-      <div class="flex flex-col gap-1"><label class="label">Véhicule donneur</label><input v-model="form.donor" class="input"></div>
       <div class="flex flex-col gap-1 col-span-2"><label class="label">Provenance</label><select v-model="form.source" class="input"><option value="demontage">Démontage</option><option value="don">Don</option><option value="lot-occasion">Lot d'occasion</option><option value="grossiste-neuf">Grossiste neuf</option><option value="web">Web</option><option value="autre">Autre</option></select></div>
-      <div class="col-span-2 flex flex-col gap-1"><label class="label">Compatibilités</label><input v-model="form.compat" class="input"></div>
+      <div v-if="form.source === 'demontage'" class="col-span-2 flex flex-col gap-1"><label class="label">Véhicule donneur</label><input v-model="form.donor" class="input" placeholder="Immatriculation ou VIN"></div>
+      <div v-else-if="form.source === 'grossiste-neuf' || form.source === 'lot-occasion' || form.source === 'web'" class="col-span-2 flex flex-col gap-1"><label class="label">Fournisseur</label><input v-model="form.supplier" class="input"></div>
+      <div v-if="form.compat" class="col-span-2 flex flex-col gap-1"><label class="label">Compatibilités (ancien champ)</label><input v-model="form.compat" class="input"></div>
       <div class="col-span-2 flex flex-col gap-1"><label class="label">Notes</label><textarea v-model="form.notes" rows="2" class="input"></textarea></div>
       <div class="col-span-2"><PhotoUploadField v-model="form.photo" /></div>
       <label class="col-span-2 flex items-center gap-3 cursor-pointer select-none">

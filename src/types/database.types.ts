@@ -201,6 +201,36 @@ export type Database = {
         }
         Relationships: []
       }
+      subcategories: {
+        Row: {
+          archived: boolean
+          cat: string
+          created_at: string
+          id: string
+          label: string
+          org_id: string
+          sort: number
+        }
+        Insert: {
+          archived?: boolean
+          cat: string
+          created_at?: string
+          id?: string
+          label: string
+          org_id?: string
+          sort?: number
+        }
+        Update: {
+          archived?: boolean
+          cat?: string
+          created_at?: string
+          id?: string
+          label?: string
+          org_id?: string
+          sort?: number
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           archived: boolean
@@ -258,6 +288,7 @@ export type Database = {
           qty: number
           ref: string
           source: string
+          subcat: string
           supplier: string | null
           threshold: number | null
           updated_at: string
@@ -284,6 +315,7 @@ export type Database = {
           qty?: number
           ref: string
           source?: string
+          subcat?: string
           supplier?: string | null
           threshold?: number | null
           updated_at?: string
@@ -310,6 +342,7 @@ export type Database = {
           qty?: number
           ref?: string
           source?: string
+          subcat?: string
           supplier?: string | null
           threshold?: number | null
           updated_at?: string

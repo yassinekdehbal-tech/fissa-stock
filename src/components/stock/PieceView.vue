@@ -92,6 +92,7 @@ function etatClass(etat: string) {
         <h2 class="text-lg font-bold text-gray-900 leading-snug">{{ piece.name }}</h2>
         <div class="flex flex-wrap items-center gap-2 mt-2">
           <span v-if="piece.cat" class="badge" :class="[cats.info(piece.cat).bgClass, cats.info(piece.cat).textClass]"><AppIcon name="zap" class="w-3 h-3" /> {{ cats.info(piece.cat).label }}</span>
+          <span v-if="piece.subcat" class="badge badge-gray">{{ piece.subcat }}</span>
           <span class="badge" :class="piece.qty === 0 ? 'badge-red' : piece.qty <= (piece.threshold ?? 0) ? 'badge-orange' : 'badge-green'">{{ piece.qty === 0 ? 'Rupture' : `En stock : ${piece.qty}` }}</span>
           <span v-if="piece.archived" class="badge badge-gray">Archivée</span>
           <span v-if="piece.publishable" class="badge badge-blue">Boutique</span>
@@ -102,13 +103,13 @@ function etatClass(etat: string) {
           <dt class="text-gray-500">Référence</dt><dd class="font-mono text-gray-900">{{ piece.ref }}</dd>
           <dt class="text-gray-500">N° OEM</dt><dd class="font-mono text-gray-900">{{ piece.oem || '—' }}</dd>
           <dt class="text-gray-500">Véhicule</dt><dd class="text-gray-900">{{ piece.vehicle || '—' }}</dd>
-          <dt class="text-gray-500">Compatibilités</dt><dd class="text-gray-900">{{ piece.compat || '—' }}</dd>
-          <dt class="text-gray-500">Fournisseur</dt><dd class="text-gray-900">{{ piece.supplier || '—' }}</dd>
+          <template v-if="piece.compat"><dt class="text-gray-500">Compatibilités</dt><dd class="text-gray-900">{{ piece.compat }}</dd></template>
+          <template v-if="piece.supplier"><dt class="text-gray-500">Fournisseur</dt><dd class="text-gray-900">{{ piece.supplier }}</dd></template>
           <dt class="text-gray-500">Zone</dt><dd class="text-gray-900"><span v-if="piece.zone" class="badge-zone"><AppIcon name="map-pin" class="w-3 h-3" /> {{ piece.zone }}</span><span v-else>—</span></dd>
           <dt class="text-gray-500">État</dt><dd><span class="badge" :class="etatClass(piece.etat)">{{ piece.etat || '—' }}</span></dd>
           <dt class="text-gray-500">Provenance</dt><dd class="text-gray-900">{{ SOURCES[piece.source] || piece.source || '—' }}</dd>
-          <dt class="text-gray-500">Donneur</dt><dd class="text-gray-900">{{ piece.donor || '—' }}</dd>
-          <dt class="text-gray-500">Seuil d'alerte</dt><dd class="text-gray-900">{{ piece.threshold ?? 0 }}</dd>
+          <template v-if="piece.donor"><dt class="text-gray-500">Donneur</dt><dd class="text-gray-900">{{ piece.donor }}</dd></template>
+          <template v-if="piece.threshold"><dt class="text-gray-500">Seuil d'alerte</dt><dd class="text-gray-900">{{ piece.threshold }}</dd></template>
           <dt class="text-gray-500">Ajoutée le</dt><dd class="text-gray-900">{{ piece.added ? new Date(piece.added).toLocaleDateString('fr-FR') : '—' }}</dd>
         </dl>
         <div v-if="piece.notes" class="mt-3 text-[13px] text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">{{ piece.notes }}</div>
