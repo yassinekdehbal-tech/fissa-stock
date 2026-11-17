@@ -49,19 +49,40 @@ export const useUsersStore = defineStore('users', () => {
   }
 
   /**
-   * Crée un compte employé. `id` doit être un **email** (identifiant de connexion).
-   * Passe par la fonction Edge sécurisée (service_role). Retourne false en cas d'échec.
+   * Appelle la fonction Edge `admin-users` et renvoie le message d'erreur
+   * (français, produit par la fonction) ou `null` en cas de succès.
    */
-  async function createUser(id: string, name: string, pwd: string, perms: UserPermissions): Promise<boolean> {
-    const { data, error } = await supabase.functions.invoke('admin-users', {
-      body: { action: 'create', email: id.trim(), password: pwd, name, perms, role: 'user' },
-    })
-    if (error || (data as { error?: string })?.error) return false
-    await fetchAll()
-    return true
+  async function callAdmin(body: Record<string, unknown>): Promise<string | null> {
+    const { data, error } = await supabase.functions.invoke('admin-users', { body })
+    if (error) {
+      // Réponse non-2xx : le corps JSON de la fonction contient `error`.
+      const ctx = (error as { context?: Response }).context
+      if (ctx && typeof ctx.json === 'function') {
+        try {
+          const payload = (await ctx.clone().json()) as { error?: string }
+          if (payload?.error) return payload.error
+        } catch {
+          /* corps non JSON */
+        }
+      }
+      return error.message || 'Erreur de communication avec le serveur'
+    }
+    const payload = data as { error?: string } | null
+    return payload?.error ?? null
   }
 
-  async function updateUser(fbId: string, perms: UserPermissions, newPwd?: string) {
+  /**
+   * Crée un compte employé. `login` est un identifiant court (ex. `jean.dupont`)
+   * ou une adresse e-mail. Renvoie `null` si le compte est créé, sinon le message d'erreur.
+   */
+  async function createUser(login: string, name: string, pwd: string, perms: UserPermissions): Promise<string | null> {
+    const err = await callAdmin({ action: 'create', login: login.trim(), password: pwd, name, perms, role: 'user' })
+    if (err) return err
+    await fetchAll()
+    return null
+  }
+
+  async function updateUser(fbId: string, perms: UserPermissions, newPwd?: string): Promise<string | null> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await supabase
       .from('profiles')
@@ -71,17 +92,16 @@ export const useUsersStore = defineStore('users', () => {
         perm_historique: !!perms.historique,
       } as any)
       .eq('id', fbId)
-    if (newPwd) {
-      await supabase.functions.invoke('admin-users', {
-        body: { action: 'set_password', id: fbId, password: newPwd },
-      })
-    }
+    let err: string | null = null
+    if (newPwd) err = await callAdmin({ action: 'set_password', id: fbId, password: newPwd })
     await fetchAll()
+    return err
   }
 
-  async function deleteUser(fbId: string) {
-    await supabase.functions.invoke('admin-users', { body: { action: 'delete', id: fbId } })
+  async function deleteUser(fbId: string): Promise<string | null> {
+    const err = await callAdmin({ action: 'delete', id: fbId })
     await fetchAll()
+    return err
   }
 
   function dispose() {

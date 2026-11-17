@@ -74,10 +74,36 @@ export const useAuthStore = defineStore('auth', () => {
     return initPromise
   }
 
+  /**
+   * Identifiant saisi → e-mail de connexion. Un identifiant court (sans `@`) est
+   * résolu par la RPC `login_email_for_username` ; une adresse est renvoyée telle quelle.
+   */
+  async function resolveLogin(login: string): Promise<string | null> {
+    const value = login.trim()
+    if (!value) return null
+    if (value.includes('@')) return value
+    const { data, error: e } = await supabase.rpc('login_email_for_username', { p_username: value })
+    if (e) throw new Error(traduire(e.message))
+    return (data as string | null) ?? null
+  }
+
   async function login(mail: string, password: string): Promise<boolean> {
     error.value = ''
     loading.value = true
-    const { data, error: e } = await supabase.auth.signInWithPassword({ email: mail.trim(), password })
+    let resolved: string | null
+    try {
+      resolved = await resolveLogin(mail)
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : String(err)
+      loading.value = false
+      return false
+    }
+    if (!resolved) {
+      error.value = 'Identifiant inconnu'
+      loading.value = false
+      return false
+    }
+    const { data, error: e } = await supabase.auth.signInWithPassword({ email: resolved, password })
     if (e) {
       error.value = traduire(e.message)
       loading.value = false
@@ -145,7 +171,7 @@ export const useAuthStore = defineStore('auth', () => {
   const passwordRecovery = ref(false)
 
   function traduire(msg: string): string {
-    if (/Invalid login credentials/i.test(msg)) return 'Email ou mot de passe incorrect'
+    if (/Invalid login credentials/i.test(msg)) return 'Identifiant ou mot de passe incorrect'
     if (/Email not confirmed/i.test(msg)) return 'Email non confirmé — vérifiez votre boîte mail'
     if (/User already registered/i.test(msg)) return 'Un compte existe déjà avec cet email'
     if (/Password should be at least/i.test(msg)) return 'Mot de passe trop court (6 caractères minimum)'

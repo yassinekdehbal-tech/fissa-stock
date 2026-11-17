@@ -562,6 +562,7 @@ export type Database = {
       }
       current_org_id: { Args: Record<never, never>; Returns: string }
       peek_piece_ref: { Args: { p_cat: string }; Returns: string | null }
+      login_email_for_username: { Args: { p_username: string }; Returns: string | null }
       has_perm: { Args: { p: string }; Returns: boolean }
       is_admin: { Args: Record<never, never>; Returns: boolean }
       mark_piece_sold: {

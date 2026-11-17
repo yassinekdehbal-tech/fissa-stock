@@ -40,6 +40,7 @@ async function handleSubmit() {
 async function forgotPassword() {
   auth.error = ''
   if (!email.value.trim()) { auth.error = 'Saisissez votre e-mail pour recevoir le lien de réinitialisation'; return }
+  if (!email.value.includes('@')) { auth.error = "Compte sans adresse e-mail : demandez à l'administrateur de changer votre mot de passe"; return }
   sendingReset.value = true
   try {
     await auth.resetPassword(email.value)
@@ -98,8 +99,9 @@ function toggleMode() {
             <input v-model="name" type="text" placeholder="Votre nom" autocomplete="name" class="input">
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="label">Email</label>
-            <input v-model="email" type="email" placeholder="vous@exemple.fr" autocomplete="email" inputmode="email" class="input">
+            <label class="label">{{ mode === 'login' ? 'Identifiant ou e-mail' : 'Email' }}</label>
+            <input v-if="mode === 'login'" v-model="email" type="text" placeholder="jean.dupont ou vous@exemple.fr" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" class="input">
+            <input v-else v-model="email" type="email" placeholder="vous@exemple.fr" autocomplete="email" inputmode="email" class="input">
           </div>
           <div class="flex flex-col gap-1.5">
             <label class="label">Mot de passe</label>

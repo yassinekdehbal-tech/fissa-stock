@@ -17,8 +17,8 @@ async function handleCreate() {
   if (!id || !name || !pwd) { toast('Remplissez tous les champs', true); return }
   if (pwd.length < 6) { toast('Mot de passe trop court (6 min.)', true); return }
   const perms: UserPermissions = { magasinier, vendeur, historique }
-  const ok = await users.createUser(id, name, pwd, perms)
-  if (!ok) { toast('Identifiant déjà utilisé', true); return }
+  const err = await users.createUser(id, name, pwd, perms)
+  if (err) { toast(err, true); return }
   createOpen.value = false
   newUser.value = { id: '', name: '', pwd: '', magasinier: false, vendeur: false, historique: false }
   toast('✓ Compte créé pour ' + name)
@@ -41,14 +41,16 @@ function openEdit(u: any) {
 
 async function handleSaveEdit() {
   if (editPwd.value && editPwd.value.length < 6) { toast('Mot de passe trop court', true); return }
-  await users.updateUser(editId.value, editPerms.value, editPwd.value || undefined)
+  const err = await users.updateUser(editId.value, editPerms.value, editPwd.value || undefined)
+  if (err) { toast(err, true); return }
   editOpen.value = false
   toast('Compte mis à jour')
 }
 
 async function handleDelete(u: any) {
   if (!confirm('Supprimer ' + u.name + ' ?')) return
-  await users.deleteUser(u._id)
+  const err = await users.deleteUser(u._id)
+  if (err) { toast(err, true); return }
   toast('Compte supprimé')
 }
 </script>
@@ -64,7 +66,7 @@ async function handleDelete(u: any) {
         </div>
         <div class="flex-1">
           <div class="text-sm font-semibold">{{ u.name }}</div>
-          <div class="text-[11px] text-gray-500">{{ u.role === 'admin' ? 'Administrateur' : 'Utilisateur' }}</div>
+          <div class="text-[11px] text-gray-500">{{ u.role === 'admin' ? 'Administrateur' : 'Utilisateur' }} · {{ u.id }}</div>
         </div>
         <div v-if="u.role !== 'admin'" class="flex gap-1">
           <button @click="openEdit(u)" class="icon-btn icon-btn-brand">✏</button>
@@ -84,7 +86,11 @@ async function handleDelete(u: any) {
     <!-- Create modal -->
     <BaseModal title="Créer un compte" :open="createOpen" @close="createOpen = false">
       <div class="flex flex-col gap-3">
-        <div class="flex flex-col gap-1"><label class="label">Identifiant</label><input v-model="newUser.id" placeholder="jean.dupont" class="input"></div>
+        <div class="flex flex-col gap-1">
+          <label class="label">Identifiant</label>
+          <input v-model="newUser.id" placeholder="jean.dupont ou jean@exemple.fr" autocapitalize="none" autocorrect="off" spellcheck="false" class="input">
+          <div class="text-[11px] text-gray-500">Nom court (lettres, chiffres, point, tiret) ou adresse e-mail. C'est ce que la personne saisira pour se connecter.</div>
+        </div>
         <div class="flex flex-col gap-1"><label class="label">Prénom / Nom</label><input v-model="newUser.name" placeholder="Jean Dupont" class="input"></div>
         <div class="flex flex-col gap-1"><label class="label">Mot de passe</label><input v-model="newUser.pwd" type="password" placeholder="6 caractères min." class="input"></div>
         <div class="text-[12px] font-semibold text-gray-700 mt-2">Permissions</div>

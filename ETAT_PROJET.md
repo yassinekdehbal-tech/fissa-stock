@@ -4,8 +4,8 @@
 >
 > **À tenir à jour** : à chaque évolution significative, ajouter une entrée dans le §11 Journal des mises à jour et actualiser les sections concernées.
 
-- **Dernière mise à jour** : 19/08/2026
-- **Version du document** : 3.1
+- **Dernière mise à jour** : 17/11/2026
+- **Version du document** : 3.9
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock` (branche `main`)
 - **Documents compagnons** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données) · `MIGRATION_SUPABASE.md` (état du branchement app ↔ Supabase et reste à câbler)
 
@@ -156,7 +156,7 @@ Projet Supabase dédié créé dans l'organisation **FISSA LIV**. Le client `@su
 
 ### 4.3 Module Comptes (fondamental 5)
 
-- **Comptes utilisateurs** : rôles `admin` / `user`, permissions granulaires (`magasinier`, `vendeur`, `historique`).
+- **Comptes utilisateurs** : rôles `admin` / `user`, permissions granulaires (`magasinier`, `vendeur`, `historique`). Créés par l’admin (Utilisateurs → Créer un compte) avec un identifiant court ou un e-mail ; connexion par cet identifiant.
 - **Caisse journalière** : total du jour, répartition par mode de paiement, récapitulatif imprimable.
 - **Reporting** : CA mensuel/tendance, top pièces, délai entrée→vente.
 - **À construire** : facturation conforme **TVA normale** (mentions légales, TVA, numérotation séquentielle — table `invoices` avec numérotation auto déjà prête), export comptable (FEC/Pennylane), suivi financier consolidé pièces + chantiers.
@@ -351,6 +351,7 @@ C'était un problème **de compte Apple, pas de code** : rôle de la clé API, A
 | 19/10/2026 | 3.6 | Session Claude Code | **Défilement dans l'app native** : l'en-tête et la barre d'onglets bougeaient avec le contenu sur iOS. Cause : la coque défilait avec la page (`fixed`/`sticky`) **et** la WebView gardait une marge native (`contentInset: automatic`) déplaçant tout l'écran. Correctif : coque à hauteur d'écran où seule la zone `#app-scroll` défile (PR #15), `contentInset: never` + verrouillage `html/body` quand l'app interne est affichée. Builds iOS 15 (visuel) et 16 (coque) sur TestFlight ; build 17 = correctif complet. |
 | 20/10/2026 | 3.7 | Session Claude Code | **Deux marquages de pièce** à l'étape 3 de l'ajout : étiquette code-barres à imprimer **ou** référence écrite à la main (écran dédié : référence en grand + conseils d'écriture ; choix mémorisé sur l'appareil ; les deux options aussi sur la fiche produit). **Scanner** : nouvel onglet « Réf. écrite » (photo de l'inscription, lecture OCR Tesseract.js chargée à la demande, texte corrigeable), correspondance exacte tolérante aux séparateurs et au n° OEM, et **pièces proches proposées** pour sélection manuelle quand la lecture est incertaine (distance d'édition pondérée par les confusions O/0, I/1, S/5, B/8…), y compris en saisie manuelle et pour un code-barres inconnu. Lecture OCR à valider sur appareil (téléchargement du moteur ≈ 10 Mo à la première utilisation, puis cache). |
 | 20/10/2026 | 3.8 | Session Claude Code | **Catégories paramétrables par l'administrateur** (Paramètres → Catégories, aussi dans la barre latérale) : libellé, **code à 2 lettres sûres** (sans I, O, Q ; B/S/Z/G déconseillées avec avertissement), couleur, ordre, archivage ; suppression refusée si des pièces l'utilisent. Migration appliquée sur Supabase (`categories`, `pieces.cat` enum → texte + clé étrangère, `ref_counters`, fonctions `format_piece_ref` / `next_piece_ref_for` / `peek_piece_ref`, trigger `pieces_assign_ref`, catégories par défaut MT · CA · TA · TR · EL · AU, seed automatique pour toute nouvelle organisation). **Référence générée** à l'ajout : code + numéro sur 4 positions (`MT0142`, affichée « MT 0142 »), 6 caractères jusqu'à 32 999 pièces par catégorie (lettre sûre en tête du numéro au-delà de 9 999), jamais recyclée, saisie manuelle toujours possible (choix mémorisé). Testé en base : MT0001, MT0002, saisie manuelle `mt0003` → MT0003, puis MT0004. NB : `drop type piece_category` bloque sur l'instance hébergée, type orphelin laissé en place. |
+| 17/11/2026 | 3.9 | Session Claude Code | **Comptes employés sans e-mail.** Le champ « Identifiant » de l’écran Utilisateurs était envoyé tel quel à Supabase Auth, qui refusait tout ce qui n’est pas une adresse e-mail, et l’écran affichait « Identifiant déjà utilisé » pour n’importe quel échec. Désormais : identifiant court (`jean.dupont`) **ou** e-mail ; pour un identifiant court, l’edge `admin-users` crée le compte Auth avec une adresse technique dérivée de celle de l’admin (`admin+jean.dupont@domaine`, aucun mail envoyé) et stocke l’identifiant dans `profiles.username` ; connexion par identifiant via la RPC `login_email_for_username` (migration `20261117600001_username_login.sql`, index unique `(org_id, lower(username))`) ; les vrais messages d’erreur de la fonction sont affichés. « Mot de passe oublié » reste réservé aux comptes avec e-mail (l’admin change le mot de passe depuis Utilisateurs). |
 
 ---
 
