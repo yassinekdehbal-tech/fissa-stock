@@ -6,7 +6,7 @@
 //   - eBay (API) : connecteur réel `_shared/ebay.ts` (inventaire → offre → publication,
 //     retrait = withdraw). Sans secrets eBay → statut 'error' « non configuré ».
 //   - OVOKO / Allegro / Rakuten / Cdiscount (API) : pas encore de connecteur → 'error'
-//     explicite. OVOKO peut en attendant importer notre flux produit (`product-feed`).
+//     explicite. OVOKO : API fournie après onboarding vendeur (pas de doc publique).
 //   - LeBonCoin (connecteur), Facebook, La Centrale, ParuVendu (manuel) : dépôt fait à la
 //     main sur la plateforme, l'app enregistre « déposé » avec l'URL / l'identifiant de
 //     l'annonce (body.url / body.externalId) pour le suivi et l'anti-survente.
@@ -32,7 +32,7 @@ interface PublishResult {
 }
 
 const API_PENDING: Record<string, string> = {
-  ovoko: 'Connecteur OVOKO à venir : en attendant, importez le flux produit FISSA (product-feed) dans OVOKO',
+  ovoko: "Connecteur OVOKO à venir : OVOKO n'a pas d'API vendeur publique, demandez l'accès API à votre contact OVOKO (voir MULTIDIFFUSION.md)",
   allegro: 'Connecteur Allegro non disponible (OVOKO rediffuse vers Allegro)',
   rakuten: 'Connecteur Rakuten non disponible',
   cdiscount: 'Connecteur Cdiscount non disponible',
