@@ -10,6 +10,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import PieceEditModal from '@/components/stock/PieceEditModal.vue'
+import PiecePublishPanel from '@/components/multidiffusion/PiecePublishPanel.vue'
 import { useCategoriesStore } from '@/stores/categories'
 import { formatPrice } from '@/utils/format'
 
@@ -25,6 +26,7 @@ const { toast } = useToast()
 const piece = computed(() => stock.pieces.find(p => p._id === route.params.id))
 const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
 const canSell = computed(() => auth.hasPerm('vendeur'))
+const canPublish = computed(() => auth.isAdmin || auth.hasPerm('vendeur'))
 
 const SOURCES: Record<string, string> = { demontage: 'Démontage', don: 'Don', 'lot-occasion': "Lot d'occasion", 'grossiste-neuf': 'Grossiste neuf', web: 'Web', autre: 'Autre' }
 
@@ -113,6 +115,15 @@ function etatClass(etat: string) {
           <dt class="text-gray-500">Ajoutée le</dt><dd class="text-gray-900">{{ piece.added ? new Date(piece.added).toLocaleDateString('fr-FR') : '—' }}</dd>
         </dl>
         <div v-if="piece.notes" class="mt-3 text-[13px] text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">{{ piece.notes }}</div>
+      </div>
+
+      <!-- Mise en ligne (marketplaces + boutique) -->
+      <div v-if="canPublish" class="card p-4">
+        <div class="card-title justify-between">
+          <span class="inline-flex items-center gap-2"><AppIcon name="broadcast" class="w-4 h-4 text-gray-400" /> Mise en ligne</span>
+          <router-link to="/multidiffusion" class="text-[12px] font-medium text-blue-600 hover:underline">Multidiffusion</router-link>
+        </div>
+        <PiecePublishPanel :piece="piece" />
       </div>
 
       <!-- Actions -->

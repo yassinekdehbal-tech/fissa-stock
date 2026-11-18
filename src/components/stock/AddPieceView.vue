@@ -14,6 +14,9 @@ import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import BarcodeScanModal from '@/components/ui/BarcodeScanModal.vue'
 import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
 import SubcategoryPicker from '@/components/stock/SubcategoryPicker.vue'
+import PiecePublishPanel from '@/components/multidiffusion/PiecePublishPanel.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import { usePublicationsStore } from '@/stores/publications'
 import AppIcon from '@/components/ui/AppIcon.vue'
 
 const router = useRouter()
@@ -21,6 +24,7 @@ const stock = useStockStore()
 const history = useHistoryStore()
 const auth = useAuthStore()
 const cats = useCategoriesStore()
+const pub = usePublicationsStore()
 const { toast } = useToast()
 
 const STEPS = [
@@ -172,12 +176,30 @@ async function submit() {
 const labelPiece = ref<Piece | null>(null)
 const showLabel = ref(false)
 const showHandwritten = ref(false)
+const showPublish = ref(false)
+/** Pièce enregistrée relue depuis le stock (statuts de publication à jour). */
+const publishPiece = computed(() => stock.pieces.find(p => p._id === labelPiece.value?._id) || labelPiece.value)
+const canPublish = computed(() => auth.isAdmin || auth.hasPerm('vendeur'))
+
+/**
+ * Dernière étape : mise en ligne. Après le marquage, si des canaux de vente
+ * sont actifs, on propose de publier tout de suite ; sinon (ou avec « Plus
+ * tard »), la publication reste possible depuis la fiche pièce.
+ */
+function afterMarking() {
+  if (canPublish.value && pub.activeChannels.length && (labelPiece.value?.qty ?? 0) > 0) showPublish.value = true
+  else void router.push('/stock')
+}
 function closeLabel() {
   showLabel.value = false
-  void router.push('/stock')
+  afterMarking()
 }
 function closeHandwritten() {
   showHandwritten.value = false
+  afterMarking()
+}
+function finishPublish() {
+  showPublish.value = false
   void router.push('/stock')
 }
 function printFromHandwritten() {
@@ -348,6 +370,9 @@ function printFromHandwritten() {
           <button type="button" class="toggle" :data-on="form.publishable" @click="form.publishable = !form.publishable" aria-label="Visible sur la boutique en ligne"><span></span></button>
           <span class="text-[13px] text-gray-700 leading-snug">Visible sur la boutique en ligne <span class="text-gray-400">(diffusable sur les canaux de vente)</span></span>
         </label>
+        <p v-if="canPublish && pub.activeChannels.length" class="text-[11px] text-gray-500 leading-snug -mt-1">
+          Après l'enregistrement et le marquage, vous pourrez publier l'annonce sur : {{ pub.activeChannels.map(c => c.label).join(', ') }}.
+        </p>
         <div class="flex flex-col gap-1">
           <label class="label">Notes</label>
           <textarea v-model="form.notes" rows="2" placeholder="Remarques…" class="input"></textarea>
@@ -378,5 +403,21 @@ function printFromHandwritten() {
     <BarcodeScanModal :open="scanOpen" title="Scanner la référence" @close="scanOpen = false" @scanned="(c) => { form.ref = c }" />
     <BarcodeLabelModal :piece="labelPiece" :open="showLabel" @close="closeLabel" />
     <HandwrittenRefModal :piece="labelPiece" :open="showHandwritten" @close="closeHandwritten" @print="printFromHandwritten" />
+
+    <!-- Étape finale : mise en ligne de la pièce qui vient d'être référencée -->
+    <BaseModal :title="publishPiece ? 'Mettre en ligne ' + formatRef(publishPiece.ref) : 'Mettre en ligne'" :open="showPublish" @close="finishPublish" max-width="520px">
+      <template v-if="publishPiece">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="w-12 h-12 thumb"><img v-if="publishPiece.photo" :src="publishPiece.photo" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-4 h-4" /></span>
+          <div class="min-w-0"><div class="text-[13px] font-semibold text-gray-900 truncate">{{ publishPiece.name }}</div><div class="text-[12px] text-gray-500">{{ (publishPiece.price || 0).toFixed(2) }} € · {{ publishPiece.qty }} en stock</div></div>
+        </div>
+        <PiecePublishPanel :piece="publishPiece" />
+        <p class="text-[11px] text-gray-500 mt-3 leading-snug">Vous pourrez aussi publier plus tard depuis la fiche de la pièce (bloc « Mise en ligne »).</p>
+        <div class="flex gap-2 mt-4 justify-end">
+          <button class="btn btn-secondary" @click="finishPublish">Plus tard</button>
+          <button class="btn btn-primary" @click="finishPublish"><AppIcon name="check" class="w-4 h-4" /> Terminer</button>
+        </div>
+      </template>
+    </BaseModal>
   </div>
 </template>

@@ -1,9 +1,19 @@
-// Fonction Edge `publish-listing` — publie / retire une pièce sur un canal marketplace.
-// Appelée par l'app (admin/vendeur authentifié). Écrit le statut dans `publications`.
-// Les connecteurs eBay / OVOKO lisent leurs secrets dans l'environnement de la fonction
-// (Dashboard Supabase → Edge Functions → Secrets). Sans secret : statut 'error'
-// (« canal non configuré »), à activer quand les accès API seront fournis.
+// Fonction Edge `publish-listing` — publie / retire une pièce sur un canal de vente.
+// Appelée par l'app (utilisateur authentifié, admin ou vendeur). Écrit le statut
+// dans `publications` (source affichée dans l'app, fiche pièce et écran Multidiffusion).
+//
+// Canaux :
+//   - eBay (API) : connecteur réel `_shared/ebay.ts` (inventaire → offre → publication,
+//     retrait = withdraw). Sans secrets eBay → statut 'error' « non configuré ».
+//   - OVOKO / Allegro / Rakuten / Cdiscount (API) : pas encore de connecteur → 'error'
+//     explicite. OVOKO peut en attendant importer notre flux produit (`product-feed`).
+//   - LeBonCoin (connecteur), Facebook, La Centrale, ParuVendu (manuel) : dépôt fait à la
+//     main sur la plateforme, l'app enregistre « déposé » avec l'URL / l'identifiant de
+//     l'annonce (body.url / body.externalId) pour le suivi et l'anti-survente.
+//
+// Corps : { action: 'publish' | 'delist', pieceId, channelId, url?, externalId? }
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { publishPiece, withdrawPiece } from '../_shared/ebay.ts'
 
 const cors: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -21,19 +31,26 @@ interface PublishResult {
   message?: string
 }
 
-// --- Connecteurs marketplace (à finaliser avec les accès API) -------------
-async function publishEbay(_piece: Record<string, unknown>): Promise<PublishResult> {
-  const token = Deno.env.get('EBAY_OAUTH_TOKEN')
-  if (!token) return { configured: false, message: 'eBay non configuré (secret EBAY_OAUTH_TOKEN manquant)' }
-  // TODO : eBay Sell API — createOrReplaceInventoryItem → createOffer → publishOffer.
-  // Retourner { configured: true, externalId, url } une fois l'annonce publiée.
-  return { configured: false, message: 'Connecteur eBay à finaliser (createOffer / publishOffer)' }
+const API_PENDING: Record<string, string> = {
+  ovoko: 'Connecteur OVOKO à venir : en attendant, importez le flux produit FISSA (product-feed) dans OVOKO',
+  allegro: 'Connecteur Allegro non disponible (OVOKO rediffuse vers Allegro)',
+  rakuten: 'Connecteur Rakuten non disponible',
+  cdiscount: 'Connecteur Cdiscount non disponible',
 }
-async function publishOvoko(_piece: Record<string, unknown>): Promise<PublishResult> {
-  const key = Deno.env.get('OVOKO_API_KEY')
-  if (!key) return { configured: false, message: 'OVOKO non configuré (secret OVOKO_API_KEY manquant)' }
-  // TODO : OVOKO supplier API — upload de la pièce (réf, désignation, prix, photos, véhicule).
-  return { configured: false, message: 'Connecteur OVOKO à finaliser (upload stock)' }
+
+async function publishOn(channel: Record<string, unknown>, piece: Record<string, unknown>, body: Record<string, unknown>): Promise<PublishResult> {
+  const key = String(channel.key)
+  if (key === 'ebay') {
+    const r = await publishPiece(piece, channel.config)
+    return { configured: true, externalId: r.listingId, url: r.url }
+  }
+  if (channel.integration === 'api') {
+    return { configured: false, message: API_PENDING[key] ?? `Connecteur ${channel.label} non disponible` }
+  }
+  // Dépôt manuel / connecteur tiers : on trace ce que l'utilisateur a déposé.
+  const url = typeof body.url === 'string' ? body.url.trim() : ''
+  const externalId = typeof body.externalId === 'string' ? body.externalId.trim() : ''
+  return { configured: true, url: url || undefined, externalId: externalId || undefined }
 }
 
 Deno.serve(async (req: Request) => {
@@ -49,6 +66,10 @@ Deno.serve(async (req: Request) => {
   if (!userData?.user) return json({ error: 'non authentifié' }, 401)
 
   const admin = createClient(url, service)
+  const { data: profile } = await admin.from('profiles').select('org_id, role, perm_vendeur').eq('id', userData.user.id).single()
+  if (!profile) return json({ error: 'profil introuvable' }, 403)
+  if (profile.role !== 'admin' && !profile.perm_vendeur) return json({ error: 'droits insuffisants (vendeur requis)' }, 403)
+
   let body: Record<string, unknown>
   try {
     body = await req.json()
@@ -60,28 +81,36 @@ Deno.serve(async (req: Request) => {
   const channelId = body.channelId as string
   if (!pieceId || !channelId) return json({ error: 'pieceId et channelId requis' }, 400)
 
-  const { data: channel } = await admin.from('sales_channels').select('*').eq('id', channelId).single()
-  const { data: piece } = await admin.from('pieces').select('*').eq('id', pieceId).single()
+  const { data: channel } = await admin.from('sales_channels').select('*').eq('id', channelId).eq('org_id', profile.org_id).single()
+  const { data: piece } = await admin.from('pieces').select('*').eq('id', pieceId).eq('org_id', profile.org_id).single()
   if (!channel || !piece) return json({ error: 'canal ou pièce introuvable' }, 404)
 
   async function setStatus(status: string, extra: Record<string, unknown> = {}) {
     await admin
       .from('publications')
-      .upsert({ piece_id: pieceId, channel_id: channelId, status, ...extra }, { onConflict: 'piece_id,channel_id' })
+      .upsert(
+        { piece_id: pieceId, channel_id: channelId, org_id: profile!.org_id, status, updated_at: new Date().toISOString(), ...extra },
+        { onConflict: 'piece_id,channel_id' },
+      )
   }
 
   if (action === 'delist') {
-    // TODO : appel API de retrait selon channel.key (ended/delete offer, etc.)
-    await setStatus('delisted', { updated_at: new Date().toISOString() })
-    return json({ ok: true, status: 'delisted' })
+    try {
+      if (channel.key === 'ebay') await withdrawPiece(piece, channel.config)
+      await setStatus('delisted', { error_msg: null })
+      return json({ ok: true, status: 'delisted' })
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? String(e)
+      await setStatus('error', { error_msg: 'Retrait impossible : ' + msg })
+      return json({ ok: false, status: 'error', message: msg }, 200)
+    }
   }
 
-  try {
-    let result: PublishResult
-    if (channel.key === 'ebay') result = await publishEbay(piece)
-    else if (channel.key === 'ovoko') result = await publishOvoko(piece)
-    else result = { configured: false, message: 'Dépôt manuel / connecteur tiers requis (ex. LeBonCoin)' }
+  if (!channel.active) return json({ error: 'canal inactif' }, 400)
+  if (piece.archived || Number(piece.qty) <= 0) return json({ error: 'pièce archivée ou sans stock' }, 400)
 
+  try {
+    const result = await publishOn(channel, piece, body)
     if (!result.configured) {
       await setStatus('error', { error_msg: result.message ?? 'canal non configuré', date_published: null })
       return json({ ok: false, status: 'error', message: result.message }, 200)
@@ -92,7 +121,7 @@ Deno.serve(async (req: Request) => {
       error_msg: null,
       date_published: new Date().toISOString(),
     })
-    return json({ ok: true, status: 'published', externalId: result.externalId })
+    return json({ ok: true, status: 'published', externalId: result.externalId, url: result.url })
   } catch (e) {
     const msg = (e as { message?: string })?.message ?? String(e)
     await setStatus('error', { error_msg: msg })

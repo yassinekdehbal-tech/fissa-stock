@@ -9,6 +9,7 @@ import StatCard from '@/components/ui/StatCard.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
 import { useCategoriesStore } from '@/stores/categories'
+import { usePublicationsStore } from '@/stores/publications'
 
 const router = useRouter()
 const stock = useStockStore()
@@ -16,6 +17,7 @@ const cats = useCategoriesStore()
 const history = useHistoryStore()
 const auth = useAuthStore()
 const cart = useCartStore()
+const pub = usePublicationsStore()
 
 const firstName = computed(() => (auth.currentUser?.name || '').split(' ')[0] || '')
 const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -133,6 +135,16 @@ const canSell = computed(() => auth.isAdmin || auth.hasPerm('vendeur'))
         <span><span class="block text-[14px] font-bold text-gray-900 leading-snug">Panier de sortie</span><span class="block text-[11px] text-gray-500">Voir les pièces scannées</span></span>
       </router-link>
     </div>
+
+    <!-- Commandes en ligne à expédier -->
+    <router-link v-if="canSell && pub.ordersToShip.length" to="/commandes" class="card p-4 flex items-center gap-3 border-orange-200 bg-orange-50/60 hover:bg-orange-50">
+      <span class="w-10 h-10 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center"><AppIcon name="truck" class="w-5 h-5" /></span>
+      <span class="flex-1 min-w-0">
+        <span class="block text-[14px] font-bold text-gray-900">{{ pub.ordersToShip.length }} commande{{ pub.ordersToShip.length > 1 ? 's' : '' }} en ligne à expédier</span>
+        <span class="block text-[11px] text-gray-600 truncate">{{ pub.ordersToShip.slice(0, 3).map(o => o.ref + ' · ' + (pub.channelById(o.channelId)?.label || '')).join('  ·  ') }}</span>
+      </span>
+      <AppIcon name="chevron-right" class="w-4 h-4 text-gray-400" />
+    </router-link>
 
     <!-- Alertes stock -->
     <div class="card p-4">
