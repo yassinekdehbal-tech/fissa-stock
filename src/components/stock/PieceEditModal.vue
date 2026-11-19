@@ -34,6 +34,7 @@ const sourceOptions = computed(() => {
   return list.includes(form.value.source) ? list : [...list, form.value.source]
 })
 const photoSlots = computed(() => PHOTO_SLOTS[form.value.condition])
+const galleryRef = ref<InstanceType<typeof PhotoGalleryField> | null>(null)
 function setCondition(c: PieceCondition) {
   if (form.value.condition === c) return
   form.value.condition = c
@@ -59,8 +60,8 @@ async function save() {
   if (!form.value.name.trim()) { toast('La désignation est requise', true); return }
   if (form.value.condition === 'neuve' && !form.value.supplier.trim()) { toast('Indiquez le fournisseur de la pièce neuve', true); return }
   const photos = form.value.photos.map(u => u.trim()).filter(Boolean)
-  const required = photoSlots.value.filter(s => s.required).length
-  if (photos.length < required) { toast(`Pièce d'occasion : ${required} photos sous 3 angles différents sont requises (${photos.length}/${required})`, true); return }
+  const photoError = await galleryRef.value?.validate()
+  if (photoError) { toast((form.value.condition === 'occasion' ? "Pièce d'occasion : " : '') + photoError, true); return }
   saving.value = true
   try {
     await stock.updatePiece(props.piece._id, {
@@ -121,7 +122,7 @@ async function save() {
       <div v-else-if="form.source === 'lot-occasion'" class="col-span-2 flex flex-col gap-1"><label class="label">Vendeur du lot</label><input v-model="form.supplier" class="input"></div>
       <div v-if="form.compat" class="col-span-2 flex flex-col gap-1"><label class="label">Compatibilités (ancien champ)</label><input v-model="form.compat" class="input"></div>
       <div class="col-span-2 flex flex-col gap-1"><label class="label">Notes</label><textarea v-model="form.notes" rows="2" class="input"></textarea></div>
-      <div class="col-span-2"><PhotoGalleryField v-model="form.photos" :slots="photoSlots" /></div>
+      <div class="col-span-2"><PhotoGalleryField ref="galleryRef" v-model="form.photos" :slots="photoSlots" /></div>
       <label class="col-span-2 flex items-center gap-3 cursor-pointer select-none">
         <button type="button" class="toggle" :data-on="form.publishable" @click="form.publishable = !form.publishable" aria-label="Visible sur la boutique"><span></span></button>
         <span class="text-[13px] text-gray-700">Visible sur la boutique en ligne</span>

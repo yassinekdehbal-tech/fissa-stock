@@ -1,6 +1,6 @@
 {
   "name": "fissa-stock",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Gestion de stock pièces automobiles d'occasion — FISSA PIECE AUTO",
   "main": "sw.js",
   "scripts": {

@@ -82,6 +82,7 @@ const photoSlots = computed(() => PHOTO_SLOTS[form.value.condition])
 const requiredPhotos = computed(() => photoSlots.value.filter(s => s.required).length)
 const photoCount = computed(() => form.value.photos.filter(Boolean).length)
 const eanScanOpen = ref(false)
+const galleryRef = ref<InstanceType<typeof PhotoGalleryField> | null>(null)
 
 function clearForm() {
   form.value = blankForm(form.value.condition)
@@ -172,10 +173,9 @@ async function submit() {
   if (!form.value.cat) { step.value = 1; toast('Choisissez une catégorie', true); return }
   if (r && stock.pieces.find(p => p.ref === r)) { step.value = 1; toast('Référence déjà existante', true); return }
   if (form.value.condition === 'neuve' && !form.value.supplier.trim()) { step.value = 2; toast('Indiquez le fournisseur de la pièce neuve', true); return }
-  if (photoCount.value < requiredPhotos.value) {
-    toast(`Pièce d'occasion : ${requiredPhotos.value} photos sous 3 angles différents sont requises (${photoCount.value}/${requiredPhotos.value})`, true)
-    return
-  }
+  // Photos : nombre minimal (occasion) et angles différents (toutes les pièces)
+  const photoError = await galleryRef.value?.validate()
+  if (photoError) { toast((form.value.condition === 'occasion' ? "Pièce d'occasion : " : '') + photoError, true); return }
 
   const photos = form.value.photos.map(u => u.trim()).filter(Boolean)
   const piece = {
@@ -414,11 +414,12 @@ function printFromHandwritten() {
     <!-- Étape 3 : photo et validation -->
     <form v-else @submit.prevent="submit" class="space-y-4">
       <div class="card p-4 lg:p-5 space-y-3">
-        <PhotoGalleryField v-model="form.photos" :slots="photoSlots" />
+        <PhotoGalleryField ref="galleryRef" v-model="form.photos" :slots="photoSlots" />
         <p v-if="form.condition === 'occasion'" class="text-[11px] leading-snug -mt-1" :class="photoCount >= requiredPhotos ? 'text-green-600' : 'text-amber-700'">
           <template v-if="photoCount >= requiredPhotos">✓ Les 3 angles sont pris.</template>
-          <template v-else>Pièce d'occasion : 3 photos sous 3 angles différents sont obligatoires ({{ photoCount }}/{{ requiredPhotos }}). L'acheteur doit voir l'état réel.</template>
+          <template v-else>Pièce d'occasion : 3 photos (prises ou importées) sous 3 angles différents sont obligatoires ({{ photoCount }}/{{ requiredPhotos }}). L'acheteur doit voir l'état réel.</template>
         </p>
+        <p v-else class="text-[11px] text-gray-500 leading-snug -mt-1">Pièce neuve : photo facultative (emballage ou pièce), utile pour la boutique et les annonces.</p>
 
         <!-- Marquage : étiquette code-barres OU référence écrite à la main -->
         <div class="flex flex-col gap-1.5">
