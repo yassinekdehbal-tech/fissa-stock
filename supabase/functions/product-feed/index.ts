@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
 
   const { data, error } = await admin
     .from('pieces')
-    .select('id, ref, name, cat, vehicle, oem, supplier, price, photo, etat, compat, qty, publishable, archived')
+    .select('id, ref, name, cat, vehicle, oem, supplier, price, photo, photos, etat, compat, qty, publishable, archived, condition')
     .eq('org_id', org.id)
     .eq('publishable', true)
     .eq('archived', false)
@@ -51,19 +51,21 @@ Deno.serve(async (req: Request) => {
   const format = new URL(req.url).searchParams.get('format') ?? 'xml'
 
   if (format === 'csv') {
-    const header = ['id', 'title', 'description', 'link', 'image_link', 'price', 'condition', 'availability', 'mpn', 'brand']
+    const header = ['id', 'title', 'description', 'link', 'image_link', 'additional_image_link', 'price', 'condition', 'availability', 'mpn', 'brand']
     const lines = [header.join(',')]
     for (const p of pieces) {
       const desc = [p.name, p.vehicle, p.etat, p.compat].filter(Boolean).join(' — ')
+      const photos = Array.isArray(p.photos) && (p.photos as string[]).length ? (p.photos as string[]) : p.photo ? [String(p.photo)] : []
       lines.push(
         [
           p.ref,
           p.name,
           desc,
           `${site}/boutique/${p.id}`,
-          p.photo ?? '',
+          photos[0] ?? '',
+          photos.slice(1, 10).join(','),
           `${Number(p.price).toFixed(2)} EUR`,
-          'used',
+          p.condition === 'neuve' ? 'new' : 'used',
           'in_stock',
           p.oem ?? '',
           p.supplier ?? 'FISSA PIECE AUTO',
@@ -81,14 +83,16 @@ Deno.serve(async (req: Request) => {
   const items = pieces
     .map((p) => {
       const desc = [p.name, p.vehicle, p.etat, p.compat].filter(Boolean).join(' — ')
+      const photos = Array.isArray(p.photos) && (p.photos as string[]).length ? (p.photos as string[]) : p.photo ? [String(p.photo)] : []
       return `    <item>
       <g:id>${xmlEscape(p.ref)}</g:id>
       <title>${xmlEscape(p.name)}</title>
       <description>${xmlEscape(desc)}</description>
       <link>${xmlEscape(`${site}/boutique/${p.id}`)}</link>
-      ${p.photo ? `<g:image_link>${xmlEscape(p.photo)}</g:image_link>` : ''}
+      ${photos[0] ? `<g:image_link>${xmlEscape(photos[0])}</g:image_link>` : ''}
+      ${photos.slice(1, 10).map((u) => `<g:additional_image_link>${xmlEscape(u)}</g:additional_image_link>`).join('\n      ')}
       <g:price>${Number(p.price).toFixed(2)} EUR</g:price>
-      <g:condition>used</g:condition>
+      <g:condition>${p.condition === 'neuve' ? 'new' : 'used'}</g:condition>
       <g:availability>in_stock</g:availability>
       ${p.oem ? `<g:mpn>${xmlEscape(p.oem)}</g:mpn>` : ''}
       <g:brand>${xmlEscape(p.supplier || 'FISSA PIECE AUTO')}</g:brand>

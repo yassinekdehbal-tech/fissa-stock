@@ -201,6 +201,42 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          name: string
+          notes: string
+          org_id: string
+          phone: string
+          sort: number
+          website: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string
+          org_id?: string
+          phone?: string
+          sort?: number
+          website?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string
+          org_id?: string
+          phone?: string
+          sort?: number
+          website?: string
+        }
+        Relationships: []
+      }
       subcategories: {
         Row: {
           archived: boolean
@@ -360,7 +396,9 @@ export type Database = {
           archived: boolean
           cat: string | null
           compat: string | null
+          condition: string
           cost_price: number | null
+          ean: string
           created_by: string | null
           donor: string | null
           etat: Database['public']['Enums']['piece_state'] | null
@@ -370,6 +408,7 @@ export type Database = {
           notes: string | null
           oem: string | null
           photo: string | null
+          photos: string[]
           price: number
           publishable: boolean
           qty: number
@@ -377,6 +416,7 @@ export type Database = {
           source: string
           subcat: string
           supplier: string | null
+          supplier_ref: string
           threshold: number | null
           updated_at: string
           vehicle: string | null
@@ -387,7 +427,9 @@ export type Database = {
           archived?: boolean
           cat?: string | null
           compat?: string | null
+          condition?: string
           cost_price?: number | null
+          ean?: string
           created_by?: string | null
           donor?: string | null
           etat?: Database['public']['Enums']['piece_state'] | null
@@ -397,6 +439,7 @@ export type Database = {
           notes?: string | null
           oem?: string | null
           photo?: string | null
+          photos?: string[]
           price?: number
           publishable?: boolean
           qty?: number
@@ -404,6 +447,7 @@ export type Database = {
           source?: string
           subcat?: string
           supplier?: string | null
+          supplier_ref?: string
           threshold?: number | null
           updated_at?: string
           vehicle?: string | null
@@ -414,7 +458,9 @@ export type Database = {
           archived?: boolean
           cat?: string | null
           compat?: string | null
+          condition?: string
           cost_price?: number | null
+          ean?: string
           created_by?: string | null
           donor?: string | null
           etat?: Database['public']['Enums']['piece_state'] | null
@@ -424,6 +470,7 @@ export type Database = {
           notes?: string | null
           oem?: string | null
           photo?: string | null
+          photos?: string[]
           price?: number
           publishable?: boolean
           qty?: number
@@ -431,6 +478,7 @@ export type Database = {
           source?: string
           subcat?: string
           supplier?: string | null
+          supplier_ref?: string
           threshold?: number | null
           updated_at?: string
           vehicle?: string | null
@@ -729,7 +777,7 @@ export type Database = {
         | 'ajustement'
         | 'archivage'
       payment_method: 'especes' | 'carte' | 'virement' | 'cheque'
-      piece_state: 'Bon état' | 'Très bon état' | 'État moyen' | 'Pour pièces'
+      piece_state: 'Neuf' | 'Bon état' | 'Très bon état' | 'État moyen' | 'Pour pièces'
       publication_status: 'draft' | 'published' | 'sold' | 'error' | 'delisted'
       user_role: 'admin' | 'user'
     }

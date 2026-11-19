@@ -134,6 +134,7 @@ export function skuFor(piece: PieceRow): string {
 }
 
 const CONDITIONS: Record<string, string> = {
+  'Neuf': 'NEW',
   'Très bon état': 'USED_EXCELLENT',
   'Bon état': 'USED_GOOD',
   'État moyen': 'USED_ACCEPTABLE',
@@ -167,13 +168,14 @@ export async function upsertInventoryItem(piece: PieceRow, sku: string, cfg: Eba
   const aspects: Record<string, string[]> = {}
   if (piece.oem) aspects['Numéro de pièce fabricant'] = [String(piece.oem)]
   if (piece.supplier) aspects['Marque'] = [String(piece.supplier)]
+  const photos = Array.isArray(piece.photos) && (piece.photos as string[]).length ? (piece.photos as string[]) : piece.photo ? [String(piece.photo)] : []
   const body = {
     availability: { shipToLocationAvailability: { quantity: Math.max(1, Number(piece.qty) || 1) } },
-    condition: CONDITIONS[String(piece.etat)] ?? 'USED_GOOD',
+    condition: piece.condition === 'neuve' ? 'NEW' : (CONDITIONS[String(piece.etat)] ?? 'USED_GOOD'),
     product: {
       title: listingTitle(piece),
       description: listingDescription(piece),
-      imageUrls: piece.photo ? [String(piece.photo)] : [],
+      imageUrls: photos.slice(0, 12),
       ...(piece.oem ? { mpn: String(piece.oem) } : {}),
       ...(piece.supplier ? { brand: String(piece.supplier) } : {}),
       ...(Object.keys(aspects).length ? { aspects } : {}),

@@ -10,7 +10,7 @@ import type { Piece } from '@/types'
 import { useCategoriesStore } from '@/stores/categories'
 import { formatPrice } from '@/utils/format'
 import { useOcr } from '@/composables/useOcr'
-import { findExact, suggestPieces, ocrCandidates, scoreLabel, type RefSuggestion } from '@/utils/refMatch'
+import { findExact, suggestPieces, ocrCandidates, scoreLabel, FIELD_LABELS, type RefSuggestion } from '@/utils/refMatch'
 
 const route = useRoute()
 const stock = useStockStore()
@@ -243,7 +243,7 @@ onUnmounted(() => { stopCam(); if (ocrPreview.value) URL.revokeObjectURL(ocrPrev
         <input v-model="usbInput" @keydown.enter="processUSB" placeholder="ex : ALT-PFU-001" class="input font-mono uppercase placeholder:normal-case h-11" autocapitalize="characters" autofocus>
         <button @click="processUSB" class="btn btn-primary px-4" aria-label="Rechercher"><AppIcon name="search" class="w-4 h-4" /></button>
       </div>
-      <p class="text-[12px] text-gray-500 mt-2">Tapez la référence ou utilisez une douchette USB : le code est traité à l'appui sur Entrée.</p>
+      <p class="text-[12px] text-gray-500 mt-2">Référence FISSA, n° OEM, référence article ou code-barres du fournisseur ; douchette USB acceptée (Entrée). Pour une recherche par mots-clés, utilisez le <router-link to="/stock" class="text-blue-600 hover:underline">Stock</router-link>.</p>
     </div>
 
     <!-- Référence écrite à la main : photo + lecture du texte -->
@@ -290,7 +290,7 @@ onUnmounted(() => { stopCam(); if (ocrPreview.value) URL.revokeObjectURL(ocrPrev
         <button v-for="s in suggestions" :key="s.piece._id" type="button" class="w-full flex items-center gap-3 py-2 text-left hover:bg-gray-50 rounded-lg px-1" @click="select(s.piece, scanError)">
           <span class="w-11 h-11 thumb shrink-0"><img v-if="s.piece.photo" :src="s.piece.photo" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-4 h-4" /></span>
           <span class="min-w-0 flex-1">
-            <span class="flex items-center gap-2"><span class="badge-ref">{{ s.piece.ref }}</span><span v-if="s.field === 'oem'" class="text-[11px] text-gray-500">OEM {{ s.piece.oem }}</span></span>
+            <span class="flex items-center gap-2"><span class="badge-ref">{{ s.piece.ref }}</span><span v-if="s.field !== 'ref'" class="text-[11px] text-gray-500">{{ FIELD_LABELS[s.field] }} {{ s.field === 'oem' ? s.piece.oem : s.field === 'ean' ? s.piece.ean : s.piece.supplierRef }}</span></span>
             <span class="block text-[13px] font-medium text-gray-900 truncate">{{ s.piece.name }}</span>
             <span class="block text-[12px] text-gray-500">Stock : {{ s.piece.qty }} · {{ s.piece.zone || '—' }}</span>
           </span>
