@@ -201,6 +201,42 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          name: string
+          notes: string
+          org_id: string
+          phone: string
+          sort: number
+          website: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string
+          org_id?: string
+          phone?: string
+          sort?: number
+          website?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string
+          org_id?: string
+          phone?: string
+          sort?: number
+          website?: string
+        }
+        Relationships: []
+      }
       subcategories: {
         Row: {
           archived: boolean
@@ -267,13 +303,102 @@ export type Database = {
         }
         Relationships: []
       }
+      marketplace_orders: {
+        Row: {
+          amount: number
+          buyer_address: string
+          buyer_contact: string
+          buyer_name: string
+          carrier: string
+          channel_id: string | null
+          created_at: string
+          currency: string
+          delivered_at: string | null
+          external_line_item_id: string | null
+          external_listing_id: string | null
+          external_order_id: string | null
+          id: string
+          name: string | null
+          notes: string
+          org_id: string
+          paid_at: string | null
+          payment_status: Database['public']['Enums']['order_payment_status']
+          piece_id: string | null
+          qty: number
+          ref: string | null
+          shipped_at: string | null
+          shipping_status: Database['public']['Enums']['order_shipping_status']
+          tracking_number: string
+          tracking_synced: boolean
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          buyer_address?: string
+          buyer_contact?: string
+          buyer_name?: string
+          carrier?: string
+          channel_id?: string | null
+          created_at?: string
+          currency?: string
+          delivered_at?: string | null
+          external_line_item_id?: string | null
+          external_listing_id?: string | null
+          external_order_id?: string | null
+          id?: string
+          name?: string | null
+          notes?: string
+          org_id?: string
+          paid_at?: string | null
+          payment_status?: Database['public']['Enums']['order_payment_status']
+          piece_id?: string | null
+          qty?: number
+          ref?: string | null
+          shipped_at?: string | null
+          shipping_status?: Database['public']['Enums']['order_shipping_status']
+          tracking_number?: string
+          tracking_synced?: boolean
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          buyer_address?: string
+          buyer_contact?: string
+          buyer_name?: string
+          carrier?: string
+          channel_id?: string | null
+          created_at?: string
+          currency?: string
+          delivered_at?: string | null
+          external_line_item_id?: string | null
+          external_listing_id?: string | null
+          external_order_id?: string | null
+          id?: string
+          name?: string | null
+          notes?: string
+          org_id?: string
+          paid_at?: string | null
+          payment_status?: Database['public']['Enums']['order_payment_status']
+          piece_id?: string | null
+          qty?: number
+          ref?: string | null
+          shipped_at?: string | null
+          shipping_status?: Database['public']['Enums']['order_shipping_status']
+          tracking_number?: string
+          tracking_synced?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pieces: {
         Row: {
           added: string
           archived: boolean
           cat: string | null
           compat: string | null
+          condition: string
           cost_price: number | null
+          ean: string
           created_by: string | null
           donor: string | null
           etat: Database['public']['Enums']['piece_state'] | null
@@ -283,6 +408,7 @@ export type Database = {
           notes: string | null
           oem: string | null
           photo: string | null
+          photos: string[]
           price: number
           publishable: boolean
           qty: number
@@ -290,6 +416,7 @@ export type Database = {
           source: string
           subcat: string
           supplier: string | null
+          supplier_ref: string
           threshold: number | null
           updated_at: string
           vehicle: string | null
@@ -300,7 +427,9 @@ export type Database = {
           archived?: boolean
           cat?: string | null
           compat?: string | null
+          condition?: string
           cost_price?: number | null
+          ean?: string
           created_by?: string | null
           donor?: string | null
           etat?: Database['public']['Enums']['piece_state'] | null
@@ -310,6 +439,7 @@ export type Database = {
           notes?: string | null
           oem?: string | null
           photo?: string | null
+          photos?: string[]
           price?: number
           publishable?: boolean
           qty?: number
@@ -317,6 +447,7 @@ export type Database = {
           source?: string
           subcat?: string
           supplier?: string | null
+          supplier_ref?: string
           threshold?: number | null
           updated_at?: string
           vehicle?: string | null
@@ -327,7 +458,9 @@ export type Database = {
           archived?: boolean
           cat?: string | null
           compat?: string | null
+          condition?: string
           cost_price?: number | null
+          ean?: string
           created_by?: string | null
           donor?: string | null
           etat?: Database['public']['Enums']['piece_state'] | null
@@ -337,6 +470,7 @@ export type Database = {
           notes?: string | null
           oem?: string | null
           photo?: string | null
+          photos?: string[]
           price?: number
           publishable?: boolean
           qty?: number
@@ -344,6 +478,7 @@ export type Database = {
           source?: string
           subcat?: string
           supplier?: string | null
+          supplier_ref?: string
           threshold?: number | null
           updated_at?: string
           vehicle?: string | null
@@ -606,15 +741,33 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_marketplace_sale: {
+        Args: {
+          p_piece: string
+          p_channel: Database['public']['Enums']['channel_key']
+          p_prix?: number | null
+          p_external_order_id?: string | null
+          p_external_line_item_id?: string | null
+          p_buyer_name?: string
+          p_buyer_address?: string
+          p_buyer_contact?: string
+          p_qty?: number
+          p_paid?: boolean
+          p_notes?: string
+        }
+        Returns: string
+      }
       remove_intervention_part: { Args: { p_part: string }; Returns: undefined }
     }
     Enums: {
       barcode_format: 'CODE128' | 'CODE39'
       channel_integration: 'api' | 'connector' | 'manual'
-      channel_key: 'leboncoin' | 'ebay' | 'ovoko' | 'autre'
+      channel_key: 'leboncoin' | 'ebay' | 'ovoko' | 'autre' | 'allegro' | 'facebook' | 'lacentrale' | 'rakuten' | 'cdiscount' | 'paruvendu'
       intervention_status: 'todo' | 'in_progress' | 'done'
       invoice_status: 'brouillon' | 'envoye' | 'paye' | 'annule'
       invoice_type: 'devis' | 'facture'
+      order_payment_status: 'pending' | 'paid' | 'refunded'
+      order_shipping_status: 'to_ship' | 'shipped' | 'delivered' | 'cancelled'
       movement_type:
         | 'ajout'
         | 'vente-comptoir'
@@ -624,7 +777,7 @@ export type Database = {
         | 'ajustement'
         | 'archivage'
       payment_method: 'especes' | 'carte' | 'virement' | 'cheque'
-      piece_state: 'Bon état' | 'Très bon état' | 'État moyen' | 'Pour pièces'
+      piece_state: 'Neuf' | 'Bon état' | 'Très bon état' | 'État moyen' | 'Pour pièces'
       publication_status: 'draft' | 'published' | 'sold' | 'error' | 'delisted'
       user_role: 'admin' | 'user'
     }

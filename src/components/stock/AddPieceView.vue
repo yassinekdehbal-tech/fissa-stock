@@ -7,13 +7,18 @@ import { useAuthStore } from '@/stores/auth'
 import { useCategoriesStore } from '@/stores/categories'
 import { useToast } from '@/composables/useToast'
 import { sanitize } from '@/utils/security'
-import type { Piece, PieceCategory, PieceSource, PieceState } from '@/types'
+import type { Piece, PieceCategory, PieceCondition, PieceSource, PieceState } from '@/types'
+import { SOURCES_BY_CONDITION, SOURCE_LABELS, PHOTO_SLOTS } from '@/types'
 import { formatRef } from '@/utils/format'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import BarcodeScanModal from '@/components/ui/BarcodeScanModal.vue'
-import PhotoUploadField from '@/components/ui/PhotoUploadField.vue'
+import PhotoGalleryField from '@/components/ui/PhotoGalleryField.vue'
 import SubcategoryPicker from '@/components/stock/SubcategoryPicker.vue'
+import SupplierPicker from '@/components/stock/SupplierPicker.vue'
+import PiecePublishPanel from '@/components/multidiffusion/PiecePublishPanel.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import { usePublicationsStore } from '@/stores/publications'
 import AppIcon from '@/components/ui/AppIcon.vue'
 
 const router = useRouter()
@@ -21,6 +26,7 @@ const stock = useStockStore()
 const history = useHistoryStore()
 const auth = useAuthStore()
 const cats = useCategoriesStore()
+const pub = usePublicationsStore()
 const { toast } = useToast()
 
 const STEPS = [
@@ -42,14 +48,44 @@ const MARKING_KEY = 'fissa-marking'
 const marking = ref<Marking>(localStorage.getItem(MARKING_KEY) === 'manual' ? 'manual' : 'barcode')
 function setMarking(m: Marking) { marking.value = m; localStorage.setItem(MARKING_KEY, m) }
 
-const form = ref({
-  ref: '', name: '', cat: '' as PieceCategory, subcat: '', vehicle: '', oem: '', supplier: '', donor: '',
-  source: 'autre' as PieceSource, qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état' as PieceState,
-  compat: '', photo: '', notes: '', fmt: 'CODE128' as 'CODE128' | 'CODE39', publishable: false,
-})
+/**
+ * Neuve ou occasion : décide des provenances proposées (fournisseurs pour le
+ * neuf ; don, démontage, réutilisation… pour l'occasion), de l'état et du
+ * nombre de photos exigées. Le dernier choix est mémorisé sur l'appareil
+ * (on référence souvent par lots).
+ */
+const CONDITION_KEY = 'fissa-condition'
+const lastCondition: PieceCondition = localStorage.getItem(CONDITION_KEY) === 'neuve' ? 'neuve' : 'occasion'
+
+function blankForm(condition: PieceCondition) {
+  return {
+    condition,
+    ref: '', name: '', cat: '' as PieceCategory, subcat: '', vehicle: '', oem: '', supplierRef: '', ean: '', supplier: '', donor: '',
+    source: (condition === 'neuve' ? 'grossiste-neuf' : 'demontage') as PieceSource,
+    qty: 1, price: 0, threshold: 0, zone: '', etat: (condition === 'neuve' ? 'Neuf' : 'Bon état') as PieceState,
+    compat: '', photos: [] as string[], notes: '', fmt: 'CODE128' as 'CODE128' | 'CODE39', publishable: false,
+  }
+}
+const form = ref(blankForm(lastCondition))
+
+function setCondition(c: PieceCondition) {
+  if (form.value.condition === c) return
+  form.value.condition = c
+  localStorage.setItem(CONDITION_KEY, c)
+  form.value.source = c === 'neuve' ? 'grossiste-neuf' : 'demontage'
+  form.value.etat = c === 'neuve' ? 'Neuf' : 'Bon état'
+  if (c === 'neuve') form.value.donor = ''
+  else form.value.supplier = ''
+}
+const sourceOptions = computed(() => SOURCES_BY_CONDITION[form.value.condition])
+const photoSlots = computed(() => PHOTO_SLOTS[form.value.condition])
+const requiredPhotos = computed(() => photoSlots.value.filter(s => s.required).length)
+const photoCount = computed(() => form.value.photos.filter(Boolean).length)
+const eanScanOpen = ref(false)
+const galleryRef = ref<InstanceType<typeof PhotoGalleryField> | null>(null)
 
 function clearForm() {
-  form.value = { ref: '', name: '', cat: '', subcat: '', vehicle: '', oem: '', supplier: '', donor: '', source: 'autre', qty: 1, price: 0, threshold: 0, zone: '', etat: 'Bon état', compat: '', photo: '', notes: '', fmt: 'CODE128', publishable: false }
+  form.value = blankForm(form.value.condition)
   step.value = 1
 }
 
@@ -67,14 +103,13 @@ function onSubcatPicked(label: string) {
 // Changement de catégorie : la sous-catégorie ne s'applique plus
 watch(() => form.value.cat, () => { form.value.subcat = ''; lastPicked = '' })
 
-/** Champ d'origine affiché selon la provenance : véhicule donneur ou fournisseur. */
+/** Champ d'origine affiché selon la provenance : fournisseur (neuf, lot) ou véhicule donneur (démontage). */
 const originField = computed<'donor' | 'supplier' | null>(() => {
+  if (form.value.condition === 'neuve') return 'supplier'
   if (form.value.source === 'demontage') return 'donor'
-  if (form.value.source === 'grossiste-neuf' || form.value.source === 'lot-occasion' || form.value.source === 'web') return 'supplier'
+  if (form.value.source === 'lot-occasion') return 'supplier'
   return null
 })
-
-const SOURCES: Record<string, string> = { demontage: 'Démontage', don: 'Don', 'lot-occasion': "Lot d'occasion", 'grossiste-neuf': 'Grossiste neuf', web: 'Web', autre: 'Autre' }
 
 const refError = computed(() => {
   if (autoRef.value) return ''
@@ -121,6 +156,7 @@ function next() {
     if (form.value.qty < 0) { toast('Quantité invalide', true); return }
     if (!(form.value.price > 0)) { toast('Le prix de vente est requis', true); return }
     if (!form.value.zone.trim()) { toast("La zone d'emplacement est requise", true); return }
+    if (form.value.condition === 'neuve' && !form.value.supplier.trim()) { toast('Indiquez le fournisseur de la pièce neuve', true); return }
   }
   step.value = Math.min(3, step.value + 1)
   scrollTop()
@@ -136,15 +172,22 @@ async function submit() {
   if ((!autoRef.value && !r) || !name) { step.value = 1; toast('Référence et désignation requises', true); return }
   if (!form.value.cat) { step.value = 1; toast('Choisissez une catégorie', true); return }
   if (r && stock.pieces.find(p => p.ref === r)) { step.value = 1; toast('Référence déjà existante', true); return }
+  if (form.value.condition === 'neuve' && !form.value.supplier.trim()) { step.value = 2; toast('Indiquez le fournisseur de la pièce neuve', true); return }
+  // Photos : nombre minimal (occasion) et angles différents (toutes les pièces)
+  const photoError = await galleryRef.value?.validate()
+  if (photoError) { toast((form.value.condition === 'occasion' ? "Pièce d'occasion : " : '') + photoError, true); return }
 
+  const photos = form.value.photos.map(u => u.trim()).filter(Boolean)
   const piece = {
     ref: sanitize(r), name: sanitize(name), cat: form.value.cat, subcat: sanitize(form.value.subcat.trim()),
     vehicle: sanitize(form.value.vehicle.trim()), oem: sanitize(form.value.oem.trim()),
+    supplierRef: sanitize(form.value.supplierRef.trim()), ean: sanitize(form.value.ean.trim()),
     supplier: originField.value === 'supplier' ? sanitize(form.value.supplier.trim()) : '',
     donor: originField.value === 'donor' ? sanitize(form.value.donor.trim()) : '',
-    source: form.value.source, qty: form.value.qty, price: form.value.price,
-    threshold: form.value.threshold || 0, zone: sanitize(form.value.zone.trim()), etat: form.value.etat,
-    compat: '', photo: form.value.photo.trim(), notes: sanitize(form.value.notes.trim()),
+    source: form.value.source, condition: form.value.condition, qty: form.value.qty, price: form.value.price,
+    threshold: form.value.threshold || 0, zone: sanitize(form.value.zone.trim()),
+    etat: form.value.condition === 'neuve' ? 'Neuf' as PieceState : form.value.etat,
+    compat: '', photo: photos[0] ?? '', photos, notes: sanitize(form.value.notes.trim()),
     fmt: form.value.fmt, added: new Date().toISOString(), archived: false, publishable: form.value.publishable,
   }
 
@@ -172,12 +215,30 @@ async function submit() {
 const labelPiece = ref<Piece | null>(null)
 const showLabel = ref(false)
 const showHandwritten = ref(false)
+const showPublish = ref(false)
+/** Pièce enregistrée relue depuis le stock (statuts de publication à jour). */
+const publishPiece = computed(() => stock.pieces.find(p => p._id === labelPiece.value?._id) || labelPiece.value)
+const canPublish = computed(() => auth.isAdmin || auth.hasPerm('vendeur'))
+
+/**
+ * Dernière étape : mise en ligne. Après le marquage, si des canaux de vente
+ * sont actifs, on propose de publier tout de suite ; sinon (ou avec « Plus
+ * tard »), la publication reste possible depuis la fiche pièce.
+ */
+function afterMarking() {
+  if (canPublish.value && pub.activeChannels.length && (labelPiece.value?.qty ?? 0) > 0) showPublish.value = true
+  else void router.push('/stock')
+}
 function closeLabel() {
   showLabel.value = false
-  void router.push('/stock')
+  afterMarking()
 }
 function closeHandwritten() {
   showHandwritten.value = false
+  afterMarking()
+}
+function finishPublish() {
+  showPublish.value = false
   void router.push('/stock')
 }
 function printFromHandwritten() {
@@ -215,6 +276,22 @@ function printFromHandwritten() {
     <!-- Étape 1 : identification -->
     <form v-if="step === 1" @submit.prevent="next" class="card p-4 lg:p-5 space-y-3">
       <div class="card-title">Informations principales</div>
+      <!-- Neuve / occasion -->
+      <div class="flex flex-col gap-1.5">
+        <label class="label">Type de pièce <span class="text-red-500">*</span></label>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" class="rounded-xl border-2 p-3 text-left transition-colors" :class="form.condition === 'neuve' ? 'border-brand bg-amber-50' : 'border-gray-200 bg-white hover:border-gray-300'" :aria-pressed="form.condition === 'neuve'" @click="setCondition('neuve')">
+            <span class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" :class="form.condition === 'neuve' ? 'bg-brand text-gray-900' : 'bg-gray-100 text-gray-600'"><AppIcon name="store" class="w-5 h-5" /></span>
+            <span class="block text-[13px] font-semibold text-gray-900">NEUVE</span>
+            <span class="block text-[11px] text-gray-500 leading-snug mt-0.5">Achetée à un fournisseur pour la revente</span>
+          </button>
+          <button type="button" class="rounded-xl border-2 p-3 text-left transition-colors" :class="form.condition === 'occasion' ? 'border-brand bg-amber-50' : 'border-gray-200 bg-white hover:border-gray-300'" :aria-pressed="form.condition === 'occasion'" @click="setCondition('occasion')">
+            <span class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" :class="form.condition === 'occasion' ? 'bg-brand text-gray-900' : 'bg-gray-100 text-gray-600'"><AppIcon name="wrench" class="w-5 h-5" /></span>
+            <span class="block text-[13px] font-semibold text-gray-900">OCCASION</span>
+            <span class="block text-[11px] text-gray-500 leading-snug mt-0.5">Don, démontage, réutilisation</span>
+          </button>
+        </div>
+      </div>
       <div class="flex flex-col gap-1">
         <label class="label">Catégorie <span class="text-red-500">*</span></label>
         <div class="relative">
@@ -257,9 +334,23 @@ function printFromHandwritten() {
         <input v-model="form.vehicle" placeholder="Peugeot 308 1.6 HDi, 3008, Citroën C4…" class="input">
       </div>
       <div class="flex flex-col gap-1">
-        <label class="label">N° OEM</label>
+        <label class="label">N° OEM <span class="text-gray-400 font-normal">(référence constructeur)</span></label>
         <input v-model="form.oem" placeholder="5702.E2" class="input font-mono">
       </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1">
+          <label class="label">Référence fournisseur <span v-if="form.condition === 'neuve'" class="text-gray-400 font-normal">(article)</span></label>
+          <input v-model="form.supplierRef" placeholder="Réf. du site ou de la facture" class="input font-mono">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="label">Code-barres fournisseur (EAN)</label>
+          <div class="relative">
+            <input v-model="form.ean" placeholder="3661234567890" class="input font-mono pr-11" inputmode="numeric">
+            <button type="button" class="absolute right-1.5 top-1/2 -translate-y-1/2 icon-btn border border-gray-200" @click="eanScanOpen = true" title="Scanner le code-barres de l'emballage" aria-label="Scanner le code-barres"><AppIcon name="scan" class="w-4 h-4" /></button>
+          </div>
+        </div>
+      </div>
+      <p class="text-[11px] text-gray-500 leading-snug -mt-1">Au comptoir, le vendeur retrouve la pièce avec n'importe laquelle de ces références (celle que donne le site du fournisseur après recherche par immatriculation, le code-barres de la boîte, l'OEM).</p>
       <button type="submit" class="btn btn-primary w-full py-3 mt-2">Continuer <AppIcon name="arrow-right" class="w-4 h-4" /></button>
     </form>
 
@@ -282,12 +373,13 @@ function printFromHandwritten() {
         <label class="label">Prix de vente (€) <span class="text-red-500">*</span></label>
         <input v-model.number="form.price" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00" class="input">
       </div>
-      <div class="flex flex-col gap-1">
+      <div v-if="form.condition === 'occasion'" class="flex flex-col gap-1">
         <label class="label">État <span class="text-red-500">*</span></label>
         <select v-model="form.etat" class="input">
           <option>Très bon état</option><option>Bon état</option><option>État moyen</option><option>Pour pièces</option>
         </select>
       </div>
+      <div v-else class="input flex items-center gap-2 bg-gray-50 min-h-11 text-[13px] text-gray-700"><span class="badge badge-green">Neuf</span> Pièce neuve</div>
       <div class="flex flex-col gap-1">
         <label class="label">Zone d'emplacement <span class="text-red-500">*</span></label>
         <div class="relative">
@@ -298,16 +390,20 @@ function printFromHandwritten() {
       <div class="flex flex-col gap-1">
         <label class="label">Provenance</label>
         <select v-model="form.source" class="input">
-          <option v-for="(l, k) in SOURCES" :key="k" :value="k">{{ l }}</option>
+          <option v-for="k in sourceOptions" :key="k" :value="k">{{ SOURCE_LABELS[k] }}</option>
         </select>
       </div>
-      <div v-if="originField === 'donor'" class="flex flex-col gap-1">
+      <div v-if="form.condition === 'neuve'" class="flex flex-col gap-1">
+        <label class="label">Fournisseur <span class="text-red-500">*</span></label>
+        <SupplierPicker v-model="form.supplier" :can-add="auth.hasPerm('magasinier') || auth.isAdmin" />
+      </div>
+      <div v-else-if="originField === 'donor'" class="flex flex-col gap-1">
         <label class="label">Véhicule donneur</label>
         <input v-model="form.donor" placeholder="Immatriculation ou VIN" class="input" autocapitalize="characters">
       </div>
       <div v-else-if="originField === 'supplier'" class="flex flex-col gap-1">
-        <label class="label">Fournisseur</label>
-        <input v-model="form.supplier" placeholder="Nom du grossiste, du vendeur…" class="input">
+        <label class="label">Vendeur du lot</label>
+        <input v-model="form.supplier" placeholder="Nom du vendeur, de la casse…" class="input">
       </div>
       <div class="flex gap-2 pt-1">
         <button type="button" class="btn btn-secondary flex-1 py-3" @click="prev"><AppIcon name="arrow-left" class="w-4 h-4" /> Retour</button>
@@ -318,7 +414,12 @@ function printFromHandwritten() {
     <!-- Étape 3 : photo et validation -->
     <form v-else @submit.prevent="submit" class="space-y-4">
       <div class="card p-4 lg:p-5 space-y-3">
-        <PhotoUploadField v-model="form.photo" />
+        <PhotoGalleryField ref="galleryRef" v-model="form.photos" :slots="photoSlots" />
+        <p v-if="form.condition === 'occasion'" class="text-[11px] leading-snug -mt-1" :class="photoCount >= requiredPhotos ? 'text-green-600' : 'text-amber-700'">
+          <template v-if="photoCount >= requiredPhotos">✓ Les 3 angles sont pris.</template>
+          <template v-else>Pièce d'occasion : 3 photos (prises ou importées) sous 3 angles différents sont obligatoires ({{ photoCount }}/{{ requiredPhotos }}). L'acheteur doit voir l'état réel.</template>
+        </p>
+        <p v-else class="text-[11px] text-gray-500 leading-snug -mt-1">Pièce neuve : photo facultative (emballage ou pièce), utile pour la boutique et les annonces.</p>
 
         <!-- Marquage : étiquette code-barres OU référence écrite à la main -->
         <div class="flex flex-col gap-1.5">
@@ -348,6 +449,9 @@ function printFromHandwritten() {
           <button type="button" class="toggle" :data-on="form.publishable" @click="form.publishable = !form.publishable" aria-label="Visible sur la boutique en ligne"><span></span></button>
           <span class="text-[13px] text-gray-700 leading-snug">Visible sur la boutique en ligne <span class="text-gray-400">(diffusable sur les canaux de vente)</span></span>
         </label>
+        <p v-if="canPublish && pub.activeChannels.length" class="text-[11px] text-gray-500 leading-snug -mt-1">
+          Après l'enregistrement et le marquage, vous pourrez publier l'annonce sur : {{ pub.activeChannels.map(c => c.label).join(', ') }}.
+        </p>
         <div class="flex flex-col gap-1">
           <label class="label">Notes</label>
           <textarea v-model="form.notes" rows="2" placeholder="Remarques…" class="input"></textarea>
@@ -358,13 +462,14 @@ function printFromHandwritten() {
       <div class="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
         <div class="text-[13px] font-semibold text-gray-900 mb-2">Résumé</div>
         <div class="flex gap-3">
-          <span class="w-16 h-16 thumb bg-white"><img v-if="form.photo" :src="form.photo" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-5 h-5" /></span>
+          <span class="w-16 h-16 thumb bg-white"><img v-if="form.photos[0]" :src="form.photos[0]" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-5 h-5" /></span>
           <div class="min-w-0 text-[12px] text-gray-600 space-y-0.5">
-            <div class="badge-ref">{{ refDisplay }}</div>
+            <div class="flex items-center gap-2"><span class="badge-ref">{{ refDisplay }}</span><span class="badge" :class="form.condition === 'neuve' ? 'badge-green' : 'badge-blue'">{{ form.condition === 'neuve' ? 'Neuve' : 'Occasion' }}</span></div>
             <div class="text-[13px] font-semibold text-gray-900 truncate">{{ form.name || '—' }}</div>
             <div v-if="form.cat">{{ cats.label(form.cat) }}<template v-if="form.subcat"> › {{ form.subcat }}</template> · {{ form.etat }}</div>
             <div>Stock : <strong class="text-gray-900">{{ form.qty }}</strong> · Prix : <strong class="text-gray-900">{{ (form.price || 0).toFixed(2) }} €</strong> · Zone : <strong class="text-gray-900">{{ form.zone || '—' }}</strong></div>
             <div v-if="form.vehicle" class="truncate">{{ form.vehicle }}</div>
+            <div v-if="form.condition === 'neuve' && form.supplier" class="truncate">Fournisseur : {{ form.supplier }}<template v-if="form.supplierRef"> · réf. {{ form.supplierRef }}</template></div>
           </div>
         </div>
       </div>
@@ -376,7 +481,24 @@ function printFromHandwritten() {
     </form>
 
     <BarcodeScanModal :open="scanOpen" title="Scanner la référence" @close="scanOpen = false" @scanned="(c) => { form.ref = c }" />
+    <BarcodeScanModal :open="eanScanOpen" title="Scanner le code-barres fournisseur" @close="eanScanOpen = false" @scanned="(c) => { form.ean = c }" />
     <BarcodeLabelModal :piece="labelPiece" :open="showLabel" @close="closeLabel" />
     <HandwrittenRefModal :piece="labelPiece" :open="showHandwritten" @close="closeHandwritten" @print="printFromHandwritten" />
+
+    <!-- Étape finale : mise en ligne de la pièce qui vient d'être référencée -->
+    <BaseModal :title="publishPiece ? 'Mettre en ligne ' + formatRef(publishPiece.ref) : 'Mettre en ligne'" :open="showPublish" @close="finishPublish" max-width="520px">
+      <template v-if="publishPiece">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="w-12 h-12 thumb"><img v-if="publishPiece.photo" :src="publishPiece.photo" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-4 h-4" /></span>
+          <div class="min-w-0"><div class="text-[13px] font-semibold text-gray-900 truncate">{{ publishPiece.name }}</div><div class="text-[12px] text-gray-500">{{ (publishPiece.price || 0).toFixed(2) }} € · {{ publishPiece.qty }} en stock</div></div>
+        </div>
+        <PiecePublishPanel :piece="publishPiece" />
+        <p class="text-[11px] text-gray-500 mt-3 leading-snug">Vous pourrez aussi publier plus tard depuis la fiche de la pièce (bloc « Mise en ligne »).</p>
+        <div class="flex gap-2 mt-4 justify-end">
+          <button class="btn btn-secondary" @click="finishPublish">Plus tard</button>
+          <button class="btn btn-primary" @click="finishPublish"><AppIcon name="check" class="w-4 h-4" /> Terminer</button>
+        </div>
+      </template>
+    </BaseModal>
   </div>
 </template>

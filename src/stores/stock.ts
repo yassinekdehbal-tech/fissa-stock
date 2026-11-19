@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import type { PieceRow } from '@/lib/supabase'
 import type { Piece } from '@/types'
+import { normalizeRef } from '@/utils/refMatch'
 
 function rowToPiece(r: PieceRow): Piece {
   return {
@@ -13,16 +14,20 @@ function rowToPiece(r: PieceRow): Piece {
     subcat: r.subcat ?? '',
     vehicle: r.vehicle ?? '',
     oem: r.oem ?? '',
+    supplierRef: r.supplier_ref ?? '',
+    ean: r.ean ?? '',
     supplier: r.supplier ?? '',
     donor: r.donor ?? '',
     source: (r.source ?? 'autre') as Piece['source'],
+    condition: (r.condition === 'neuve' ? 'neuve' : 'occasion'),
     qty: r.qty,
     price: Number(r.price),
     threshold: r.threshold ?? 0,
     zone: r.zone ?? '',
     etat: (r.etat ?? 'Bon état') as Piece['etat'],
     compat: r.compat ?? '',
-    photo: r.photo ?? '',
+    photo: (r.photos?.[0]) || r.photo || '',
+    photos: r.photos?.length ? r.photos : r.photo ? [r.photo] : [],
     notes: r.notes ?? '',
     fmt: r.fmt,
     added: r.added,
@@ -39,6 +44,9 @@ function pieceToRow(p: Partial<Piece>): Record<string, unknown> {
   if (p.subcat !== undefined) row.subcat = p.subcat
   if (p.vehicle !== undefined) row.vehicle = p.vehicle
   if (p.oem !== undefined) row.oem = p.oem
+  if (p.supplierRef !== undefined) row.supplier_ref = p.supplierRef
+  if (p.ean !== undefined) row.ean = p.ean
+  if (p.condition !== undefined) row.condition = p.condition
   if (p.supplier !== undefined) row.supplier = p.supplier
   if (p.donor !== undefined) row.donor = p.donor
   if (p.source !== undefined) row.source = p.source
@@ -48,7 +56,14 @@ function pieceToRow(p: Partial<Piece>): Record<string, unknown> {
   if (p.zone !== undefined) row.zone = p.zone
   if (p.etat !== undefined) row.etat = p.etat ? p.etat : null
   if (p.compat !== undefined) row.compat = p.compat
-  if (p.photo !== undefined) row.photo = p.photo
+  // La galerie fait foi : la photo principale est la première
+  if (p.photos !== undefined) {
+    const list = p.photos.filter(Boolean)
+    row.photos = list
+    row.photo = list[0] ?? ''
+  } else if (p.photo !== undefined) {
+    row.photo = p.photo
+  }
   if (p.notes !== undefined) row.notes = p.notes
   if (p.fmt !== undefined) row.fmt = p.fmt
   if (p.archived !== undefined) row.archived = p.archived
@@ -128,8 +143,40 @@ export const useStockStore = defineStore('stock', () => {
     await updatePiece(id, { archived, qty: archived ? 0 : piece.qty })
   }
 
+  /**
+   * Pièce correspondant à un code lu ou saisi : référence interne, puis
+   * code-barres fournisseur (EAN), référence article fournisseur ou n° OEM,
+   * séparateurs et casse ignorés (« 5702.E2 » = « 5702E2 »).
+   */
   function findByRef(refCode: string): Piece | undefined {
-    return activePieces.value.find((p) => p.ref === refCode)
+    const exact = activePieces.value.find((p) => p.ref === refCode)
+    if (exact) return exact
+    const n = normalizeRef(refCode)
+    if (!n) return undefined
+    return (
+      activePieces.value.find((p) => normalizeRef(p.ref) === n) ||
+      activePieces.value.find((p) => p.ean && normalizeRef(p.ean) === n) ||
+      activePieces.value.find((p) => p.supplierRef && normalizeRef(p.supplierRef) === n) ||
+      activePieces.value.find((p) => p.oem && normalizeRef(p.oem) === n)
+    )
+  }
+
+  /**
+   * Recherche comptoir : mots-clés (désignation, sous-catégorie, véhicule,
+   * fournisseur, zone) et références (interne, OEM, fournisseur, EAN) avec
+   * séparateurs ignorés. Tous les mots saisis doivent correspondre.
+   */
+  function matchesQuery(p: Piece, query: string): boolean {
+    const q = query.trim().toLowerCase()
+    if (!q) return true
+    const text = [p.ref, p.name, p.subcat, p.vehicle, p.oem, p.supplierRef, p.ean, p.supplier, p.donor, p.zone, p.compat, p.notes]
+      .filter(Boolean).join(' ').toLowerCase()
+    const refs = [p.ref, p.oem, p.supplierRef, p.ean].filter(Boolean).map((v) => normalizeRef(v))
+    return q.split(/\s+/).every((word) => {
+      if (text.includes(word)) return true
+      const n = normalizeRef(word)
+      return n.length >= 3 && refs.some((r) => r.includes(n))
+    })
   }
 
   function dispose() {
@@ -152,6 +199,7 @@ export const useStockStore = defineStore('stock', () => {
     deletePiece,
     toggleArchive,
     findByRef,
+    matchesQuery,
     dispose,
   }
 })

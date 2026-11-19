@@ -17,7 +17,7 @@ const piece = ref<Record<string, unknown> | null>(null)
 async function load() {
   const { data } = await supabase
     .from('pieces')
-    .select('id, ref, name, cat, vehicle, oem, price, photo, etat, compat, supplier, donor')
+    .select('id, ref, name, cat, vehicle, oem, price, photo, photos, etat, compat, condition')
     .eq('id', route.params.id as string)
     .eq('publishable', true)
     .eq('archived', false)
@@ -27,6 +27,13 @@ async function load() {
   loading.value = false
 }
 onMounted(() => { void load(); if (!cats.loaded) void cats.fetchAll() })
+
+const photoIndex = ref(0)
+const gallery = computed(() => {
+  const list = (piece.value?.photos as string[] | null) ?? []
+  return list.length ? list : piece.value?.photo ? [piece.value.photo as string] : []
+})
+const mainPhoto = computed(() => gallery.value[photoIndex.value] ?? gallery.value[0] ?? '')
 
 const catInfo = computed(() => {
   const c = (piece.value?.cat as string | null) ?? ''
@@ -58,21 +65,27 @@ const mailtoHref = computed(() => {
 
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
       <!-- Photo -->
-      <div class="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden aspect-square flex items-center justify-center">
-        <img
-          v-if="piece.photo"
-          :src="(piece.photo as string)"
-          :alt="(piece.name as string)"
-          class="w-full h-full object-cover"
-          @error="($event.target as HTMLImageElement).style.display = 'none'"
-        >
-        <span v-else class="text-6xl opacity-30"></span>
+      <div>
+        <div class="bg-gray-50 border border-gray-200 rounded-xl overflow-hidden aspect-square flex items-center justify-center">
+          <img
+            v-if="mainPhoto"
+            :src="mainPhoto"
+            :alt="(piece.name as string)"
+            class="w-full h-full object-cover"
+            @error="($event.target as HTMLImageElement).style.display = 'none'"
+          >
+          <span v-else class="text-6xl opacity-30"></span>
+        </div>
+        <div v-if="gallery.length > 1" class="flex gap-2 mt-2 overflow-x-auto">
+          <button v-for="(url, i) in gallery" :key="url + i" type="button" class="w-16 h-16 rounded-lg overflow-hidden border-2 shrink-0" :class="i === photoIndex ? 'border-amber-500' : 'border-gray-200'" @click="photoIndex = i" :aria-label="`Photo ${i + 1}`"><img :src="url" class="w-full h-full object-cover" alt=""></button>
+        </div>
       </div>
 
       <!-- Details -->
       <div>
         <div class="flex items-center gap-2 mb-2">
           <span class="badge-ref">{{ piece.ref }}</span>
+          <span class="badge" :class="piece.condition === 'neuve' ? 'badge-green' : 'badge-violet'">{{ piece.condition === 'neuve' ? 'Neuve' : 'Occasion' }}</span>
           <span v-if="catInfo && piece.cat" class="text-[11px]" :class="catInfo.textClass">{{ catInfo.icon }} {{ catInfo.label }}</span>
         </div>
         <h1 class="text-gray-900 text-xl font-semibold leading-snug">{{ piece.name }}</h1>

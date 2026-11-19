@@ -10,8 +10,10 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BarcodeLabelModal from '@/components/stock/BarcodeLabelModal.vue'
 import HandwrittenRefModal from '@/components/stock/HandwrittenRefModal.vue'
 import PieceEditModal from '@/components/stock/PieceEditModal.vue'
+import PiecePublishPanel from '@/components/multidiffusion/PiecePublishPanel.vue'
 import { useCategoriesStore } from '@/stores/categories'
 import { formatPrice } from '@/utils/format'
+import { SOURCE_LABELS } from '@/types'
 
 /** Fiche produit : photo, identifiants, stock, prix, actions (sortir / modifier / étiquette). */
 const route = useRoute()
@@ -25,8 +27,13 @@ const { toast } = useToast()
 const piece = computed(() => stock.pieces.find(p => p._id === route.params.id))
 const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
 const canSell = computed(() => auth.hasPerm('vendeur'))
+const canPublish = computed(() => auth.isAdmin || auth.hasPerm('vendeur'))
 
-const SOURCES: Record<string, string> = { demontage: 'Démontage', don: 'Don', 'lot-occasion': "Lot d'occasion", 'grossiste-neuf': 'Grossiste neuf', web: 'Web', autre: 'Autre' }
+const SOURCES = SOURCE_LABELS as Record<string, string>
+/** Photo affichée en grand (galerie : la principale par défaut). */
+const photoIndex = ref(0)
+const gallery = computed(() => piece.value ? (piece.value.photos?.length ? piece.value.photos : piece.value.photo ? [piece.value.photo] : []) : [])
+const mainPhoto = computed(() => gallery.value[photoIndex.value] ?? gallery.value[0] ?? '')
 
 const editOpen = ref(false)
 const labelOpen = ref(false)
@@ -77,11 +84,14 @@ function etatClass(etat: string) {
         <button v-if="canEdit" class="btn btn-primary" @click="editOpen = true"><AppIcon name="edit" class="w-4 h-4" /> Modifier</button>
       </div>
 
-      <!-- Photo -->
+      <!-- Photos -->
       <div class="card overflow-hidden relative">
         <div class="aspect-[4/3] lg:aspect-[16/7] bg-gray-100 flex items-center justify-center text-gray-300">
-          <img v-if="piece.photo" :src="piece.photo" class="w-full h-full object-cover" :alt="piece.name" @error="($event.target as HTMLImageElement).style.display = 'none'">
+          <img v-if="mainPhoto" :src="mainPhoto" class="w-full h-full object-cover" :alt="piece.name" @error="($event.target as HTMLImageElement).style.display = 'none'">
           <AppIcon v-else name="image" class="w-12 h-12" />
+        </div>
+        <div v-if="gallery.length > 1" class="flex gap-1.5 p-2 overflow-x-auto bg-white border-t border-gray-100">
+          <button v-for="(url, i) in gallery" :key="url + i" type="button" class="w-14 h-14 thumb shrink-0 border-2" :class="i === photoIndex ? 'border-brand' : 'border-transparent'" @click="photoIndex = i" :aria-label="`Photo ${i + 1}`"><img :src="url" class="w-full h-full object-cover" alt=""></button>
         </div>
         <button v-if="canEdit" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 shadow text-gray-700 flex items-center justify-center hover:bg-white lg:hidden" @click="editOpen = true" aria-label="Modifier"><AppIcon name="edit" class="w-4 h-4" /></button>
         <button class="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white/90 shadow text-gray-700 flex items-center justify-center hover:bg-white lg:hidden" @click="labelOpen = true" aria-label="Étiquette"><AppIcon name="tag" class="w-4 h-4" /></button>
@@ -93,6 +103,7 @@ function etatClass(etat: string) {
         <div class="flex flex-wrap items-center gap-2 mt-2">
           <span v-if="piece.cat" class="badge" :class="[cats.info(piece.cat).bgClass, cats.info(piece.cat).textClass]"><AppIcon name="zap" class="w-3 h-3" /> {{ cats.info(piece.cat).label }}</span>
           <span v-if="piece.subcat" class="badge badge-gray">{{ piece.subcat }}</span>
+          <span class="badge" :class="piece.condition === 'neuve' ? 'badge-green' : 'badge-violet'">{{ piece.condition === 'neuve' ? 'Neuve' : 'Occasion' }}</span>
           <span class="badge" :class="piece.qty === 0 ? 'badge-red' : piece.qty <= (piece.threshold ?? 0) ? 'badge-orange' : 'badge-green'">{{ piece.qty === 0 ? 'Rupture' : `En stock : ${piece.qty}` }}</span>
           <span v-if="piece.archived" class="badge badge-gray">Archivée</span>
           <span v-if="piece.publishable" class="badge badge-blue">Boutique</span>
@@ -102,6 +113,8 @@ function etatClass(etat: string) {
         <dl class="mt-4 grid grid-cols-[110px_1fr] gap-y-2 gap-x-3 text-[13px]">
           <dt class="text-gray-500">Référence</dt><dd class="font-mono text-gray-900">{{ piece.ref }}</dd>
           <dt class="text-gray-500">N° OEM</dt><dd class="font-mono text-gray-900">{{ piece.oem || '—' }}</dd>
+          <template v-if="piece.supplierRef"><dt class="text-gray-500">Réf. fournisseur</dt><dd class="font-mono text-gray-900">{{ piece.supplierRef }}</dd></template>
+          <template v-if="piece.ean"><dt class="text-gray-500">Code-barres</dt><dd class="font-mono text-gray-900">{{ piece.ean }}</dd></template>
           <dt class="text-gray-500">Véhicule</dt><dd class="text-gray-900">{{ piece.vehicle || '—' }}</dd>
           <template v-if="piece.compat"><dt class="text-gray-500">Compatibilités</dt><dd class="text-gray-900">{{ piece.compat }}</dd></template>
           <template v-if="piece.supplier"><dt class="text-gray-500">Fournisseur</dt><dd class="text-gray-900">{{ piece.supplier }}</dd></template>
@@ -113,6 +126,15 @@ function etatClass(etat: string) {
           <dt class="text-gray-500">Ajoutée le</dt><dd class="text-gray-900">{{ piece.added ? new Date(piece.added).toLocaleDateString('fr-FR') : '—' }}</dd>
         </dl>
         <div v-if="piece.notes" class="mt-3 text-[13px] text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">{{ piece.notes }}</div>
+      </div>
+
+      <!-- Mise en ligne (marketplaces + boutique) -->
+      <div v-if="canPublish" class="card p-4">
+        <div class="card-title justify-between">
+          <span class="inline-flex items-center gap-2"><AppIcon name="broadcast" class="w-4 h-4 text-gray-400" /> Mise en ligne</span>
+          <router-link to="/multidiffusion" class="text-[12px] font-medium text-blue-600 hover:underline">Multidiffusion</router-link>
+        </div>
+        <PiecePublishPanel :piece="piece" />
       </div>
 
       <!-- Actions -->

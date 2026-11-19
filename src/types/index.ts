@@ -1,4 +1,29 @@
-export type PieceSource = 'don' | 'demontage' | 'lot-occasion' | 'grossiste-neuf' | 'web' | 'autre'
+export type PieceSource = 'don' | 'demontage' | 'reutilisation' | 'lot-occasion' | 'grossiste-neuf' | 'web' | 'autre'
+
+/** Pièce neuve (achetée à un fournisseur pour la revente) ou d'occasion (don, démontage, réutilisation…). */
+export type PieceCondition = 'neuve' | 'occasion'
+
+/** Provenances proposées selon le type de pièce. */
+export const SOURCES_BY_CONDITION: Record<PieceCondition, PieceSource[]> = {
+  neuve: ['grossiste-neuf', 'web'],
+  occasion: ['demontage', 'don', 'reutilisation', 'lot-occasion', 'autre'],
+}
+export const SOURCE_LABELS: Record<PieceSource, string> = {
+  demontage: 'Démontage', don: 'Don', reutilisation: 'Réutilisation', 'lot-occasion': "Lot d'occasion",
+  'grossiste-neuf': 'Grossiste / fournisseur', web: 'Achat web', autre: 'Autre',
+}
+
+/** Photos guidées à la prise de vue : 3 angles différents obligatoires pour une pièce d'occasion. */
+export const PHOTO_SLOTS: Record<PieceCondition, { label: string; hint: string; required: boolean }[]> = {
+  occasion: [
+    { label: "Vue d'ensemble", hint: 'La pièce entière, de face', required: true },
+    { label: 'Autre angle', hint: 'Dos, côté ou dessous', required: true },
+    { label: 'Référence / défauts', hint: 'Étiquette, gravure, usure visible', required: true },
+  ],
+  neuve: [
+    { label: 'Produit', hint: 'Emballage ou pièce', required: false },
+  ],
+}
 
 export interface Piece {
   _id?: string
@@ -9,16 +34,23 @@ export interface Piece {
   subcat: string
   vehicle: string
   oem: string
+  /** Référence article chez le fournisseur (celle que donne son site / sa facture). */
+  supplierRef: string
+  /** Code-barres fournisseur (EAN) lu sur l'emballage. */
+  ean: string
   supplier: string
   donor: string
   source: PieceSource
+  condition: PieceCondition
   qty: number
   price: number
   threshold?: number
   zone: string
   etat: PieceState
   compat: string
+  /** Photo principale (= première de `photos`, conservée pour les écrans existants). */
   photo: string
+  photos: string[]
   notes: string
   fmt: 'CODE128' | 'CODE39'
   added: string
@@ -29,7 +61,7 @@ export interface Piece {
 /** Clé d'une catégorie (paramétrée par l'administrateur, table `categories`). */
 export type PieceCategory = string
 
-export type PieceState = 'Bon état' | 'Très bon état' | 'État moyen' | 'Pour pièces'
+export type PieceState = 'Neuf' | 'Bon état' | 'Très bon état' | 'État moyen' | 'Pour pièces'
 
 export interface HistoryEntry {
   _id?: string
@@ -87,6 +119,17 @@ export interface Category {
   /** 2 lettres majuscules sûres (sans I, O, Q) : préfixe des références générées. */
   code: string
   color: CategoryColor
+  sort: number
+  archived: boolean
+}
+
+/** Fournisseur de pièces neuves (table `suppliers`). */
+export interface Supplier {
+  id: string
+  name: string
+  website: string
+  phone: string
+  notes: string
   sort: number
   archived: boolean
 }

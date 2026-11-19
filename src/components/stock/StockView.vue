@@ -41,6 +41,7 @@ const SUBCATS = computed(() => {
   return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([label, n]) => ({ label, n }))
 })
 const filterEtat = ref<PieceState | ''>('')
+const filterCondition = ref<'' | 'neuve' | 'occasion'>('')
 const filterStock = ref<'actif' | 'dispo' | 'rupture' | 'alerte' | 'archive' | 'tous'>(route.query.stock === 'alerte' ? 'alerte' : 'actif')
 const sort = ref<'recent' | 'ref' | 'name' | 'price-asc' | 'price-desc' | 'qty'>('recent')
 const showFilters = ref(false)
@@ -49,7 +50,7 @@ watch(() => route.query.q, (q) => { search.value = String(q ?? '') })
 watch(() => route.query.stock, (s) => { if (s === 'alerte') filterStock.value = 'alerte' })
 
 function resetFilters() {
-  search.value = ''; filterCat.value = ''; filterSubcat.value = ''; filterEtat.value = ''; filterStock.value = 'actif'; sort.value = 'recent'
+  search.value = ''; filterCat.value = ''; filterSubcat.value = ''; filterEtat.value = ''; filterCondition.value = ''; filterStock.value = 'actif'; sort.value = 'recent'
 }
 
 const filteredPieces = computed(() => {
@@ -64,13 +65,9 @@ const filteredPieces = computed(() => {
   if (filterCat.value) list = list.filter(p => p.cat === filterCat.value)
   if (filterSubcat.value) list = list.filter(p => p.subcat === filterSubcat.value)
   if (filterEtat.value) list = list.filter(p => p.etat === filterEtat.value)
-  if (search.value) {
-    const q = search.value.toLowerCase()
-    list = list.filter(p =>
-      p.ref.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || (p.subcat || '').toLowerCase().includes(q) ||
-      (p.vehicle || '').toLowerCase().includes(q) || (p.oem || '').toLowerCase().includes(q) ||
-      (p.zone || '').toLowerCase().includes(q) || (p.compat || '').toLowerCase().includes(q))
-  }
+  if (filterCondition.value) list = list.filter(p => (p.condition || 'occasion') === filterCondition.value)
+  // Recherche comptoir : mots-clés + toutes les références (interne, OEM, fournisseur, EAN), séparateurs ignorés
+  if (search.value.trim()) list = list.filter(p => stock.matchesQuery(p, search.value))
   const sorted = [...list]
   switch (sort.value) {
     case 'ref': sorted.sort((a, b) => a.ref.localeCompare(b.ref)); break
@@ -136,8 +133,8 @@ function catLabel(p: Piece) {
 }
 
 function exportCSV() {
-  const header = ['Référence', 'Désignation', 'Catégorie', 'Sous-catégorie', 'Véhicule', 'OEM', 'Quantité', 'Prix', 'Zone', 'État']
-  const rows = stock.pieces.map(p => [p.ref, p.name, p.cat, p.subcat, p.vehicle, p.oem, p.qty, p.price, p.zone, p.etat])
+  const header = ['Référence', 'Désignation', 'Type', 'Catégorie', 'Sous-catégorie', 'Véhicule', 'OEM', 'Réf. fournisseur', 'EAN', 'Fournisseur', 'Quantité', 'Prix', 'Zone', 'État']
+  const rows = stock.pieces.map(p => [p.ref, p.name, p.condition === 'neuve' ? 'Neuve' : 'Occasion', p.cat, p.subcat, p.vehicle, p.oem, p.supplierRef, p.ean, p.supplier, p.qty, p.price, p.zone, p.etat])
   const csv = '﻿' + [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\r\n')
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
@@ -176,7 +173,7 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
       <div class="flex gap-2">
         <div class="relative flex-1">
           <AppIcon name="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input v-model="search" type="search" placeholder="Réf., désignation, sous-catégorie, véhicule, OEM…" class="input pl-9 h-11 bg-white">
+          <input v-model="search" type="search" placeholder="Réf. FISSA, OEM, réf. fournisseur, EAN, désignation, véhicule…" class="input pl-9 h-11 bg-white">
         </div>
         <button class="w-11 h-11 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-700 lg:hidden" :class="showFilters ? 'border-brand text-amber-700' : ''" @click="showFilters = !showFilters" aria-label="Filtres"><AppIcon name="filter" class="w-4 h-4" /></button>
       </div>
@@ -188,8 +185,11 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
         <button v-for="s in SUBCATS" :key="s.label" class="chip shrink-0 py-1" :class="filterSubcat === s.label ? 'chip-on' : ''" @click="filterSubcat = s.label">{{ s.label }} <span class="text-gray-400 font-normal">{{ s.n }}</span></button>
       </div>
       <div class="flex flex-wrap gap-2 items-center" :class="showFilters ? '' : 'hidden lg:flex'">
+        <select v-model="filterCondition" class="input w-auto min-w-[130px] h-10">
+          <option value="">Neuves et occasion</option><option value="neuve">Neuves</option><option value="occasion">Occasion</option>
+        </select>
         <select v-model="filterEtat" class="input w-auto min-w-[140px] h-10">
-          <option value="">Tous états</option><option>Très bon état</option><option>Bon état</option><option>État moyen</option><option>Pour pièces</option>
+          <option value="">Tous états</option><option>Neuf</option><option>Très bon état</option><option>Bon état</option><option>État moyen</option><option>Pour pièces</option>
         </select>
         <select v-model="filterStock" class="input w-auto min-w-[140px] h-10">
           <option value="actif">Stock actif</option><option value="dispo">Disponibles</option><option value="rupture">En rupture</option><option value="alerte">Sous le seuil</option><option value="archive">Archivées</option><option value="tous">Tout</option>
@@ -216,6 +216,7 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
           <div class="text-[12px] font-medium" :class="p.qty === 0 ? 'text-red-600' : p.qty <= (p.threshold ?? 0) ? 'text-orange-600' : 'text-green-600'">{{ qtyText(p) }}</div>
         </div>
         <div class="flex flex-col items-end gap-1 shrink-0">
+          <span class="badge" :class="p.condition === 'neuve' ? 'badge-green' : 'badge-violet'">{{ p.condition === 'neuve' ? 'Neuve' : 'Occasion' }}</span>
           <span v-if="p.cat" class="badge" :class="[cats.info(p.cat).bgClass, cats.info(p.cat).textClass]">{{ catLabel(p) }}</span>
           <span class="text-[13px] font-bold text-gray-900">{{ p.price ? formatPrice(p.price) : '—' }}</span>
           <span v-if="p.zone" class="badge-zone"><AppIcon name="map-pin" class="w-3 h-3" /> {{ p.zone }}</span>
@@ -250,7 +251,7 @@ const canEdit = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
               <td class="text-center"><span class="badge" :class="qtyClass(p)">{{ p.qty }}</span></td>
               <td class="font-semibold text-gray-900 whitespace-nowrap">{{ p.price ? formatPrice(p.price) : '—' }}</td>
               <td><span v-if="p.zone" class="badge-zone">{{ p.zone }}</span><span v-else class="text-gray-400">—</span></td>
-              <td><span v-if="p.etat" class="badge" :class="etatClass(p.etat)">{{ p.etat }}</span></td>
+              <td><span v-if="p.etat" class="badge" :class="etatClass(p.etat)">{{ p.etat }}</span><span v-else class="badge" :class="p.condition === 'neuve' ? 'badge-green' : 'badge-violet'">{{ p.condition === 'neuve' ? 'Neuve' : 'Occasion' }}</span></td>
               <td>
                 <div class="flex justify-end gap-0.5">
                   <router-link :to="`/piece/${p._id}`" class="icon-btn" title="Voir la fiche"><AppIcon name="eye" class="w-4 h-4" /></router-link>

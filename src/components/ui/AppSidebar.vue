@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'
 import { useModeStore } from '@/stores/mode'
+import { usePublicationsStore } from '@/stores/publications'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppLogo from '@/components/ui/AppLogo.vue'
 
@@ -14,6 +15,7 @@ const route = useRoute()
 const auth = useAuthStore()
 const cart = useCartStore()
 const modeStore = useModeStore()
+const pub = usePublicationsStore()
 
 interface NavItem {
   to: string
@@ -37,6 +39,7 @@ const navItems = computed<NavItem[]>(() => [
   { to: '/reporting', label: 'Reporting', icon: 'chart', show: auth.isAdmin, mode: 'both' },
   { to: '/caisse', label: 'Caisse', icon: 'cash', show: auth.isAdmin, mode: 'both' },
   { to: '/multidiffusion', label: 'Multidiffusion', icon: 'broadcast', show: auth.isAdmin || auth.hasPerm('vendeur'), mode: 'piece' },
+  { to: '/commandes', label: 'Commandes en ligne', icon: 'truck', show: auth.isAdmin || auth.hasPerm('vendeur'), mode: 'piece' },
   { to: '/users', label: 'Utilisateurs', icon: 'users', show: auth.isAdmin, mode: 'both' },
   { to: '/categories', label: 'Catégories', icon: 'tag', show: auth.isAdmin, mode: 'piece' },
   { to: '/profil', label: 'Paramètres', icon: 'settings', show: true, mode: 'both' },
@@ -89,6 +92,11 @@ function isActive(to: string) {
           class="text-[10px] font-bold rounded-full px-1.5 py-0.5"
           :class="isActive(item.to) ? 'bg-gray-900/15 text-gray-900' : 'bg-brand text-gray-900'"
         >{{ cart.count }}</span>
+        <span
+          v-else-if="item.to === '/commandes' && pub.ordersToShip.length > 0"
+          class="text-[10px] font-bold rounded-full px-1.5 py-0.5"
+          :class="isActive(item.to) ? 'bg-gray-900/15 text-gray-900' : 'bg-orange-500 text-white'"
+        >{{ pub.ordersToShip.length }}</span>
       </router-link>
     </nav>
 
