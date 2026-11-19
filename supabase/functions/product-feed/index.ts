@@ -61,7 +61,7 @@ Deno.serve(async (req: Request) => {
           p.ref,
           p.name,
           desc,
-          `${site}/boutique/${p.id}`,
+          `${site}/pieces/${p.id}`,
           photos[0] ?? '',
           photos.slice(1, 10).join(','),
           `${Number(p.price).toFixed(2)} EUR`,
@@ -88,7 +88,7 @@ Deno.serve(async (req: Request) => {
       <g:id>${xmlEscape(p.ref)}</g:id>
       <title>${xmlEscape(p.name)}</title>
       <description>${xmlEscape(desc)}</description>
-      <link>${xmlEscape(`${site}/boutique/${p.id}`)}</link>
+      <link>${xmlEscape(`${site}/pieces/${p.id}`)}</link>
       ${photos[0] ? `<g:image_link>${xmlEscape(photos[0])}</g:image_link>` : ''}
       ${photos.slice(1, 10).map((u) => `<g:additional_image_link>${xmlEscape(u)}</g:additional_image_link>`).join('\n      ')}
       <g:price>${Number(p.price).toFixed(2)} EUR</g:price>

@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #f2b705;
+  --color-brand-dark: #d99f00;
+  --color-brand-light: #fff4cc;
+  --color-navy: #0f1623;
+  --color-navy-2: #182135;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+body { @apply bg-white text-gray-800 antialiased; }
+
+.container-x { @apply max-w-[1200px] mx-auto px-5; }
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-colors; }
+.btn-brand { @apply bg-brand text-navy hover:bg-brand-dark; }
+.btn-outline { @apply border border-gray-300 text-gray-800 hover:border-navy hover:text-navy; }
+.btn-dark { @apply bg-navy text-white hover:bg-navy-2; }
+.card { @apply bg-white border border-gray-200 rounded-2xl; }
+.input { @apply w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/30; }
+.label { @apply block text-xs font-semibold text-gray-600 mb-1.5; }
+.badge-ref { @apply inline-block rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-mono text-gray-600; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

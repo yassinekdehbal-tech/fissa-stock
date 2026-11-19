@@ -1,0 +1,26 @@
+---
+import Base from '../layouts/Base.astro'
+import { SITE, CONTACT } from '../config'
+---
+<Base title="Mentions légales" noindex>
+  <div class="container-x py-10 max-w-3xl prose-sm text-gray-700 leading-relaxed space-y-6">
+    <h1 class="text-2xl font-extrabold text-navy">Mentions légales</h1>
+    <section>
+      <h2 class="font-bold text-navy">Éditeur du site</h2>
+      <p>{CONTACT.legalName}{CONTACT.siret ? ` — SIRET ${CONTACT.siret}` : ''}{CONTACT.address ? ` — ${CONTACT.address}` : ''}.<br />Contact : <a href={`mailto:${CONTACT.email}`} class="underline">{CONTACT.email}</a>{CONTACT.phone ? ` · ${CONTACT.phone}` : ''}.</p>
+      <p class="text-xs text-gray-500">À compléter : forme juridique, capital, numéro RCS, TVA intracommunautaire, directeur de la publication (fichier <code>site/src/config.ts</code>).</p>
+    </section>
+    <section>
+      <h2 class="font-bold text-navy">Hébergement</h2>
+      <p>Site hébergé par Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis. Données du catalogue et des demandes hébergées par Supabase (serveurs situés dans l'Union européenne, Francfort).</p>
+    </section>
+    <section>
+      <h2 class="font-bold text-navy">Propriété intellectuelle</h2>
+      <p>Les contenus de {SITE.name} (textes, photos, logos) sont protégés. Toute reproduction sans autorisation est interdite. Les références constructeur citées appartiennent à leurs propriétaires respectifs et ne servent qu'à identifier la compatibilité des pièces.</p>
+    </section>
+    <section>
+      <h2 class="font-bold text-navy">Prix et disponibilité</h2>
+      <p>Les prix affichés sont en euros TTC, hors frais d'expédition éventuels. La disponibilité des pièces est mise à jour en temps réel depuis notre stock, mais une pièce peut être vendue en magasin entre deux consultations ; la réservation n'est effective qu'après confirmation de notre part.</p>
+    </section>
+  </div>
+</Base>

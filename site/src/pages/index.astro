@@ -1,0 +1,94 @@
+---
+import Base from '../layouts/Base.astro'
+import PieceCard from '../components/PieceCard.astro'
+import { SITE, CONTACT, ACTIVITIES } from '../config'
+import { listPieces } from '../lib/pieces'
+
+const latest = await listPieces({ limit: 8 })
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=600')
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: SITE.name,
+  url: SITE.url,
+  logo: `${SITE.url}/favicon.svg`,
+  email: CONTACT.email,
+  ...(CONTACT.phone ? { telephone: CONTACT.phone } : {}),
+  department: ACTIVITIES.map((a) => ({ '@type': 'LocalBusiness', name: a.name, url: `${SITE.url}${a.href}` })),
+}
+---
+<Base title="FISSA GROUPE — Pièces auto, véhicules d'occasion et mécanique" jsonLd={jsonLd}>
+  <!-- Hero -->
+  <section class="bg-navy text-white relative overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_-10%,rgba(242,183,5,0.22)_0%,transparent_55%)]" aria-hidden="true"></div>
+    <div class="container-x relative py-16 md:py-24">
+      <p class="text-brand font-semibold text-sm tracking-widest uppercase mb-3">Pièces · Véhicules · Mécanique</p>
+      <h1 class="text-3xl sm:text-4xl md:text-5xl font-black leading-[1.1] max-w-3xl">
+        Tout pour votre voiture, <span class="text-brand">au juste prix</span>.
+      </h1>
+      <p class="mt-5 text-white/80 text-base md:text-lg max-w-2xl leading-relaxed">
+        Pièces d'occasion contrôlées et pièces neuves, véhicules révisés ou vendus en dépôt-vente, atelier mécanique sur devis. Trois métiers, une seule équipe.
+      </p>
+      <form action="/pieces" method="get" class="mt-8 flex flex-col sm:flex-row gap-2 max-w-xl" role="search">
+        <label class="sr-only" for="home-q">Rechercher une pièce</label>
+        <input id="home-q" name="q" type="search" class="input !py-3.5 !text-gray-900" placeholder="Référence, pièce ou véhicule… ex. alternateur Clio 4" />
+        <button type="submit" class="btn btn-brand !py-3.5 shrink-0">Rechercher une pièce</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 3 activités -->
+  <section class="container-x -mt-8 md:-mt-10 relative">
+    <div class="grid gap-4 md:grid-cols-3">
+      {ACTIVITIES.map((a) => (
+        <a href={a.href} class="card p-6 hover:border-brand hover:shadow-lg transition-all group flex flex-col">
+          <div class="w-12 h-12 rounded-xl bg-brand-light grid place-items-center text-2xl mb-4" aria-hidden="true">{a.icon}</div>
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{a.tagline}</div>
+          <h2 class="text-lg font-extrabold text-navy mt-1">{a.name}</h2>
+          <p class="text-sm text-gray-600 mt-2 leading-relaxed flex-1">{a.description}</p>
+          <span class="mt-4 text-sm font-semibold text-navy group-hover:text-brand-dark transition-colors">{a.cta} →</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <!-- Dernières pièces -->
+  {latest.length > 0 && (
+    <section class="container-x mt-16">
+      <div class="flex items-end justify-between gap-4 mb-5">
+        <div>
+          <h2 class="text-2xl font-extrabold text-navy">Dernières pièces en stock</h2>
+          <p class="text-sm text-gray-500 mt-1">Mises en ligne directement depuis notre stock, disponibilité en temps réel.</p>
+        </div>
+        <a href="/pieces" class="text-sm font-semibold text-navy hover:text-brand-dark shrink-0">Tout le catalogue →</a>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {latest.map((p) => <PieceCard piece={p} />)}
+      </div>
+    </section>
+  )}
+
+  <!-- Pourquoi FISSA -->
+  <section class="container-x mt-16">
+    <div class="grid gap-6 md:grid-cols-3">
+      <div class="card p-6"><div class="text-2xl mb-2" aria-hidden="true">✅</div><h3 class="font-bold text-navy">Pièces contrôlées</h3><p class="text-sm text-gray-600 mt-1">Chaque pièce d'occasion est testée et référencée (référence constructeur, véhicule donneur, état) avant mise en ligne.</p></div>
+      <div class="card p-6"><div class="text-2xl mb-2" aria-hidden="true">💶</div><h3 class="font-bold text-navy">Jusqu'à 70 % d'économie</h3><p class="text-sm text-gray-600 mt-1">L'occasion garantie coûte une fraction du neuf. Et nous pouvons la monter pour vous à l'atelier.</p></div>
+      <div class="card p-6"><div class="text-2xl mb-2" aria-hidden="true">⚡</div><h3 class="font-bold text-navy">Réponse rapide</h3><p class="text-sm text-gray-600 mt-1">Demande de pièce ou devis atelier : nous répondons sous 24 h ouvrées, par téléphone ou e-mail.</p></div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="container-x mt-16">
+    <div class="rounded-3xl bg-navy text-white p-8 md:p-12 flex flex-col md:flex-row md:items-center gap-6 justify-between">
+      <div>
+        <h2 class="text-2xl md:text-3xl font-black">Un devis mécanique, une pièce à trouver, une voiture à vendre ?</h2>
+        <p class="text-white/75 mt-2">Dites-nous ce qu'il vous faut, on s'occupe du reste.</p>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3 shrink-0">
+        <a href="/garage#devis" class="btn btn-brand">Demander un devis</a>
+        {CONTACT.phone && <a href={CONTACT.phoneHref} class="btn btn-outline !text-white !border-white/40">Appeler {CONTACT.phone}</a>}
+      </div>
+    </div>
+  </section>
+</Base>

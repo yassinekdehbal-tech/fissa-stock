@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro'
+import LeadForm from '../components/LeadForm.astro'
+import { SITE, CONTACT } from '../config'
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=86400')
+const services = [
+  ['Diagnostic électronique', 'Lecture des défauts, voyants moteur, recherche de panne.'],
+  ['Entretien & révision', 'Vidange, filtres, plaquettes et disques, pneus, climatisation.'],
+  ['Distribution & embrayage', 'Kits complets, pompe à eau, volant moteur.'],
+  ['Mécanique lourde', 'Moteur, boîte de vitesses, turbo, injection, avec pièces neuves ou d’occasion contrôlées.'],
+  ['Train roulant', 'Amortisseurs, rotules, triangles, géométrie.'],
+  ['Carrosserie légère', 'Remplacement d’éléments (pare-chocs, optiques, rétroviseurs) avec pièces d’occasion.'],
+]
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'AutoRepair',
+  name: 'FISSA MÉCANIQUE AUTO',
+  url: `${SITE.url}/garage`,
+  parentOrganization: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+  email: CONTACT.email,
+  ...(CONTACT.phone ? { telephone: CONTACT.phone } : {}),
+  ...(CONTACT.address ? { address: CONTACT.address } : {}),
+  openingHours: CONTACT.hours,
+  priceRange: '€€',
+  hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Prestations', itemListElement: services.map(([n]) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: n } })) },
+}
+---
+<Base title="FISSA MÉCANIQUE AUTO — Entretien et réparation sur devis" description="Garage FISSA MÉCANIQUE AUTO : diagnostic, entretien, freinage, distribution, embrayage, mécanique lourde. Devis clair sous 24 h, pose de pièces d'occasion contrôlées pour réduire la facture. Demande de devis en ligne." jsonLd={jsonLd}>
+  <section class="bg-navy text-white">
+    <div class="container-x py-14 md:py-20">
+      <p class="text-brand font-semibold text-sm tracking-widest uppercase mb-3">FISSA MÉCANIQUE AUTO</p>
+      <h1 class="text-3xl md:text-5xl font-black leading-[1.1] max-w-3xl">Réparation et entretien, <span class="text-brand">devis clair sous 24 h</span>.</h1>
+      <p class="mt-5 text-white/80 text-base md:text-lg max-w-2xl">Un atelier qui connaît la pièce d'occasion : nous pouvons monter des pièces contrôlées de notre propre stock et diviser la facture, ou des pièces neuves si vous préférez. Vous choisissez, le devis le précise.</p>
+      <div class="mt-8 flex flex-col sm:flex-row gap-3">
+        <a href="#devis" class="btn btn-brand">Demander un devis gratuit</a>
+        {CONTACT.phone && <a href={CONTACT.phoneHref} class="btn btn-outline !text-white !border-white/40">Appeler {CONTACT.phone}</a>}
+      </div>
+    </div>
+  </section>
+
+  <section class="container-x mt-14">
+    <h2 class="text-2xl font-extrabold text-navy">Nos prestations</h2>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+      {services.map(([n, d]) => (
+        <div class="card p-5"><h3 class="font-bold text-navy">{n}</h3><p class="text-sm text-gray-600 mt-1 leading-relaxed">{d}</p></div>
+      ))}
+    </div>
+  </section>
+
+  <section class="container-x mt-14">
+    <div class="rounded-3xl bg-brand-light border border-brand/40 p-6 md:p-8 grid gap-6 md:grid-cols-3">
+      <div><div class="text-2xl" aria-hidden="true">📝</div><h3 class="font-bold text-navy mt-2">1. Vous décrivez</h3><p class="text-sm text-gray-700 mt-1">Véhicule, symptôme ou prestation souhaitée, via le formulaire ou par téléphone.</p></div>
+      <div><div class="text-2xl" aria-hidden="true">💬</div><h3 class="font-bold text-navy mt-2">2. Devis sous 24 h</h3><p class="text-sm text-gray-700 mt-1">Pièces et main-d'œuvre détaillées, avec l'option pièce d'occasion quand elle existe.</p></div>
+      <div><div class="text-2xl" aria-hidden="true">📅</div><h3 class="font-bold text-navy mt-2">3. Rendez-vous</h3><p class="text-sm text-gray-700 mt-1">Vous validez, on fixe la date. Pas de surprise à la facture.</p></div>
+    </div>
+  </section>
+
+  <section class="container-x mt-16 max-w-3xl">
+    <LeadForm kind="garage" title="Demande de devis" intro="Gratuit et sans engagement. Réponse sous 24 h ouvrées." submitLabel="Recevoir mon devis" messagePlaceholder="Ex. bruit au freinage à l'avant, voyant moteur allumé, révision des 100 000 km…" />
+  </section>
+</Base>

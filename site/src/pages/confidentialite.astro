@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro'
+import { CONTACT } from '../config'
+const UPDATED = '19 novembre 2026'
+---
+<Base title="Politique de confidentialité" noindex>
+  <div class="container-x py-10 max-w-3xl text-gray-700 leading-relaxed space-y-6 text-sm">
+    <div>
+      <h1 class="text-2xl font-extrabold text-navy">Politique de confidentialité</h1>
+      <p class="text-gray-500">Site fissagroupe.fr · Dernière mise à jour : {UPDATED}</p>
+    </div>
+    <section><h2 class="font-bold text-navy text-base">1. Responsable du traitement</h2><p>{CONTACT.legalName}, joignable à <a href={`mailto:${CONTACT.email}`} class="underline">{CONTACT.email}</a>.</p></section>
+    <section><h2 class="font-bold text-navy text-base">2. Données collectées</h2><p>La consultation du site ne collecte aucune donnée personnelle et ne dépose aucun cookie de suivi. Lorsque vous envoyez une demande (devis, pièce, véhicule), nous enregistrons : nom, téléphone et/ou e-mail, véhicule concerné et le texte de votre demande.</p></section>
+    <section><h2 class="font-bold text-navy text-base">3. Finalité et base légale</h2><p>Ces données servent uniquement à répondre à votre demande et, le cas échéant, à établir un devis ou une réservation (mesures précontractuelles). Elles ne sont ni vendues, ni cédées, ni utilisées à des fins publicitaires.</p></section>
+    <section><h2 class="font-bold text-navy text-base">4. Conservation</h2><p>Les demandes sont conservées 24 mois après le dernier échange, puis supprimées ou anonymisées.</p></section>
+    <section><h2 class="font-bold text-navy text-base">5. Hébergement et sécurité</h2><p>Les demandes sont stockées chez Supabase (Union européenne, Francfort) et les pages servies par Vercel. Les échanges sont chiffrés (HTTPS) et l'accès aux demandes est réservé aux collaborateurs disposant d'un compte.</p></section>
+    <section><h2 class="font-bold text-navy text-base">6. Vos droits</h2><p>Vous pouvez demander l'accès, la rectification ou la suppression de vos données en écrivant à <a href={`mailto:${CONTACT.email}`} class="underline">{CONTACT.email}</a>. Vous pouvez également saisir la CNIL (cnil.fr).</p></section>
+  </div>
+</Base>

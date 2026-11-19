@@ -1,0 +1,66 @@
+---
+import Base from '../../layouts/Base.astro'
+import PieceCard from '../../components/PieceCard.astro'
+import { listPieces, listCategories } from '../../lib/pieces'
+import { SITE } from '../../config'
+
+const q = (Astro.url.searchParams.get('q') ?? '').trim().slice(0, 80)
+const cat = (Astro.url.searchParams.get('cat') ?? '').trim().slice(0, 40)
+const [pieces, categories] = await Promise.all([listPieces({ q, cat, limit: 240 }), listCategories()])
+const present = categories.filter((c) => !cat ? pieces.some((p) => p.cat === c.key) : true)
+const catLabel = categories.find((c) => c.key === cat)?.label ?? ''
+
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600')
+const title = q ? `Pièces auto « ${q} »` : catLabel ? `Pièces auto d'occasion — ${catLabel}` : "Pièces auto d'occasion et neuves"
+const description = `Catalogue FISSA PIÈCE AUTO : ${pieces.length} pièce${pieces.length > 1 ? 's' : ''} ${catLabel ? catLabel.toLowerCase() + ' ' : ''}d'occasion contrôlées et neuves, disponibles immédiatement. Recherche par référence constructeur ou par véhicule.`
+const filtered = Boolean(q || cat)
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: title,
+  url: `${SITE.url}/pieces`,
+  isPartOf: { '@type': 'WebSite', name: SITE.name, url: SITE.url },
+}
+---
+<Base title={title} description={description} canonical={`${SITE.url}/pieces${cat && !q ? `?cat=${encodeURIComponent(cat)}` : ''}`} noindex={Boolean(q)} jsonLd={jsonLd}>
+  <section class="bg-[radial-gradient(ellipse_at_50%_0%,rgba(242,183,5,0.14)_0%,transparent_70%)] border-b border-gray-200">
+    <div class="container-x py-10 text-center">
+      <p class="text-xs font-semibold tracking-widest uppercase text-gray-500">FISSA PIÈCE AUTO</p>
+      <h1 class="text-2xl sm:text-3xl font-black text-navy mt-1">Pièces auto <span class="text-brand-dark">d'occasion</span> & neuves</h1>
+      <p class="text-gray-500 text-sm mt-2">Contrôlées, prêtes à poser. Trouvez votre pièce par référence ou par véhicule.</p>
+      <form method="get" action="/pieces" class="mt-5 flex gap-2 max-w-[560px] mx-auto" role="search">
+        {cat && <input type="hidden" name="cat" value={cat} />}
+        <label class="sr-only" for="q">Rechercher</label>
+        <input id="q" name="q" type="search" value={q} class="input" placeholder="Référence, pièce, véhicule, référence OEM…" />
+        <button type="submit" class="btn btn-dark shrink-0">Rechercher</button>
+      </form>
+    </div>
+  </section>
+
+  <section class="container-x py-6">
+    <nav class="flex flex-wrap gap-2 mb-5" aria-label="Catégories">
+      <a href={q ? `/pieces?q=${encodeURIComponent(q)}` : '/pieces'} class:list={['text-xs px-3 py-1.5 rounded-lg border transition-colors', !cat ? 'bg-brand border-brand text-navy font-semibold' : 'border-gray-200 text-gray-600 hover:border-gray-400']}>Toutes</a>
+      {present.map((c) => (
+        <a href={`/pieces?cat=${encodeURIComponent(c.key)}${q ? `&q=${encodeURIComponent(q)}` : ''}`} class:list={['text-xs px-3 py-1.5 rounded-lg border transition-colors', cat === c.key ? 'bg-brand border-brand text-navy font-semibold' : 'border-gray-200 text-gray-600 hover:border-gray-400']}>{c.label}</a>
+      ))}
+    </nav>
+
+    {pieces.length === 0 ? (
+      <div class="text-center py-16">
+        <p class="text-gray-700 font-medium">{filtered ? 'Aucune pièce ne correspond à cette recherche.' : 'Le catalogue en ligne est en cours de remplissage.'}</p>
+        <p class="text-sm text-gray-500 mt-1">Nous avons sans doute la pièce en stock : demandez-la, réponse sous 24 h.</p>
+        <div class="mt-5 flex justify-center gap-3">
+          {filtered && <a href="/pieces" class="btn btn-outline">Voir tout le catalogue</a>}
+          <a href={`/garage#devis`} class="btn btn-brand">Demander une pièce</a>
+        </div>
+      </div>
+    ) : (
+      <>
+        <p class="text-xs text-gray-500 mb-3">{pieces.length} pièce{pieces.length > 1 ? 's' : ''} disponible{pieces.length > 1 ? 's' : ''}{filtered ? ' pour cette recherche' : ''}.</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {pieces.map((p) => <PieceCard piece={p} />)}
+        </div>
+      </>
+    )}
+  </section>
+</Base>

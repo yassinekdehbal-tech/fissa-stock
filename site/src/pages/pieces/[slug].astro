@@ -1,0 +1,136 @@
+---
+import Base from '../../layouts/Base.astro'
+import LeadForm from '../../components/LeadForm.astro'
+import PieceCard from '../../components/PieceCard.astro'
+import { getPiece, idFromSlug, piecePath, formatPrice, conditionLabel, listPieces, listCategories } from '../../lib/pieces'
+import { SITE, CONTACT } from '../../config'
+
+const { slug = '' } = Astro.params
+const id = idFromSlug(slug)
+const piece = id ? await getPiece(id) : null
+
+if (!piece) {
+  // Pièce vendue, retirée ou inconnue : 410 pour que Google la désindexe vite.
+  Astro.response.status = id ? 410 : 404
+  Astro.response.headers.set('Cache-Control', 'public, s-maxage=60')
+}
+const canonicalPath = piece ? piecePath(piece) : ''
+if (piece && canonicalPath !== Astro.url.pathname) {
+  return Astro.redirect(canonicalPath + Astro.url.search, 301)
+}
+if (piece) Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600')
+
+const [categories, related] = piece
+  ? await Promise.all([listCategories(), listPieces({ cat: piece.cat, limit: 5 })])
+  : [[], []]
+const catLabel = piece ? categories.find((c) => c.key === piece.cat)?.label ?? '' : ''
+const others = related.filter((p) => p.id !== piece?.id).slice(0, 4)
+
+const title = piece ? `${piece.name}${piece.vehicle ? ' ' + piece.vehicle : ''} — ${conditionLabel(piece.condition).toLowerCase()} ${piece.ref}` : 'Pièce indisponible'
+const description = piece
+  ? `${piece.name}${piece.vehicle ? ` pour ${piece.vehicle}` : ''}, ${conditionLabel(piece.condition).toLowerCase()}${piece.etat ? ', ' + piece.etat.toLowerCase() : ''}${piece.oem ? `, réf. OEM ${piece.oem}` : ''}. ${formatPrice(piece.price)} chez FISSA PIÈCE AUTO, disponible immédiatement.`
+  : "Cette pièce n'est plus disponible. Découvrez les autres pièces en stock chez FISSA PIÈCE AUTO."
+
+const jsonLd = piece
+  ? [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Product',
+        name: `${piece.name}${piece.vehicle ? ' ' + piece.vehicle : ''}`,
+        sku: piece.ref,
+        ...(piece.oem ? { mpn: piece.oem.split(/\s+/)[0] } : {}),
+        description,
+        image: piece.photos,
+        category: catLabel || undefined,
+        brand: { '@type': 'Brand', name: 'FISSA PIÈCE AUTO' },
+        offers: {
+          '@type': 'Offer',
+          url: `${SITE.url}${canonicalPath}`,
+          priceCurrency: 'EUR',
+          price: piece.price.toFixed(2),
+          availability: 'https://schema.org/InStock',
+          itemCondition: piece.condition === 'neuve' ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
+          seller: { '@type': 'Organization', name: 'FISSA PIÈCE AUTO' },
+        },
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Accueil', item: SITE.url },
+          { '@type': 'ListItem', position: 2, name: 'Pièces auto', item: `${SITE.url}/pieces` },
+          ...(catLabel ? [{ '@type': 'ListItem', position: 3, name: catLabel, item: `${SITE.url}/pieces?cat=${encodeURIComponent(piece.cat)}` }] : []),
+          { '@type': 'ListItem', position: catLabel ? 4 : 3, name: piece.name, item: `${SITE.url}${canonicalPath}` },
+        ],
+      },
+    ]
+  : undefined
+const oemRefs = piece?.oem ? piece.oem.split(/\s+/).filter(Boolean) : []
+---
+<Base title={title} description={description} canonical={piece ? `${SITE.url}${canonicalPath}` : undefined} noindex={!piece} ogImage={piece?.photo || undefined} jsonLd={jsonLd}>
+  <div class="container-x py-6">
+    <nav class="text-xs text-gray-500 flex flex-wrap gap-1.5" aria-label="Fil d'Ariane">
+      <a href="/" class="hover:text-navy">Accueil</a><span>›</span>
+      <a href="/pieces" class="hover:text-navy">Pièces auto</a>
+      {catLabel && <><span>›</span><a href={`/pieces?cat=${encodeURIComponent(piece!.cat)}`} class="hover:text-navy">{catLabel}</a></>}
+    </nav>
+
+    {!piece ? (
+      <div class="text-center py-20">
+        <h1 class="text-2xl font-extrabold text-navy">Cette pièce n'est plus disponible</h1>
+        <p class="text-gray-500 mt-2">Elle a probablement été vendue. Nous en avons peut-être une autre en stock.</p>
+        <div class="mt-6 flex justify-center gap-3"><a href="/pieces" class="btn btn-brand">Voir les pièces disponibles</a><a href="/garage#devis" class="btn btn-outline">Demander cette pièce</a></div>
+      </div>
+    ) : (
+      <>
+        <article class="grid gap-8 md:grid-cols-2 mt-4">
+          <div>
+            <div class="card overflow-hidden aspect-square bg-gray-50 grid place-items-center">
+              {piece.photo
+                ? <img src={piece.photo} alt={`${piece.name} ${piece.vehicle}`.trim()} width="800" height="800" class="w-full h-full object-cover" />
+                : <span class="text-7xl opacity-20" aria-hidden="true">⚙️</span>}
+            </div>
+            {piece.photos.length > 1 && (
+              <div class="flex gap-2 mt-2 overflow-x-auto">
+                {piece.photos.map((u, i) => <a href={u} target="_blank" rel="noopener" class="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 shrink-0"><img src={u} alt={`Photo ${i + 1}`} loading="lazy" class="w-full h-full object-cover" /></a>)}
+              </div>
+            )}
+          </div>
+          <div>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="badge-ref">{piece.ref}</span>
+              <span class="rounded-md bg-brand-light text-navy px-2 py-0.5 font-semibold">{conditionLabel(piece.condition)}</span>
+              {piece.etat && <span class="text-gray-500">{piece.etat}</span>}
+            </div>
+            <h1 class="text-2xl md:text-3xl font-black text-navy mt-3 leading-tight">{piece.name}</h1>
+            {piece.vehicle && <p class="text-gray-600 mt-1 text-lg">{piece.vehicle}</p>}
+            <div class="text-3xl font-black text-navy mt-5">{formatPrice(piece.price)}</div>
+            <p class="text-xs text-gray-500 mt-1">En stock · retrait sur place ou expédition sur demande · pose possible à l'atelier</p>
+
+            <dl class="mt-6 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+              {catLabel && <><dt class="text-gray-500">Catégorie</dt><dd class="text-gray-900">{catLabel}{piece.subcat ? ` · ${piece.subcat}` : ''}</dd></>}
+              {oemRefs.length > 0 && <><dt class="text-gray-500">Réf. constructeur</dt><dd class="text-gray-900 font-mono text-xs leading-relaxed">{oemRefs.join(' · ')}</dd></>}
+              {piece.compat && <><dt class="text-gray-500">Compatibilité</dt><dd class="text-gray-900">{piece.compat}</dd></>}
+            </dl>
+
+            <div class="mt-6 flex flex-col sm:flex-row gap-3">
+              <a href="#devis" class="btn btn-brand">Réserver cette pièce</a>
+              {CONTACT.phone && <a href={CONTACT.phoneHref} class="btn btn-outline">Appeler {CONTACT.phone}</a>}
+            </div>
+          </div>
+        </article>
+
+        <div class="mt-12 max-w-3xl">
+          <LeadForm kind="piece" pieceId={piece.id} pieceLabel={`${piece.ref} — ${piece.name}${piece.vehicle ? ' ' + piece.vehicle : ''}`} title="Réserver ou poser une question sur cette pièce" intro="Nous vous confirmons la disponibilité et le mode de retrait sous 24 h ouvrées." submitLabel="Envoyer ma demande" vehicleLabel="Votre véhicule (pour vérifier la compatibilité)" messagePlaceholder="Question, précision sur la compatibilité, souhait d'expédition ou de pose…" />
+        </div>
+
+        {others.length > 0 && (
+          <section class="mt-14">
+            <h2 class="text-xl font-extrabold text-navy mb-4">Dans la même catégorie</h2>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">{others.map((p) => <PieceCard piece={p} />)}</div>
+          </section>
+        )}
+      </>
+    )}
+  </div>
+</Base>

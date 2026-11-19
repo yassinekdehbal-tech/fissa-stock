@@ -1,0 +1,82 @@
+---
+/**
+ * Formulaire de demande (devis atelier, dépôt-vente, pièce). Fonctionne sans
+ * JavaScript : POST vers /api/lead qui enregistre dans la table `leads` du
+ * projet Supabase, puis redirige vers la page d'origine avec ?sent=1.
+ */
+interface Props {
+  kind: 'garage' | 'auto' | 'piece' | 'contact'
+  title?: string
+  intro?: string
+  pieceId?: string
+  pieceLabel?: string
+  submitLabel?: string
+  vehicleLabel?: string
+  messagePlaceholder?: string
+}
+const {
+  kind,
+  title = 'Votre demande',
+  intro = 'Réponse sous 24 h ouvrées. Aucun engagement.',
+  pieceId = '',
+  pieceLabel = '',
+  submitLabel = 'Envoyer ma demande',
+  vehicleLabel = 'Votre véhicule (marque, modèle, année, motorisation)',
+  messagePlaceholder = 'Décrivez votre besoin…',
+} = Astro.props
+const sent = Astro.url.searchParams.get('sent') === '1'
+const error = Astro.url.searchParams.get('error')
+const page = Astro.url.pathname
+---
+<div id="devis" class="card p-6 md:p-8 scroll-mt-24">
+  <h2 class="text-xl font-extrabold text-navy">{title}</h2>
+  <p class="text-sm text-gray-500 mt-1 mb-6">{intro}</p>
+
+  {sent && (
+    <div class="rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm p-4 mb-6" role="status">
+      <strong>Merci, votre demande est bien enregistrée.</strong> Nous vous recontactons très vite.
+    </div>
+  )}
+  {error && (
+    <div class="rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm p-4 mb-6" role="alert">
+      {error === 'contact' ? 'Indiquez au moins un téléphone ou un e-mail pour que nous puissions vous répondre.' : "Impossible d'envoyer la demande pour le moment. Réessayez ou contactez-nous directement."}
+    </div>
+  )}
+
+  <form method="post" action="/api/lead" class="grid gap-4 sm:grid-cols-2">
+    <input type="hidden" name="kind" value={kind} />
+    <input type="hidden" name="piece_id" value={pieceId} />
+    <input type="hidden" name="page" value={page} />
+    <div class="hidden" aria-hidden="true"><label>Site web <input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>
+
+    {pieceLabel && (
+      <div class="sm:col-span-2 rounded-xl bg-brand-light border border-brand/40 px-4 py-3 text-sm text-navy">
+        Pièce concernée : <strong>{pieceLabel}</strong>
+      </div>
+    )}
+    <div>
+      <label class="label" for="lead-name">Nom et prénom *</label>
+      <input id="lead-name" class="input" type="text" name="name" required minlength="2" maxlength="120" autocomplete="name" />
+    </div>
+    <div>
+      <label class="label" for="lead-phone">Téléphone</label>
+      <input id="lead-phone" class="input" type="tel" name="phone" maxlength="40" autocomplete="tel" placeholder="06 …" />
+    </div>
+    <div>
+      <label class="label" for="lead-email">E-mail</label>
+      <input id="lead-email" class="input" type="email" name="email" maxlength="160" autocomplete="email" />
+    </div>
+    <div>
+      <label class="label" for="lead-vehicle">{vehicleLabel}</label>
+      <input id="lead-vehicle" class="input" type="text" name="vehicle" maxlength="160" placeholder="Ex. Peugeot 308 1.6 HDi 2016" />
+    </div>
+    <div class="sm:col-span-2">
+      <label class="label" for="lead-message">Votre demande</label>
+      <textarea id="lead-message" class="input min-h-[120px]" name="message" maxlength="2000" placeholder={messagePlaceholder}></textarea>
+    </div>
+    <div class="sm:col-span-2 flex flex-col sm:flex-row sm:items-center gap-3">
+      <button type="submit" class="btn btn-brand">{submitLabel}</button>
+      <span class="text-xs text-gray-500">Vos données servent uniquement à traiter votre demande. <a href="/confidentialite" class="underline">Confidentialité</a></span>
+    </div>
+  </form>
+</div>

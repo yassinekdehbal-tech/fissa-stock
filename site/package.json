@@ -1,0 +1,23 @@
+{
+  "name": "fissa-groupe-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Portail public FISSA GROUPE — fissagroupe.fr (site pré-rendu, lit le stock Supabase)",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/vercel": "^8.2.0",
+    "@supabase/supabase-js": "^2.58.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "astro": "^5.12.0",
+    "tailwindcss": "^4.1.0"
+  },
+  "overrides": {
+    "rollup": "npm:@rollup/wasm-node@^4.68.7"
+  }
+}

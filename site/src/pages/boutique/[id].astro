@@ -1,0 +1,6 @@
+---
+import { getPiece, piecePath, isUuid } from '../../lib/pieces'
+const { id = '' } = Astro.params
+const piece = isUuid(id) ? await getPiece(id) : null
+return Astro.redirect(piece ? piecePath(piece) : '/pieces', piece ? 301 : 302)
+---

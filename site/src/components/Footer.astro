@@ -1,0 +1,40 @@
+---
+import { SITE, CONTACT, ACTIVITIES } from '../config'
+const year = new Date().getFullYear()
+---
+<footer class="bg-navy text-white/80 mt-16">
+  <div class="container-x py-12 grid gap-10 md:grid-cols-4 text-sm">
+    <div class="md:col-span-2">
+      <div class="flex items-center gap-2.5 mb-3">
+        <span class="w-8 h-8 rounded-lg bg-brand text-navy font-black grid place-items-center">F</span>
+        <span class="font-extrabold text-white text-base">FISSA <span class="text-brand">GROUPE</span></span>
+      </div>
+      <p class="max-w-md leading-relaxed">{SITE.description}</p>
+    </div>
+    <div>
+      <div class="font-semibold text-white mb-3">Nos activités</div>
+      <ul class="space-y-2">
+        {ACTIVITIES.map((a) => <li><a href={a.href} class="hover:text-brand transition-colors">{a.name}</a></li>)}
+      </ul>
+    </div>
+    <div>
+      <div class="font-semibold text-white mb-3">Contact</div>
+      <ul class="space-y-2">
+        {CONTACT.phone && <li><a href={CONTACT.phoneHref} class="hover:text-brand">{CONTACT.phone}</a></li>}
+        <li><a href={`mailto:${CONTACT.email}`} class="hover:text-brand">{CONTACT.email}</a></li>
+        {CONTACT.address && <li>{CONTACT.address}</li>}
+        <li class="text-white/60">{CONTACT.hours}</li>
+      </ul>
+    </div>
+  </div>
+  <div class="border-t border-white/10">
+    <div class="container-x py-5 flex flex-col sm:flex-row gap-3 items-center justify-between text-xs text-white/60">
+      <div>© {year} {SITE.name} — Tous droits réservés</div>
+      <div class="flex gap-4">
+        <a href="/mentions-legales" class="hover:text-brand">Mentions légales</a>
+        <a href="/confidentialite" class="hover:text-brand">Confidentialité</a>
+        <a href={SITE.stockUrl} rel="nofollow" class="hover:text-brand">Espace collaborateurs</a>
+      </div>
+    </div>
+  </div>
+</footer>

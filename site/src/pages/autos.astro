@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro'
+import LeadForm from '../components/LeadForm.astro'
+import { SITE, CONTACT } from '../config'
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=86400')
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'AutoDealer',
+  name: 'FISSA AUTO',
+  url: `${SITE.url}/autos`,
+  parentOrganization: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+  email: CONTACT.email,
+  ...(CONTACT.phone ? { telephone: CONTACT.phone } : {}),
+  ...(CONTACT.address ? { address: CONTACT.address } : {}),
+}
+const steps = [
+  ['Estimation gratuite', 'Vous nous décrivez le véhicule (ou vous passez nous voir) : nous fixons ensemble un prix de vente réaliste.'],
+  ['Préparation & photos', 'Contrôle, nettoyage, photos professionnelles. Les petites réparations peuvent être faites à l’atelier.'],
+  ['Diffusion partout', 'Votre annonce est publiée sur les grands sites d’annonces et ici même. Nous gérons appels, visites et essais.'],
+  ['Vente sécurisée', 'Paiement sécurisé, déclaration de cession, remise des documents. Vous êtes réglé dès la vente.'],
+]
+---
+<Base title="FISSA AUTO — Véhicules d'occasion et dépôt-vente" description="FISSA AUTO : véhicules d'occasion révisés et garantis, et service de dépôt-vente pour vendre votre voiture sans effort (estimation, annonces multi-sites, visites, paperasse). Demande en ligne, réponse sous 24 h." jsonLd={jsonLd}>
+  <section class="bg-navy text-white">
+    <div class="container-x py-14 md:py-20">
+      <p class="text-brand font-semibold text-sm tracking-widest uppercase mb-3">FISSA AUTO</p>
+      <h1 class="text-3xl md:text-5xl font-black leading-[1.1] max-w-3xl">Acheter une occasion fiable, <span class="text-brand">ou vendre la vôtre</span> sans tracas.</h1>
+      <p class="mt-5 text-white/80 text-base md:text-lg max-w-2xl">Nos véhicules sont révisés à l'atelier avant la vente. Et si vous vendez, notre dépôt-vente s'occupe de tout : estimation, annonces, visites, paiement et formalités.</p>
+      <div class="mt-8 flex flex-col sm:flex-row gap-3">
+        <a href="#depot-vente" class="btn btn-brand">Vendre ma voiture</a>
+        <a href="#devis" class="btn btn-outline !text-white !border-white/40">Je cherche un véhicule</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="container-x mt-14">
+    <div class="card p-6 md:p-8 border-dashed text-center">
+      <h2 class="text-xl font-extrabold text-navy">Nos véhicules à vendre</h2>
+      <p class="text-gray-600 mt-2 max-w-xl mx-auto">Les annonces en ligne arrivent très bientôt sur cette page. En attendant, dites-nous ce que vous cherchez : budget, type de véhicule, kilométrage, boîte. Nous vous prévenons dès qu'un véhicule correspond.</p>
+      <a href="#devis" class="btn btn-dark mt-5">Décrire le véhicule recherché</a>
+    </div>
+  </section>
+
+  <section id="depot-vente" class="container-x mt-16 scroll-mt-24">
+    <h2 class="text-2xl font-extrabold text-navy">Dépôt-vente : comment ça marche</h2>
+    <p class="text-gray-600 mt-1">Vous restez propriétaire jusqu'à la vente. Nous nous rémunérons uniquement sur le résultat.</p>
+    <ol class="grid gap-4 md:grid-cols-4 mt-6">
+      {steps.map(([t, d], i) => (
+        <li class="card p-5">
+          <div class="w-8 h-8 rounded-lg bg-brand text-navy font-black grid place-items-center text-sm">{i + 1}</div>
+          <h3 class="font-bold text-navy mt-3">{t}</h3>
+          <p class="text-sm text-gray-600 mt-1 leading-relaxed">{d}</p>
+        </li>
+      ))}
+    </ol>
+  </section>
+
+  <section class="container-x mt-16 max-w-3xl">
+    <LeadForm kind="auto" title="Vendre ou trouver un véhicule" intro="Dépôt-vente ou recherche de véhicule : décrivez votre projet, nous revenons vers vous sous 24 h ouvrées." submitLabel="Envoyer ma demande" vehicleLabel="Véhicule à vendre ou recherché (marque, modèle, année, km)" messagePlaceholder="Ex. je souhaite vendre ma Clio 4 de 2017, 98 000 km, en dépôt-vente. / Je cherche un SUV diesel, moins de 12 000 €." />
+  </section>
+</Base>
