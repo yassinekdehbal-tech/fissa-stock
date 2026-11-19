@@ -4,8 +4,8 @@
 >
 > **À tenir à jour** : à chaque évolution significative, ajouter une entrée dans le §11 Journal des mises à jour et actualiser les sections concernées.
 
-- **Dernière mise à jour** : 17/11/2026
-- **Version du document** : 3.11
+- **Dernière mise à jour** : 19/11/2026
+- **Version du document** : 3.12
 - **Repo** : `github.com/yassinekdehbal-tech/fissa-stock` (branche `main`)
 - **Documents compagnons** : `SCHEMA_PROJET.md` (schéma des pages, fonctions, modèle de données) · `MIGRATION_SUPABASE.md` (état du branchement app ↔ Supabase et reste à câbler)
 
@@ -75,7 +75,7 @@ Le projet a été migré d'un **mono-fichier HTML/JS vanilla** (`index.old.html`
 | App native | Capacitor 8 (iOS ; Android possible) |
 | Code-barres | JsBarcode (génération) + html5-qrcode (lecture caméra) |
 | PWA | Service Worker + manifest |
-| Hébergement web | GitHub Pages (actuel) |
+| Hébergement web | Vercel sur `https://fissastock.fr` (cible, 19/11/2026) ; GitHub Pages `/fissa-stock/` conservé en repli |
 
 ### Arborescence `src/`
 
@@ -354,6 +354,7 @@ C'était un problème **de compte Apple, pas de code** : rôle de la clé API, A
 | 17/11/2026 | 3.9 | Session Claude Code | **Comptes employés sans e-mail.** Le champ « Identifiant » de l’écran Utilisateurs était envoyé tel quel à Supabase Auth, qui refusait tout ce qui n’est pas une adresse e-mail, et l’écran affichait « Identifiant déjà utilisé » pour n’importe quel échec. Désormais : identifiant court (`jean.dupont`) **ou** e-mail ; pour un identifiant court, l’edge `admin-users` crée le compte Auth avec une adresse technique dérivée de celle de l’admin (`admin+jean.dupont@domaine`, aucun mail envoyé) et stocke l’identifiant dans `profiles.username` ; connexion par identifiant via la RPC `login_email_for_username` (migration `20261117600001_username_login.sql`, index unique `(org_id, lower(username))`) ; les vrais messages d’erreur de la fonction sont affichés. « Mot de passe oublié » reste réservé aux comptes avec e-mail (l’admin change le mot de passe depuis Utilisateurs). |
 | 17/11/2026 | 3.10 | Session Claude Code | **Correctifs après test en conditions réelles** (compte préparateur créé, flux ajout → étiquette → scanner → panier → sortie → caisse validé). (1) **Alertes stock** : seuil par défaut 0 au lieu de 1 (migration `20261117600002_threshold_default_zero.sql`, pièces existantes remises à 0) ; alerte seulement en rupture sauf seuil saisi — avant, toute pièce à 1 exemplaire était « en alerte ». (2) **Session fantôme** : la déconnexion ne touche plus que l’appareil courant (`scope: 'local'`) ; au chargement la session est vérifiée auprès du serveur et un 401 de l’edge `admin-users` renvoie à l’écran de connexion. (3) **Autofill** : `autocomplete="off"` / `new-password` sur Créer / Modifier un compte (Chrome pré-remplissait l’e-mail et le mot de passe de l’admin). |
 | 17/11/2026 | 3.11 | Session Claude Code | **Sous-catégories** (`subcategories` par organisation et catégorie, migration `20261117600003_subcategories.sql`, 80 familles classiques pré-chargées : alternateur, démarreur, turbo, pare-chocs, triangle…) et colonne `pieces.subcat` (libellé libre). Formulaire d’ajout : puces de sous-catégories + désignations les plus saisies non encore listées + saisie libre, enregistrable dans la liste par un magasinier ; la désignation se pré-remplit avec la sous-catégorie. **Champs nettoyés** : « Compatibilités » fusionné dans « Véhicule(s) compatible(s) », « Seuil d’alerte » retiré de l’ajout (reste dans la modification), Fournisseur / Véhicule donneur remplacés par un seul champ d’origine affiché selon la provenance. Stock : recherche et filtre par sous-catégorie ; fiche : badge ; export CSV ; admin : gestion des sous-catégories depuis Catégories (ajout, archivage, suppression, suggestions d’après les désignations). |
+| 19/11/2026 | 3.12 | Session Claude Code | **Domaine + hébergement Vercel.** `fissa.fr` n'est pas achetable (déposé depuis 2004 par un tiers, expire 11/2027, DNS cassé) et Vercel ne vend pas les `.fr` → choix **`fissastock.fr` acheté chez OVH**, site hébergé sur **Vercel** (projet `fissa-stock`, équipe `yassinekdehbal-tech`). Code rendu indépendant du chemin : `vite.config.ts` sert à la racine quand `VERCEL=1` (sinon `/fissa-stock/` pour GitHub Pages), `vercel.json` (rewrites SPA + cache immutable des assets), `manifest.json` servi depuis `public/` avec `start_url`/`scope` relatifs, `product-feed` pointe par défaut sur `https://fissastock.fr`. À faire côté comptes : installer l'intégration GitHub de Vercel, nameservers OVH → Vercel, Supabase Auth → Site URL + Redirect URLs `https://fissastock.fr/**`. GitHub Pages reste actif comme ancienne URL. |
 
 ---
 

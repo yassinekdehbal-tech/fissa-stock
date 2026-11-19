@@ -26,7 +26,7 @@ function csvCell(s: unknown): string {
 Deno.serve(async (req: Request) => {
   const url = Deno.env.get('SUPABASE_URL')!
   const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const site = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://yassinekdehbal-tech.github.io/fissa-stock').replace(/\/$/, '')
+  const site = (Deno.env.get('PUBLIC_SITE_URL') ?? 'https://fissastock.fr').replace(/\/$/, '')
 
   const admin = createClient(url, service)
 
