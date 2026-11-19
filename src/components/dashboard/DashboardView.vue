@@ -26,7 +26,9 @@ const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'nu
 const query = ref('')
 function submitSearch() {
   const q = query.value.trim()
-  void router.push({ path: '/stock', query: q ? { q } : {} })
+  // Vendeur : la recherche du tableau de bord répond « en stock chez nous ou chez un fournisseur »
+  if (canSell.value) void router.push({ path: '/disponibilite', query: q ? { q } : {} })
+  else void router.push({ path: '/stock', query: q ? { q } : {} })
 }
 
 const stats = computed(() => {
@@ -125,7 +127,11 @@ const canSell = computed(() => auth.isAdmin || auth.hasPerm('vendeur'))
         <span class="w-10 h-10 rounded-lg bg-white/10 text-white flex items-center justify-center"><AppIcon name="scan" class="w-5 h-5" /></span>
         <span><span class="block text-[14px] font-bold leading-snug">Scanner une commande</span><span class="block text-[11px] text-gray-300">Sortir une pièce du stock</span></span>
       </router-link>
-      <router-link to="/stock" class="tile card hover:border-gray-300">
+      <router-link v-if="canSell" to="/disponibilite" class="tile card hover:border-gray-300">
+        <span class="w-10 h-10 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center"><AppIcon name="search" class="w-5 h-5" /></span>
+        <span><span class="block text-[14px] font-bold text-gray-900 leading-snug">Disponibilité</span><span class="block text-[11px] text-gray-500">Chez nous ou chez un fournisseur</span></span>
+      </router-link>
+      <router-link v-else to="/stock" class="tile card hover:border-gray-300">
         <span class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><AppIcon name="box" class="w-5 h-5" /></span>
         <span><span class="block text-[14px] font-bold text-gray-900 leading-snug">Voir le stock</span><span class="block text-[11px] text-gray-500">Rechercher une pièce</span></span>
       </router-link>

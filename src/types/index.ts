@@ -38,6 +38,8 @@ export interface Piece {
   supplierRef: string
   /** Code-barres fournisseur (EAN) lu sur l'emballage. */
   ean: string
+  /** Références associées au fil des ventes (autres OEM, réf. d'autres fournisseurs). */
+  altRefs: string[]
   supplier: string
   donor: string
   source: PieceSource
@@ -132,6 +134,27 @@ export interface Supplier {
   notes: string
   sort: number
   archived: boolean
+  /** Lien de recherche sur le site du fournisseur, `{ref}` remplacé par la référence. */
+  searchUrl: string
+  /** Correspondance des colonnes du dernier fichier tarif importé. */
+  importMapping: Record<string, string>
+  catalogImportedAt: string | null
+}
+
+/** Ligne d'un catalogue (tarif) fournisseur importé. */
+export interface SupplierCatalogHit {
+  id: string
+  supplierId: string
+  supplierName: string
+  searchUrl: string
+  ref: string
+  ean: string
+  label: string
+  family: string
+  pricePublic: number | null
+  priceNet: number | null
+  discount: number | null
+  match: 'ref' | 'ean' | 'ref-prefix' | 'label'
 }
 
 /** Sous-catégorie d'une catégorie (table `subcategories`). */

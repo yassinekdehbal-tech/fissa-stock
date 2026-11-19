@@ -16,6 +16,7 @@ function rowToPiece(r: PieceRow): Piece {
     oem: r.oem ?? '',
     supplierRef: r.supplier_ref ?? '',
     ean: r.ean ?? '',
+    altRefs: r.alt_refs ?? [],
     supplier: r.supplier ?? '',
     donor: r.donor ?? '',
     source: (r.source ?? 'autre') as Piece['source'],
@@ -46,6 +47,7 @@ function pieceToRow(p: Partial<Piece>): Record<string, unknown> {
   if (p.oem !== undefined) row.oem = p.oem
   if (p.supplierRef !== undefined) row.supplier_ref = p.supplierRef
   if (p.ean !== undefined) row.ean = p.ean
+  if (p.altRefs !== undefined) row.alt_refs = p.altRefs
   if (p.condition !== undefined) row.condition = p.condition
   if (p.supplier !== undefined) row.supplier = p.supplier
   if (p.donor !== undefined) row.donor = p.donor
@@ -157,8 +159,24 @@ export const useStockStore = defineStore('stock', () => {
       activePieces.value.find((p) => normalizeRef(p.ref) === n) ||
       activePieces.value.find((p) => p.ean && normalizeRef(p.ean) === n) ||
       activePieces.value.find((p) => p.supplierRef && normalizeRef(p.supplierRef) === n) ||
-      activePieces.value.find((p) => p.oem && normalizeRef(p.oem) === n)
+      activePieces.value.find((p) => p.oem && normalizeRef(p.oem) === n) ||
+      activePieces.value.find((p) => p.altRefs.some((a) => normalizeRef(a) === n))
     )
+  }
+
+  /** Associe une référence supplémentaire à une pièce (apprentissage au comptoir). */
+  async function addAltRef(id: string, ref: string) {
+    const piece = pieces.value.find((p) => p._id === id)
+    const clean = ref.trim()
+    if (!piece || !clean) return
+    const n = normalizeRef(clean)
+    if (!n || piece.altRefs.some((a) => normalizeRef(a) === n) || normalizeRef(piece.ref) === n || normalizeRef(piece.oem) === n || normalizeRef(piece.supplierRef) === n || normalizeRef(piece.ean) === n) return
+    await updatePiece(id, { altRefs: [...piece.altRefs, clean] })
+  }
+  async function removeAltRef(id: string, ref: string) {
+    const piece = pieces.value.find((p) => p._id === id)
+    if (!piece) return
+    await updatePiece(id, { altRefs: piece.altRefs.filter((a) => a !== ref) })
   }
 
   /**
@@ -169,9 +187,9 @@ export const useStockStore = defineStore('stock', () => {
   function matchesQuery(p: Piece, query: string): boolean {
     const q = query.trim().toLowerCase()
     if (!q) return true
-    const text = [p.ref, p.name, p.subcat, p.vehicle, p.oem, p.supplierRef, p.ean, p.supplier, p.donor, p.zone, p.compat, p.notes]
+    const text = [p.ref, p.name, p.subcat, p.vehicle, p.oem, p.supplierRef, p.ean, ...p.altRefs, p.supplier, p.donor, p.zone, p.compat, p.notes]
       .filter(Boolean).join(' ').toLowerCase()
-    const refs = [p.ref, p.oem, p.supplierRef, p.ean].filter(Boolean).map((v) => normalizeRef(v))
+    const refs = [p.ref, p.oem, p.supplierRef, p.ean, ...p.altRefs].filter(Boolean).map((v) => normalizeRef(v))
     return q.split(/\s+/).every((word) => {
       if (text.includes(word)) return true
       const n = normalizeRef(word)
@@ -200,6 +218,8 @@ export const useStockStore = defineStore('stock', () => {
     toggleArchive,
     findByRef,
     matchesQuery,
+    addAltRef,
+    removeAltRef,
     dispose,
   }
 })

@@ -32,6 +32,7 @@ const navItems = computed<NavItem[]>(() => [
   { to: '/', label: 'Dashboard', icon: 'dashboard', show: auth.isAdmin, mode: 'both' },
   { to: '/add', label: 'Ajouter', icon: 'plus-circle', show: auth.isAdmin || auth.hasPerm('magasinier'), mode: 'piece' },
   { to: '/stock', label: 'Stock', icon: 'box', show: auth.isAdmin || auth.hasPerm('magasinier'), mode: 'piece' },
+  { to: '/disponibilite', label: 'Disponibilité', icon: 'search', show: auth.isAdmin || auth.hasPerm('vendeur'), mode: 'piece' },
   { to: '/scanner', label: 'Scanner', icon: 'scan', show: auth.isAdmin || auth.hasPerm('vendeur'), mode: 'piece' },
   { to: '/panier', label: 'Panier', icon: 'cart', show: auth.isAdmin || auth.hasPerm('vendeur'), mode: 'piece' },
   { to: '/planning', label: 'Atelier', icon: 'wrench', show: auth.isAdmin || auth.hasPerm('magasinier'), mode: 'mecanique' },
