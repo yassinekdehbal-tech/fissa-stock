@@ -160,7 +160,10 @@ export function listingDescription(piece: PieceRow): string {
   ]
   const lines = rows.filter(([, v]) => v && String(v).trim()).map(([k, v]) => `<li><b>${esc(k)}</b> : ${esc(v)}</li>`)
   const notes = piece.notes ? `<p>${esc(piece.notes)}</p>` : ''
-  return `<h3>${esc(piece.name)}</h3><ul>${lines.join('')}</ul>${notes}<p>Pièce d'occasion contrôlée, vendue par un professionnel. Vérifiez la compatibilité avec votre véhicule avant l'achat.</p>`
+  const footer = piece.condition === 'neuve'
+    ? "Pièce neuve, vendue par un professionnel. Vérifiez la compatibilité avec votre véhicule avant l'achat."
+    : "Pièce d'occasion contrôlée, vendue par un professionnel. Vérifiez la compatibilité avec votre véhicule avant l'achat."
+  return `<h3>${esc(piece.name)}</h3><ul>${lines.join('')}</ul>${notes}<p>${footer}</p>`
 }
 
 /** Crée ou met à jour l'article d'inventaire eBay (fiche produit + quantité). */
