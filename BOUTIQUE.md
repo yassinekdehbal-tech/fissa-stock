@@ -1,5 +1,7 @@
 # Boutique publique & Flux produit — FISSA STOCK
 
+> **19/11/2026 — la boutique publique a déménagé** sur le portail FISSA GROUPE (`https://fissagroupe.fr/pieces`, dossier `site/`, rendu serveur pour le SEO). Les pages `/boutique` de l'app SPA restent en place sur l'intranet mais ne sont plus la vitrine de référence ; `fissagroupe.fr/boutique/:id` redirige vers la nouvelle fiche. Le flux produit pointe désormais vers `/pieces/<id>`.
+
 ## Boutique / vitrine publique (en place)
 
 Pages publiques (sans connexion), lisibles par tout visiteur :
