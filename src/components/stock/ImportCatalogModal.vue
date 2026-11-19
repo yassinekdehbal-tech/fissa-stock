@@ -25,9 +25,11 @@ const FIELDS: { key: Field; label: string; required?: boolean; hints: RegExp }[]
   { key: 'label', label: 'Désignation', hints: /d[ée]signation|description|libell[ée]|nom/i },
   { key: 'family', label: 'Famille', hints: /famille|cat[ée]gorie|groupe/i },
   { key: 'pricePublic', label: 'Prix public', hints: /public|conseill|ppc|tarif de base|brut/i },
-  { key: 'priceNet', label: 'Prix net (achat)', hints: /remis[ée]|net|achat/i },
-  { key: 'discount', label: 'Remise (%)', hints: /^remise|^rem\b|discount/i },
+  { key: 'priceNet', label: 'Prix net (achat)', hints: /prix.*remis|unitaire remis|\bnet\b|achat/i },
+  { key: 'discount', label: 'Remise (%)', hints: /^remise\b|^rem\.?$|discount|taux/i },
 ]
+/** Ordre de reconnaissance : la remise avant le prix net, pour qu'une colonne « Remise » ne soit pas prise pour le prix remisé. */
+const DETECT_ORDER: Field[] = ['ref', 'ean', 'label', 'family', 'pricePublic', 'discount', 'priceNet']
 
 const fileName = ref('')
 const headers = ref<string[]>([])
@@ -48,7 +50,7 @@ function reset() {
 function proposeMapping() {
   const saved = props.supplier?.importMapping ?? {}
   const used = new Set<string>()
-  for (const f of FIELDS) {
+  for (const f of DETECT_ORDER.map((k) => FIELDS.find((x) => x.key === k)!)) {
     const s = saved[f.key]
     if (s && headers.value.includes(s)) { mapping.value[f.key] = s; used.add(s); continue }
     const h = headers.value.find((x) => !used.has(x) && f.hints.test(x.trim()))
