@@ -26,6 +26,7 @@ export type PieceRow = Record<string, unknown>
 const SCOPES = [
   'https://api.ebay.com/oauth/api_scope/sell.inventory',
   'https://api.ebay.com/oauth/api_scope/sell.fulfillment',
+  'https://api.ebay.com/oauth/api_scope/sell.account',
 ].join(' ')
 
 function env(name: string): string {
@@ -252,6 +253,59 @@ export async function withdrawPiece(piece: PieceRow, channelConfig: unknown): Pr
   const offer = await findOffer(skuFor(piece), cfg)
   if (!offer || offer.status !== 'PUBLISHED') return
   await ebayFetch(`/sell/inventory/v1/offer/${offer.offerId}/withdraw`, { method: 'POST', marketplaceId: cfg.marketplaceId })
+}
+
+// --- Configuration du compte vendeur (Account / Inventory location) ---------
+export interface PolicySummary { id: string; name: string }
+export interface SellerSetup {
+  fulfillment: PolicySummary[]
+  payment: PolicySummary[]
+  returns: PolicySummary[]
+  locations: { key: string; name: string; status?: string }[]
+}
+
+/** Politiques de vente (livraison, paiement, retours) et lieux d'expédition du compte. */
+export async function readSellerSetup(marketplaceId: string): Promise<SellerSetup> {
+  const pol = async (path: string, key: string, idKey: string): Promise<PolicySummary[]> => {
+    const { data } = await ebayFetch(`/sell/account/v1/${path}?marketplace_id=${marketplaceId}`)
+    return (((data[key] as Record<string, unknown>[] | undefined) ?? [])).map((p) => ({ id: String(p[idKey]), name: String(p.name ?? '') }))
+  }
+  const [fulfillment, payment, returns] = await Promise.all([
+    pol('fulfillment_policy', 'fulfillmentPolicies', 'fulfillmentPolicyId'),
+    pol('payment_policy', 'paymentPolicies', 'paymentPolicyId'),
+    pol('return_policy', 'returnPolicies', 'returnPolicyId'),
+  ])
+  const { data: loc } = await ebayFetch('/sell/inventory/v1/location?limit=100')
+  const locations = (((loc.locations as Record<string, unknown>[] | undefined) ?? [])).map((l) => ({
+    key: String(l.merchantLocationKey),
+    name: String(l.name ?? ''),
+    status: l.merchantLocationStatus ? String(l.merchantLocationStatus) : undefined,
+  }))
+  return { fulfillment, payment, returns, locations }
+}
+
+/** Active la gestion des politiques de vente par l'API (sans effet si déjà fait). */
+export async function optInBusinessPolicies(): Promise<void> {
+  try {
+    await ebayFetch('/sell/account/v1/program/opt_in', { method: 'POST', body: JSON.stringify({ programType: 'SELLING_POLICY_MANAGEMENT' }) })
+  } catch (e) {
+    // Déjà activé → eBay renvoie une erreur 400 explicite, sans conséquence
+    if (!(e instanceof EbayError && (e.status === 400 || e.status === 409))) throw e
+  }
+}
+
+/** Crée le lieu d'expédition (magasin) utilisé par les annonces. */
+export async function createLocation(key: string, loc: { name: string; addressLine1: string; city: string; postalCode: string; country?: string; phone?: string }): Promise<void> {
+  await ebayFetch(`/sell/inventory/v1/location/${encodeURIComponent(key)}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      name: loc.name,
+      merchantLocationStatus: 'ENABLED',
+      locationTypes: ['WAREHOUSE', 'STORE'],
+      location: { address: { addressLine1: loc.addressLine1, city: loc.city, postalCode: loc.postalCode, country: loc.country ?? 'FR' } },
+      ...(loc.phone ? { phone: loc.phone } : {}),
+    }),
+  })
 }
 
 // --- Commandes (Fulfillment API) -------------------------------------------

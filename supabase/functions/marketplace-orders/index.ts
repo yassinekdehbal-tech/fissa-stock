@@ -10,8 +10,13 @@
 //   - { action: 'ship', orderId, carrier, trackingNumber }
 //       Marque la commande expédiée et, pour eBay, déclare le n° de suivi à
 //       l'acheteur (createShippingFulfillment).
+//   - { action: 'ebay_setup' } (admin)
+//       Vérifie le jeton eBay, lit les politiques de vente et les lieux
+//       d'expédition du compte vendeur, crée le lieu « magasin » s'il manque
+//       (adresse de l'organisation) et enregistre le tout dans
+//       sales_channels.config du canal eBay. Renvoie ce qui reste à faire.
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { ebayConfigured, fetchOrders, shipToText, createShippingFulfillment } from '../_shared/ebay.ts'
+import { ebayConfigured, fetchOrders, shipToText, createShippingFulfillment, readSellerSetup, optInBusinessPolicies, createLocation, readConfig, missingForPublish } from '../_shared/ebay.ts'
 
 const cors: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -45,6 +50,54 @@ Deno.serve(async (req: Request) => {
     body = await req.json()
   } catch {
     return json({ error: 'corps JSON invalide' }, 400)
+  }
+
+  // ---------------------------------------------------------------- ebay_setup
+  if (body.action === 'ebay_setup') {
+    if (profile.role !== 'admin') return json({ error: 'réservé à l\'administrateur' }, 403)
+    const { data: ch } = await admin.from('sales_channels').select('id, config').eq('org_id', orgId).eq('key', 'ebay').maybeSingle()
+    if (!ch) return json({ error: 'canal eBay introuvable' }, 404)
+    if (!ebayConfigured()) {
+      return json({ ok: false, step: 'token', message: 'Secrets eBay absents : EBAY_CLIENT_ID, EBAY_CLIENT_SECRET et EBAY_REFRESH_TOKEN (Supabase → Edge Functions → Secrets)' })
+    }
+    const config = (ch.config && typeof ch.config === 'object' ? ch.config : {}) as Record<string, unknown>
+    const marketplaceId = (typeof config.marketplaceId === 'string' && config.marketplaceId) || Deno.env.get('EBAY_MARKETPLACE_ID') || 'EBAY_FR'
+    const notes: string[] = []
+    try {
+      await optInBusinessPolicies()
+      let setup = await readSellerSetup(marketplaceId)
+      if (!setup.locations.length) {
+        const { data: org } = await admin.from('organizations').select('name, address, phone').eq('id', orgId).single()
+        const addr = String(org?.address ?? '').trim()
+        // Adresse attendue sous la forme « 12 rue X, 75001 Paris » ; sinon on laisse l'utilisateur la créer sur eBay
+        const m = addr.match(/^(.*?),?\s*(\d{5})\s+(.+)$/)
+        if (m) {
+          await createLocation('FISSA', { name: String(org?.name ?? 'FISSA PIÈCE AUTO'), addressLine1: m[1].trim(), postalCode: m[2], city: m[3].trim(), phone: String(org?.phone ?? '') || undefined })
+          notes.push("Lieu d'expédition « FISSA » créé sur eBay à partir de l'adresse de l'organisation")
+          setup = await readSellerSetup(marketplaceId)
+        } else {
+          notes.push("Aucun lieu d'expédition sur eBay et adresse de l'organisation non exploitable : renseignez l'adresse (Paramètres) ou créez le lieu dans le compte vendeur eBay")
+        }
+      }
+      const pick = (list: { id: string; name: string }[], current: unknown) =>
+        (typeof current === 'string' && list.some((p) => p.id === current)) ? current : (list[0]?.id ?? '')
+      const next: Record<string, unknown> = {
+        ...config,
+        marketplaceId,
+        fulfillmentPolicyId: pick(setup.fulfillment, config.fulfillmentPolicyId),
+        paymentPolicyId: pick(setup.payment, config.paymentPolicyId),
+        returnPolicyId: pick(setup.returns, config.returnPolicyId),
+        merchantLocationKey: (typeof config.merchantLocationKey === 'string' && setup.locations.some((l) => l.key === config.merchantLocationKey)) ? config.merchantLocationKey : (setup.locations[0]?.key ?? ''),
+      }
+      await admin.from('sales_channels').update({ config: next }).eq('id', ch.id)
+      const missing = missingForPublish(readConfig(next))
+      if (!setup.fulfillment.length) notes.push('Aucune politique de livraison : créez-en une dans le compte vendeur eBay (Préférences de vente → Politiques)')
+      if (!setup.payment.length) notes.push('Aucune politique de paiement sur eBay')
+      if (!setup.returns.length) notes.push('Aucune politique de retours sur eBay')
+      return json({ ok: missing.length === 0, step: missing.length ? 'policies' : 'ready', setup, config: next, missing, notes, message: missing.length ? 'Reste à faire : ' + missing.join(', ') : 'eBay prêt : vous pouvez publier une pièce de test' })
+    } catch (e) {
+      return json({ ok: false, step: 'api', message: (e as Error).message, notes })
+    }
   }
 
   // ---------------------------------------------------------------- sync

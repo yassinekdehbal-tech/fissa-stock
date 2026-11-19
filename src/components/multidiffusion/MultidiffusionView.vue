@@ -47,6 +47,21 @@ async function toggleChannel(c: Channel) {
   await pub.setChannelActive(c.id, !c.active)
   toast(c.active ? `${c.label} désactivé` : `${c.label} activé`)
 }
+
+/** Configuration eBay (admin) : vérifie le jeton, lit politiques et lieu d'expédition, enregistre la config du canal. */
+const ebaySetupBusy = ref(false)
+const ebaySetupResult = ref<{ ok: boolean; step: string; message: string; notes: string[]; missing: string[] } | null>(null)
+async function setupEbay() {
+  ebaySetupBusy.value = true
+  try {
+    ebaySetupResult.value = await pub.setupEbay()
+    toast(ebaySetupResult.value.message, !ebaySetupResult.value.ok)
+  } catch (e) {
+    toast('Erreur : ' + (e instanceof Error ? e.message : String(e)), true)
+  } finally {
+    ebaySetupBusy.value = false
+  }
+}
 </script>
 
 <template>
@@ -97,6 +112,21 @@ async function toggleChannel(c: Channel) {
           </button>
           <span v-else class="text-[10px] px-2 py-1 rounded border shrink-0" :class="c.active ? 'bg-green-50 text-green-600 border-green-200' : 'text-gray-400 border-gray-200'">{{ c.active ? 'Actif' : 'Inactif' }}</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Configuration eBay (admin) -->
+    <div v-if="auth.isAdmin" class="card p-4 space-y-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div class="card-title mb-0">Connexion eBay</div>
+          <div class="text-[11px] text-gray-500 mt-0.5">Après avoir saisi les clés eBay dans Supabase (Edge Functions → Secrets), lancez la configuration : politiques de vente et lieu d'expédition sont récupérés automatiquement.</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" :disabled="ebaySetupBusy" @click="setupEbay"><AppIcon name="refresh" class="w-4 h-4" /> {{ ebaySetupBusy ? 'Vérification…' : 'Configurer eBay' }}</button>
+      </div>
+      <div v-if="ebaySetupResult" class="rounded-lg border p-3 text-[12px] leading-relaxed" :class="ebaySetupResult.ok ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-gray-700'">
+        <div class="font-semibold">{{ ebaySetupResult.message }}</div>
+        <ul v-if="ebaySetupResult.notes.length" class="list-disc pl-4 mt-1"><li v-for="n in ebaySetupResult.notes" :key="n">{{ n }}</li></ul>
       </div>
     </div>
 
