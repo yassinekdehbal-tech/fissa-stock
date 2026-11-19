@@ -115,6 +115,7 @@ function etatClass(etat: string) {
           <dt class="text-gray-500">N° OEM</dt><dd class="font-mono text-gray-900">{{ piece.oem || '—' }}</dd>
           <template v-if="piece.supplierRef"><dt class="text-gray-500">Réf. fournisseur</dt><dd class="font-mono text-gray-900">{{ piece.supplierRef }}</dd></template>
           <template v-if="piece.ean"><dt class="text-gray-500">Code-barres</dt><dd class="font-mono text-gray-900">{{ piece.ean }}</dd></template>
+          <template v-if="piece.altRefs.length"><dt class="text-gray-500">Réf. associées</dt><dd class="flex flex-wrap gap-1"><span v-for="r in piece.altRefs" :key="r" class="badge badge-gray font-mono">{{ r }}<button v-if="canEdit" class="ml-1 text-gray-400 hover:text-red-600" title="Retirer" @click="stock.removeAltRef(piece._id!, r)">×</button></span></dd></template>
           <dt class="text-gray-500">Véhicule</dt><dd class="text-gray-900">{{ piece.vehicle || '—' }}</dd>
           <template v-if="piece.compat"><dt class="text-gray-500">Compatibilités</dt><dd class="text-gray-900">{{ piece.compat }}</dd></template>
           <template v-if="piece.supplier"><dt class="text-gray-500">Fournisseur</dt><dd class="text-gray-900">{{ piece.supplier }}</dd></template>

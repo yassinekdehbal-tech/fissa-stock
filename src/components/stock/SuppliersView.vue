@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useSuppliersStore } from '@/stores/suppliers'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import type { Supplier } from '@/types'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import ImportCatalogModal from '@/components/stock/ImportCatalogModal.vue'
 
 /** Paramétrage des fournisseurs de pièces neuves (administrateur). */
 const suppliers = useSuppliersStore()
@@ -14,18 +15,23 @@ const { toast } = useToast()
 
 const open = ref(false)
 const editing = ref<Supplier | null>(null)
-const form = ref({ name: '', website: '', phone: '', notes: '' })
+const form = ref({ name: '', website: '', phone: '', notes: '', searchUrl: '' })
+const canImport = computed(() => auth.isAdmin || auth.hasPerm('magasinier'))
+const importOpen = ref(false)
+const importSupplier = ref<Supplier | null>(null)
+function openImport(s: Supplier) { importSupplier.value = s; importOpen.value = true }
+function fmtDate(iso: string | null) { return iso ? new Date(iso).toLocaleDateString('fr-FR') : '' }
 const saving = ref(false)
 
-function openNew() { editing.value = null; form.value = { name: '', website: '', phone: '', notes: '' }; open.value = true }
-function openEdit(s: Supplier) { editing.value = s; form.value = { name: s.name, website: s.website, phone: s.phone, notes: s.notes }; open.value = true }
+function openNew() { editing.value = null; form.value = { name: '', website: '', phone: '', notes: '', searchUrl: '' }; open.value = true }
+function openEdit(s: Supplier) { editing.value = s; form.value = { name: s.name, website: s.website, phone: s.phone, notes: s.notes, searchUrl: s.searchUrl }; open.value = true }
 
 async function save() {
   if (!form.value.name.trim()) { toast('Le nom est requis', true); return }
   saving.value = true
   try {
     if (editing.value) await suppliers.update(editing.value.id, { ...form.value })
-    else await suppliers.add(form.value.name, { website: form.value.website, phone: form.value.phone, notes: form.value.notes })
+    else { const s = await suppliers.add(form.value.name, { website: form.value.website, phone: form.value.phone, notes: form.value.notes }); if (form.value.searchUrl.trim()) await suppliers.update(s.id, { searchUrl: form.value.searchUrl }) }
     open.value = false
     toast(editing.value ? 'Fournisseur mis à jour' : 'Fournisseur ajouté')
   } catch (e) {
@@ -75,11 +81,16 @@ function siteHref(url: string) {
             <template v-if="s.website"> · <a :href="siteHref(s.website)" target="_blank" rel="noopener" class="text-blue-600 hover:underline">{{ s.website }}</a></template>
           </div>
           <div v-if="s.notes" class="text-[11px] text-gray-500 truncate">{{ s.notes }}</div>
+          <div class="text-[11px] mt-0.5" :class="suppliers.catalogCounts[s.id] ? 'text-green-700' : 'text-gray-400'">
+            <template v-if="suppliers.catalogCounts[s.id]">Tarif : {{ suppliers.catalogCounts[s.id]!.toLocaleString('fr-FR') }} références<span v-if="s.catalogImportedAt"> · importé le {{ fmtDate(s.catalogImportedAt) }}</span></template>
+            <template v-else>Aucun tarif importé</template>
+          </div>
         </div>
-        <div v-if="auth.isAdmin" class="flex gap-0.5 shrink-0">
-          <button class="icon-btn" title="Modifier" @click="openEdit(s)"><AppIcon name="edit" class="w-4 h-4" /></button>
-          <button class="icon-btn" :title="s.archived ? 'Réactiver' : 'Archiver'" @click="toggleArchive(s)"><AppIcon :name="s.archived ? 'refresh' : 'box'" class="w-4 h-4" /></button>
-          <button class="icon-btn icon-btn-danger" title="Supprimer" @click="remove(s)"><AppIcon name="trash" class="w-4 h-4" /></button>
+        <div class="flex gap-0.5 shrink-0">
+          <button v-if="canImport && !s.archived" class="btn btn-secondary btn-sm" title="Importer le fichier tarif (Excel / CSV)" @click="openImport(s)"><AppIcon name="upload" class="w-4 h-4" /> <span class="hidden sm:inline">Tarif</span></button>
+          <button v-if="auth.isAdmin" class="icon-btn" title="Modifier" @click="openEdit(s)"><AppIcon name="edit" class="w-4 h-4" /></button>
+          <button v-if="auth.isAdmin" class="icon-btn" :title="s.archived ? 'Réactiver' : 'Archiver'" @click="toggleArchive(s)"><AppIcon :name="s.archived ? 'refresh' : 'box'" class="w-4 h-4" /></button>
+          <button v-if="auth.isAdmin" class="icon-btn icon-btn-danger" title="Supprimer" @click="remove(s)"><AppIcon name="trash" class="w-4 h-4" /></button>
         </div>
       </div>
     </div>
@@ -89,6 +100,7 @@ function siteHref(url: string) {
         <div class="flex flex-col gap-1"><label class="label">Nom <span class="text-red-500">*</span></label><input v-model="form.name" class="input" placeholder="Ex : Autodistribution, Oscaro Pro…"></div>
         <div class="flex flex-col gap-1"><label class="label">Site web</label><input v-model="form.website" class="input" placeholder="www.exemple.fr"></div>
         <div class="flex flex-col gap-1"><label class="label">Téléphone</label><input v-model="form.phone" class="input" inputmode="tel"></div>
+        <div class="flex flex-col gap-1"><label class="label">Lien de recherche</label><input v-model="form.searchUrl" class="input font-mono text-[12px]" placeholder="https://mymga.fr/AfficherProduit?Refs={ref}"><span class="text-[11px] text-gray-500">Ouvre la recherche du site fournisseur depuis l'écran Disponibilité ; <code>{ref}</code> est remplacé par la référence.</span></div>
         <div class="flex flex-col gap-1"><label class="label">Notes</label><textarea v-model="form.notes" rows="2" class="input" placeholder="Compte client, conditions, contact…"></textarea></div>
       </div>
       <div class="flex gap-2 mt-4 justify-end">
@@ -96,5 +108,6 @@ function siteHref(url: string) {
         <button class="btn btn-primary" :disabled="saving" @click="save"><AppIcon name="check" class="w-4 h-4" /> {{ saving ? 'Enregistrement…' : 'Enregistrer' }}</button>
       </div>
     </BaseModal>
+    <ImportCatalogModal :supplier="importSupplier" :open="importOpen" @close="importOpen = false" />
   </div>
 </template>

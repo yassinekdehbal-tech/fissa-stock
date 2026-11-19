@@ -76,7 +76,7 @@ export interface RefSuggestion {
   /** 0 → 1 */
   score: number
   /** Champ qui a été reconnu. */
-  field: 'ref' | 'oem' | 'supplierRef' | 'ean'
+  field: 'ref' | 'oem' | 'supplierRef' | 'ean' | 'alt'
   /** Texte lu ayant produit ce rapprochement. */
   input: string
 }
@@ -98,6 +98,7 @@ export function suggestPieces(pieces: Piece[], inputs: string[], limit = 5): Ref
       if (p.oem) fields.push(['oem', p.oem])
       if (p.supplierRef) fields.push(['supplierRef', p.supplierRef])
       if (p.ean) fields.push(['ean', p.ean])
+      for (const a of p.altRefs ?? []) fields.push(['alt', a])
       for (const [field, value] of fields) {
         const score = similarity(input, value)
         if (score < SUGGEST_MIN_SCORE) continue
@@ -117,11 +118,11 @@ export function findExact(pieces: Piece[], input: string): Piece | undefined {
   const n = normalizeRef(input)
   if (!n) return undefined
   const same = (v: string | undefined) => !!v && normalizeRef(v) === n
-  return pieces.find((p) => !p.archived && (same(p.ref) || same(p.ean) || same(p.supplierRef) || same(p.oem)))
+  return pieces.find((p) => !p.archived && (same(p.ref) || same(p.ean) || same(p.supplierRef) || same(p.oem) || (p.altRefs ?? []).some(same)))
 }
 
 /** Libellé du champ reconnu, pour l'affichage. */
-export const FIELD_LABELS: Record<RefSuggestion['field'], string> = { ref: 'Réf.', oem: 'OEM', supplierRef: 'Réf. fournisseur', ean: 'EAN' }
+export const FIELD_LABELS: Record<RefSuggestion['field'], string> = { ref: 'Réf.', oem: 'OEM', supplierRef: 'Réf. fournisseur', ean: 'EAN', alt: 'Réf. associée' }
 
 /**
  * Découpe un texte OCR en lectures candidates : mots, lignes sans espaces

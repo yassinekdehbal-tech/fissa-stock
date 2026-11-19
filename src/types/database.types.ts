@@ -204,36 +204,88 @@ export type Database = {
       suppliers: {
         Row: {
           archived: boolean
+          catalog_imported_at: string | null
           created_at: string
           id: string
+          import_mapping: Json
           name: string
           notes: string
           org_id: string
           phone: string
+          search_url: string
           sort: number
           website: string
         }
         Insert: {
           archived?: boolean
+          catalog_imported_at?: string | null
           created_at?: string
           id?: string
+          import_mapping?: Json
           name: string
           notes?: string
           org_id?: string
           phone?: string
+          search_url?: string
           sort?: number
           website?: string
         }
         Update: {
           archived?: boolean
+          catalog_imported_at?: string | null
           created_at?: string
           id?: string
+          import_mapping?: Json
           name?: string
           notes?: string
           org_id?: string
           phone?: string
+          search_url?: string
           sort?: number
           website?: string
+        }
+        Relationships: []
+      }
+      supplier_catalog: {
+        Row: {
+          discount: number | null
+          ean: string
+          family: string
+          id: string
+          imported_at: string
+          label: string
+          org_id: string
+          price_net: number | null
+          price_public: number | null
+          ref: string
+          ref_norm: string
+          supplier_id: string
+        }
+        Insert: {
+          discount?: number | null
+          ean?: string
+          family?: string
+          id?: string
+          imported_at?: string
+          label?: string
+          org_id?: string
+          price_net?: number | null
+          price_public?: number | null
+          ref: string
+          supplier_id: string
+        }
+        Update: {
+          discount?: number | null
+          ean?: string
+          family?: string
+          id?: string
+          imported_at?: string
+          label?: string
+          org_id?: string
+          price_net?: number | null
+          price_public?: number | null
+          ref?: string
+          supplier_id?: string
         }
         Relationships: []
       }
@@ -393,6 +445,7 @@ export type Database = {
       pieces: {
         Row: {
           added: string
+          alt_refs: string[]
           archived: boolean
           cat: string | null
           compat: string | null
@@ -424,6 +477,7 @@ export type Database = {
         }
         Insert: {
           added?: string
+          alt_refs?: string[]
           archived?: boolean
           cat?: string | null
           compat?: string | null
@@ -455,6 +509,7 @@ export type Database = {
         }
         Update: {
           added?: string
+          alt_refs?: string[]
           archived?: boolean
           cat?: string | null
           compat?: string | null
@@ -756,6 +811,27 @@ export type Database = {
           p_notes?: string
         }
         Returns: string
+      }
+      search_supplier_catalog: {
+        Args: { p_q: string; p_limit?: number }
+        Returns: {
+          id: string
+          supplier_id: string
+          supplier_name: string
+          search_url: string
+          ref: string
+          ean: string
+          label: string
+          family: string
+          price_public: number | null
+          price_net: number | null
+          discount: number | null
+          match: string
+        }[]
+      }
+      supplier_catalog_counts: {
+        Args: Record<never, never>
+        Returns: { supplier_id: string; n: number }[]
       }
       remove_intervention_part: { Args: { p_part: string }; Returns: undefined }
     }

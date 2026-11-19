@@ -39,10 +39,12 @@ Le canal **Boutique en ligne FISSA** (catalogue public `/boutique`, sans commiss
 ## Activer eBay (seule configuration à faire)
 
 1. **Compte développeur eBay** (developer.ebay.com) : créer une application (keyset production), puis obtenir un **refresh token utilisateur** pour le compte vendeur FISSA avec les scopes `sell.inventory` et `sell.fulfillment` (flux « User access token » / consentement).
+   Portées à cocher pour le jeton : `sell.inventory`, `sell.fulfillment`, `sell.account`.
 2. **Secrets Supabase** (Dashboard → Edge Functions → Secrets) :
-   - `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `EBAY_REFRESH_TOKEN` (jeton renouvelé automatiquement) — ou, pour un test rapide, `EBAY_OAUTH_TOKEN` ;
+   - `EBAY_CLIENT_ID` (App ID), `EBAY_CLIENT_SECRET` (Cert ID), `EBAY_REFRESH_TOKEN` (jeton renouvelé automatiquement) — ou, pour un test rapide, `EBAY_OAUTH_TOKEN` ;
    - `EBAY_ENV=sandbox` pour tester sur le bac à sable.
-3. **Paramètres d'annonce**, dans `sales_channels.config` du canal eBay (SQL) ou en secrets `EBAY_*` :
+3. **Configuration automatique** : écran Multidiffusion → bouton **« Configurer eBay »** (admin). L'app vérifie le jeton, active la gestion des politiques par l'API, lit les politiques de livraison / paiement / retours et les lieux d'expédition du compte vendeur, crée le lieu « FISSA » à partir de l'adresse de l'organisation s'il n'existe pas, et enregistre le tout dans `sales_channels.config`. Le message final dit ce qui manque encore (par exemple créer une politique de livraison dans le compte vendeur).
+   À la main si besoin, `sales_channels.config` du canal eBay (SQL) ou secrets `EBAY_*` :
    ```json
    { "marketplaceId": "EBAY_FR",
      "categoryId": "<catégorie eBay feuille, ex. pièces auto>",

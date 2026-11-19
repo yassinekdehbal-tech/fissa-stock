@@ -258,6 +258,15 @@ export const usePublicationsStore = defineStore('publications', () => {
     return { ok: !!r.ok, imported: r.imported ?? 0, skipped: r.skipped ?? 0, message: r.message ?? r.error }
   }
 
+  /** Configuration eBay en un clic (admin) : jeton, politiques, lieu d'expédition → config du canal. */
+  async function setupEbay(): Promise<{ ok: boolean; step: string; message: string; notes: string[]; missing: string[] }> {
+    const { data, error } = await supabase.functions.invoke('marketplace-orders', { body: { action: 'ebay_setup' } })
+    if (error) throw error
+    await fetchAll()
+    const r = (data ?? {}) as { ok?: boolean; step?: string; message?: string; notes?: string[]; missing?: string[]; error?: string }
+    return { ok: !!r.ok, step: r.step ?? 'error', message: r.message ?? r.error ?? '', notes: r.notes ?? [], missing: r.missing ?? [] }
+  }
+
   function dispose() {
     channel?.unsubscribe()
     channel = null
@@ -287,6 +296,7 @@ export const usePublicationsStore = defineStore('publications', () => {
     setRefunded,
     cancelOrder,
     syncOrders,
+    setupEbay,
     dispose,
   }
 })

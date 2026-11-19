@@ -12,6 +12,7 @@ const router = createRouter({
     { path: '/stock', name: 'stock', component: () => import('./components/stock/StockView.vue'), meta: { requiresAuth: true, title: 'Stock' } },
     { path: '/piece/:id', name: 'piece', component: () => import('./components/stock/PieceView.vue'), meta: { requiresAuth: true, title: 'Fiche produit', back: '/stock' } },
     { path: '/add', name: 'add', component: () => import('./components/stock/AddPieceView.vue'), meta: { requiresAuth: true, title: 'Ajouter une pièce', back: '/' } },
+    { path: '/disponibilite', name: 'disponibilite', component: () => import('./components/stock/AvailabilityView.vue'), meta: { requiresAuth: true, title: 'Disponibilité', back: '/' } },
     { path: '/scanner', name: 'scanner', component: () => import('./components/scanner/ScannerView.vue'), meta: { requiresAuth: true, title: 'Scanner une commande', back: '/' } },
     { path: '/panier', name: 'panier', component: () => import('./components/cart/CartView.vue'), meta: { requiresAuth: true, title: 'Panier de sortie', back: '/scanner' } },
     { path: '/planning', name: 'planning', component: () => import('./components/planning/PlanningView.vue'), meta: { requiresAuth: true, title: 'Atelier', back: '/' } },

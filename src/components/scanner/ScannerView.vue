@@ -275,6 +275,7 @@ onUnmounted(() => { stopCam(); if (ocrPreview.value) URL.revokeObjectURL(ocrPrev
     <div v-if="scanError && !suggestions.length" class="bg-red-50 border border-red-200 rounded-xl p-3">
       <div class="text-red-700 text-sm font-semibold">Code inconnu : {{ scanError }}</div>
       <div class="text-red-600/80 text-[12px] mt-0.5">Cette référence n'existe pas dans le stock actif.</div>
+      <router-link :to="{ path: '/disponibilite', query: { q: scanError } }" class="btn btn-secondary btn-sm mt-2"><AppIcon name="search" class="w-4 h-4" /> Chercher chez les fournisseurs</router-link>
     </div>
 
     <!-- Pièces proches : sélection manuelle quand la lecture n'est pas sûre -->
@@ -290,7 +291,7 @@ onUnmounted(() => { stopCam(); if (ocrPreview.value) URL.revokeObjectURL(ocrPrev
         <button v-for="s in suggestions" :key="s.piece._id" type="button" class="w-full flex items-center gap-3 py-2 text-left hover:bg-gray-50 rounded-lg px-1" @click="select(s.piece, scanError)">
           <span class="w-11 h-11 thumb shrink-0"><img v-if="s.piece.photo" :src="s.piece.photo" class="w-full h-full object-cover" alt=""><AppIcon v-else name="package" class="w-4 h-4" /></span>
           <span class="min-w-0 flex-1">
-            <span class="flex items-center gap-2"><span class="badge-ref">{{ s.piece.ref }}</span><span v-if="s.field !== 'ref'" class="text-[11px] text-gray-500">{{ FIELD_LABELS[s.field] }} {{ s.field === 'oem' ? s.piece.oem : s.field === 'ean' ? s.piece.ean : s.piece.supplierRef }}</span></span>
+            <span class="flex items-center gap-2"><span class="badge-ref">{{ s.piece.ref }}</span><span v-if="s.field !== 'ref'" class="text-[11px] text-gray-500">{{ FIELD_LABELS[s.field] }} {{ s.field === 'oem' ? s.piece.oem : s.field === 'ean' ? s.piece.ean : s.field === 'alt' ? s.input : s.piece.supplierRef }}</span></span>
             <span class="block text-[13px] font-medium text-gray-900 truncate">{{ s.piece.name }}</span>
             <span class="block text-[12px] text-gray-500">Stock : {{ s.piece.qty }} · {{ s.piece.zone || '—' }}</span>
           </span>
