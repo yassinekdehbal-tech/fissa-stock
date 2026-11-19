@@ -12,7 +12,20 @@ function back(page: string, params: string, hash = ''): Response {
   return new Response(null, { status: 303, headers: { Location: `${safe}?${params}${hash}` } })
 }
 
+/** Anti-CSRF : l'envoi doit venir d'une page du site lui-même (même hôte). */
+function sameSite(request: Request): boolean {
+  const host = (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '').split(',')[0].trim().toLowerCase()
+  const source = request.headers.get('origin') || request.headers.get('referer') || ''
+  if (!host || !source) return false
+  try {
+    return new URL(source).host.toLowerCase() === host
+  } catch {
+    return false
+  }
+}
+
 export const POST: APIRoute = async ({ request }) => {
+  if (!sameSite(request)) return new Response('Forbidden', { status: 403 })
   let form: FormData
   try {
     form = await request.formData()

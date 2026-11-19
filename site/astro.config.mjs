@@ -9,5 +9,9 @@ export default defineConfig({
   output: 'server',
   adapter: vercel(),
   trailingSlash: 'never',
+  // Le contrôle d'origine intégré compare à une URL interne derrière Vercel et
+  // refuse les vrais envois de formulaire : la vérification est faite dans
+  // src/pages/api/lead.ts (Origin/Referer contre l'hôte réel de la requête).
+  security: { checkOrigin: false },
   vite: { plugins: [tailwindcss()] },
 })
