@@ -20,6 +20,7 @@ const router = createRouter({
     { path: '/reporting', name: 'reporting', component: () => import('./components/reporting/ReportingView.vue'), meta: { requiresAuth: true, title: 'Reporting', back: '/' } },
     { path: '/caisse', name: 'caisse', component: () => import('./components/caisse/CaisseView.vue'), meta: { requiresAuth: true, title: 'Caisse', back: '/' } },
     { path: '/commandes', name: 'commandes', component: () => import('./components/multidiffusion/OrdersView.vue'), meta: { requiresAuth: true, title: 'Commandes en ligne', back: '/' } },
+    { path: '/demandes', name: 'demandes', component: () => import('./components/leads/LeadsView.vue'), meta: { requiresAuth: true, title: 'Demandes', back: '/' } },
     { path: '/multidiffusion', name: 'multidiffusion', component: () => import('./components/multidiffusion/MultidiffusionView.vue'), meta: { requiresAuth: true, title: 'Multidiffusion', back: '/' } },
     { path: '/fournisseurs', name: 'fournisseurs', component: () => import('./components/stock/SuppliersView.vue'), meta: { requiresAuth: true, title: 'Fournisseurs', back: '/profil' } },
     { path: '/categories', name: 'categories', component: () => import('./components/stock/CategoriesView.vue'), meta: { requiresAuth: true, title: 'Catégories de pièces', back: '/profil' } },

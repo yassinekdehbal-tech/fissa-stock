@@ -10,6 +10,8 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import { formatPrice } from '@/utils/format'
 import { useCategoriesStore } from '@/stores/categories'
 import { usePublicationsStore } from '@/stores/publications'
+import { useLeadsStore } from '@/stores/leads'
+import { LEAD_KIND_LABELS } from '@/types'
 
 const router = useRouter()
 const stock = useStockStore()
@@ -18,6 +20,7 @@ const history = useHistoryStore()
 const auth = useAuthStore()
 const cart = useCartStore()
 const pub = usePublicationsStore()
+const leads = useLeadsStore()
 
 const firstName = computed(() => (auth.currentUser?.name || '').split(' ')[0] || '')
 const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -149,6 +152,23 @@ const canSell = computed(() => auth.isAdmin || auth.hasPerm('vendeur'))
         <span class="block text-[14px] font-bold text-gray-900">{{ pub.ordersToShip.length }} commande{{ pub.ordersToShip.length > 1 ? 's' : '' }} en ligne à expédier</span>
         <span class="block text-[11px] text-gray-600 truncate">{{ pub.ordersToShip.slice(0, 3).map(o => o.ref + ' · ' + (pub.channelById(o.channelId)?.label || '')).join('  ·  ') }}</span>
       </span>
+      <AppIcon name="chevron-right" class="w-4 h-4 text-gray-400" />
+    </router-link>
+
+    <!-- Demandes reçues depuis le site public -->
+    <router-link to="/demandes" class="card p-4 flex items-center gap-3 relative" :class="leads.newCount ? 'border-brand bg-brand-light/60 hover:bg-brand-light' : 'hover:border-gray-300'">
+      <span class="w-10 h-10 rounded-lg flex items-center justify-center" :class="leads.newCount ? 'bg-brand text-gray-900' : 'bg-gray-100 text-gray-600'"><AppIcon name="inbox" class="w-5 h-5" /></span>
+      <span class="flex-1 min-w-0">
+        <span class="block text-[14px] font-bold text-gray-900">
+          <template v-if="leads.newCount">{{ leads.newCount }} nouvelle{{ leads.newCount > 1 ? 's' : '' }} demande{{ leads.newCount > 1 ? 's' : '' }} du site</template>
+          <template v-else>Demandes du site</template>
+        </span>
+        <span class="block text-[11px] text-gray-600 truncate">
+          <template v-if="leads.newCount">{{ leads.newLeads.slice(0, 3).map(l => (LEAD_KIND_LABELS[l.kind] || l.kind) + ' · ' + l.name).join('  ·  ') }}</template>
+          <template v-else>Devis atelier, véhicules, pièces et contacts reçus sur fissagroupe.fr</template>
+        </span>
+      </span>
+      <span v-if="leads.newCount" class="min-w-[22px] h-[22px] px-1.5 rounded-full bg-gray-900 text-brand text-[12px] font-bold flex items-center justify-center">{{ leads.newCount }}</span>
       <AppIcon name="chevron-right" class="w-4 h-4 text-gray-400" />
     </router-link>
 

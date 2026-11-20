@@ -18,3 +18,4 @@ export type PieceRow = Tables['pieces']['Row'] & { notes?: string | null }
 export type InterventionRow = Tables['interventions']['Row']
 export type InterventionPartRow = Tables['intervention_parts']['Row']
 export type ProfileRow = Tables['profiles']['Row']
+export type LeadRow = Tables['leads']['Row']

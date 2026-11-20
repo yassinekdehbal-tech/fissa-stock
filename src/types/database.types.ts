@@ -201,6 +201,51 @@ export type Database = {
         }
         Relationships: []
       }
+      leads: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          kind: string
+          message: string
+          name: string
+          org_id: string
+          page: string
+          phone: string
+          piece_id: string | null
+          status: string
+          vehicle: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string
+          id?: string
+          kind: string
+          message?: string
+          name: string
+          org_id?: string
+          page?: string
+          phone?: string
+          piece_id?: string | null
+          status?: string
+          vehicle?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          kind?: string
+          message?: string
+          name?: string
+          org_id?: string
+          page?: string
+          phone?: string
+          piece_id?: string | null
+          status?: string
+          vehicle?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           archived: boolean

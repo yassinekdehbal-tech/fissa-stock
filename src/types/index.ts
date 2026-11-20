@@ -213,3 +213,36 @@ export interface Intervention {
   dateUpdated: string
   dateDone?: string
 }
+
+/** Origine d'une demande reçue depuis le portail public fissagroupe.fr. */
+export type LeadKind = 'garage' | 'auto' | 'piece' | 'contact'
+export type LeadStatus = 'nouveau' | 'traite' | 'archive'
+
+export const LEAD_KIND_LABELS: Record<LeadKind, string> = {
+  garage: 'Devis atelier',
+  auto: 'Véhicule',
+  piece: 'Pièce',
+  contact: 'Contact',
+}
+export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
+  nouveau: 'Nouveau',
+  traite: 'Traitée',
+  archive: 'Archivée',
+}
+
+/** Demande entrante (table `leads`) : devis atelier, dépôt-vente, réservation de pièce, contact. */
+export interface Lead {
+  id: string
+  kind: LeadKind
+  name: string
+  phone: string
+  email: string
+  vehicle: string
+  message: string
+  /** Pièce du stock visée par la demande (formulaire de la fiche publique). */
+  pieceId: string | null
+  /** Page du site d'où le formulaire a été envoyé. */
+  page: string
+  status: LeadStatus
+  createdAt: string
+}
