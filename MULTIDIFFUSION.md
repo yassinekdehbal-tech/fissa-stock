@@ -38,9 +38,11 @@ Le canal **Boutique en ligne FISSA** (catalogue public `/boutique`, sans commiss
 
 ## Activer eBay (seule configuration à faire)
 
-1. **Compte développeur eBay** (developer.ebay.com) : créer une application (keyset production), puis obtenir un **refresh token utilisateur** pour le compte vendeur FISSA avec les scopes `sell.inventory` et `sell.fulfillment` (flux « User access token » / consentement).
+1. **Compte développeur eBay** (developer.ebay.com, compte distinct du compte vendeur ebay.com, approbation sous 1 jour ouvrable) : créer une application (keyset production), puis obtenir un **refresh token utilisateur** pour le compte vendeur FISSA (flux « Get a Token from eBay via Your Application » : URL de redirection / RuName avec OAuth activé, consentement, puis échange du `code` sur `api.ebay.com/identity/v1/oauth2/token`). Le refresh token vaut 18 mois.
    Portées à cocher pour le jeton : `sell.inventory`, `sell.fulfillment`, `sell.account`.
-2. **Secrets Supabase** (Dashboard → Edge Functions → Secrets) :
+   - eBay marque toute clé Production « Non conforme » tant qu'un **endpoint de suppression de compte Marketplace** n'est pas déclaré : c'est la fonction `ebay-account-deletion` (déployée avec `--no-verify-jwt`), à renseigner dans « Alertes et notifications » avec le secret `EBAY_VERIFICATION_TOKEN` (32 à 80 caractères, identique des deux côtés).
+2. **Secrets Supabase** (Dashboard → Edge Functions → Secrets, ou `npx supabase secrets set --remote=<ref> --env-file …`) :
+   - `EBAY_VERIFICATION_TOKEN` pour l'endpoint de suppression de compte ;
    - `EBAY_CLIENT_ID` (App ID), `EBAY_CLIENT_SECRET` (Cert ID), `EBAY_REFRESH_TOKEN` (jeton renouvelé automatiquement) — ou, pour un test rapide, `EBAY_OAUTH_TOKEN` ;
    - `EBAY_ENV=sandbox` pour tester sur le bac à sable.
 3. **Configuration automatique** : écran Multidiffusion → bouton **« Configurer eBay »** (admin). L'app vérifie le jeton, active la gestion des politiques par l'API, lit les politiques de livraison / paiement / retours et les lieux d'expédition du compte vendeur, crée le lieu « FISSA » à partir de l'adresse de l'organisation s'il n'existe pas, et enregistre le tout dans `sales_channels.config`. Le message final dit ce qui manque encore (par exemple créer une politique de livraison dans le compte vendeur).

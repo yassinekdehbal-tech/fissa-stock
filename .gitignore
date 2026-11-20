@@ -9,3 +9,6 @@ ios/
 android/
 out/
 .apercu/
+
+# Supabase CLI
+supabase/.temp/
