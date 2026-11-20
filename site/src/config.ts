@@ -1,5 +1,5 @@
 // Coordonnées et identité affichées sur le site public.
-// À COMPLÉTER par FISSA : téléphone, adresse (voir aussi la
+// Coordonnées renseignées le 20/11/2026 (voir aussi la
 // table `organizations` dans FISSA STOCK, qui pourra alimenter ces champs plus tard).
 export const SITE = {
   name: 'FISSA GROUPE',
@@ -12,10 +12,12 @@ export const SITE = {
 
 export const CONTACT = {
   email: 'contact@fissagroupe.fr', // à créer chez OVH (1 adresse incluse avec le domaine)
-  phone: '', // ex. '+33 6 00 00 00 00' — vide = boutons « Appeler » masqués
-  phoneHref: '', // ex. 'tel:+33600000000'
-  address: '', // ex. '12 rue de l’Industrie, 44300 Nantes'
-  city: '', // ex. 'Nantes'
+  phone: '06 52 59 76 07',
+  phoneHref: 'tel:+33652597607',
+  phoneIntl: '+33 6 52 59 76 07', // format international pour les données structurées
+  address: '1 rue Camille Flammarion, 91200 Athis-Mons',
+  city: 'Athis-Mons',
+  postal: { '@type': 'PostalAddress', streetAddress: '1 rue Camille Flammarion', postalCode: '91200', addressLocality: 'Athis-Mons', addressCountry: 'FR' },
   hours: 'Du lundi au vendredi, de 9h à 19h',
   hoursSchema: 'Mo-Fr 09:00-19:00', // format schema.org (openingHours)
   siret: '929 389 997 00024',

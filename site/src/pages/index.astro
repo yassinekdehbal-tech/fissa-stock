@@ -14,7 +14,8 @@ const jsonLd = {
   url: SITE.url,
   logo: `${SITE.url}/favicon.svg`,
   email: CONTACT.email,
-  ...(CONTACT.phone ? { telephone: CONTACT.phone } : {}),
+  ...(CONTACT.phone ? { telephone: CONTACT.phoneIntl } : {}),
+  ...(CONTACT.address ? { address: CONTACT.postal } : {}),
   department: ACTIVITIES.map((a) => ({ '@type': 'LocalBusiness', name: a.name, url: `${SITE.url}${a.href}` })),
 }
 ---

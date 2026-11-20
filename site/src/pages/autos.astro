@@ -10,8 +10,8 @@ const jsonLd = {
   url: `${SITE.url}/autos`,
   parentOrganization: { '@type': 'Organization', name: SITE.name, url: SITE.url },
   email: CONTACT.email,
-  ...(CONTACT.phone ? { telephone: CONTACT.phone } : {}),
-  ...(CONTACT.address ? { address: CONTACT.address } : {}),
+  ...(CONTACT.phone ? { telephone: CONTACT.phoneIntl } : {}),
+  ...(CONTACT.address ? { address: CONTACT.postal } : {}),
 }
 const steps = [
   ['Estimation gratuite', 'Vous nous décrivez le véhicule (ou vous passez nous voir) : nous fixons ensemble un prix de vente réaliste.'],
