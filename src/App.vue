@@ -10,6 +10,7 @@ import { useCategoriesStore } from './stores/categories'
 import { useSubcategoriesStore } from './stores/subcategories'
 import { usePublicationsStore } from './stores/publications'
 import { useSuppliersStore } from './stores/suppliers'
+import { useLeadsStore } from './stores/leads'
 import { useNative } from './composables/useNative'
 import AppSidebar from './components/ui/AppSidebar.vue'
 import AppTopbar from './components/ui/AppTopbar.vue'
@@ -29,6 +30,7 @@ const categories = useCategoriesStore()
 const subcategories = useSubcategoriesStore()
 const publications = usePublicationsStore()
 const suppliers = useSuppliersStore()
+const leads = useLeadsStore()
 const { initNative } = useNative()
 
 const isPublic = computed(() => route.meta.public === true)
@@ -54,6 +56,7 @@ function startInternal() {
   planning.listen()
   publications.listen()
   suppliers.listen()
+  leads.listen()
 }
 
 onMounted(async () => {
