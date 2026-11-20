@@ -20,7 +20,7 @@ const jsonLd = {
   email: CONTACT.email,
   ...(CONTACT.phone ? { telephone: CONTACT.phone } : {}),
   ...(CONTACT.address ? { address: CONTACT.address } : {}),
-  openingHours: CONTACT.hours,
+  openingHours: CONTACT.hoursSchema,
   priceRange: '€€',
   hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Prestations', itemListElement: services.map(([n]) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: n } })) },
 }

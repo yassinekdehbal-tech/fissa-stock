@@ -1,5 +1,5 @@
 // Coordonnées et identité affichées sur le site public.
-// À COMPLÉTER par FISSA : téléphone, adresse, horaires, SIRET (voir aussi la
+// À COMPLÉTER par FISSA : téléphone, adresse (voir aussi la
 // table `organizations` dans FISSA STOCK, qui pourra alimenter ces champs plus tard).
 export const SITE = {
   name: 'FISSA GROUPE',
@@ -16,9 +16,10 @@ export const CONTACT = {
   phoneHref: '', // ex. 'tel:+33600000000'
   address: '', // ex. '12 rue de l’Industrie, 44300 Nantes'
   city: '', // ex. 'Nantes'
-  hours: 'Du lundi au samedi, sur rendez-vous',
-  siret: '',
-  legalName: 'FISSA PIÈCE AUTO',
+  hours: 'Du lundi au vendredi, de 9h à 19h',
+  hoursSchema: 'Mo-Fr 09:00-19:00', // format schema.org (openingHours)
+  siret: '929 389 997 00024',
+  legalName: 'FISSA PIECE AUTO',
 }
 
 export const ACTIVITIES = [
