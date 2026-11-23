@@ -134,12 +134,23 @@ export function skuFor(piece: PieceRow): string {
   return base || String(piece.id).slice(0, 50)
 }
 
+// Les catégories « pièces auto » d'eBay n'acceptent que trois états : Neuf (1000),
+// Occasion (3000) et Pour pièces (7000). Dans l'Inventory API, l'identifiant 3000
+// s'écrit USED_EXCELLENT ; USED_GOOD (5000) et USED_ACCEPTABLE (6000) sont refusés
+// à la publication (erreur 25021).
 const CONDITIONS: Record<string, string> = {
   'Neuf': 'NEW',
   'Très bon état': 'USED_EXCELLENT',
-  'Bon état': 'USED_GOOD',
-  'État moyen': 'USED_ACCEPTABLE',
+  'Bon état': 'USED_EXCELLENT',
+  'État moyen': 'USED_EXCELLENT',
   'Pour pièces': 'FOR_PARTS_OR_NOT_WORKING',
+}
+
+/** Marque eBay : le fournisseur s'il est renseigné, sinon « Sans marque » (eBay
+ * exige une marque dès qu'un numéro de pièce fabricant est fourni, erreur BrandMPN). */
+function brandFor(piece: PieceRow): string {
+  const s = String(piece.supplier ?? '').trim()
+  return s || 'Sans marque'
 }
 
 function esc(s: unknown): string {
@@ -169,20 +180,20 @@ export function listingDescription(piece: PieceRow): string {
 
 /** Crée ou met à jour l'article d'inventaire eBay (fiche produit + quantité). */
 export async function upsertInventoryItem(piece: PieceRow, sku: string, cfg: EbayConfig): Promise<void> {
-  const aspects: Record<string, string[]> = {}
+  const brand = brandFor(piece)
+  const aspects: Record<string, string[]> = { Marque: [brand] }
   if (piece.oem) aspects['Numéro de pièce fabricant'] = [String(piece.oem)]
-  if (piece.supplier) aspects['Marque'] = [String(piece.supplier)]
   const photos = Array.isArray(piece.photos) && (piece.photos as string[]).length ? (piece.photos as string[]) : piece.photo ? [String(piece.photo)] : []
   const body = {
     availability: { shipToLocationAvailability: { quantity: Math.max(1, Number(piece.qty) || 1) } },
-    condition: piece.condition === 'neuve' ? 'NEW' : (CONDITIONS[String(piece.etat)] ?? 'USED_GOOD'),
+    condition: piece.condition === 'neuve' ? 'NEW' : (CONDITIONS[String(piece.etat)] ?? 'USED_EXCELLENT'),
     product: {
       title: listingTitle(piece),
       description: listingDescription(piece),
       imageUrls: photos.slice(0, 12),
       ...(piece.oem ? { mpn: String(piece.oem) } : {}),
-      ...(piece.supplier ? { brand: String(piece.supplier) } : {}),
-      ...(Object.keys(aspects).length ? { aspects } : {}),
+      brand,
+      aspects,
     },
   }
   await ebayFetch(`/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, {
